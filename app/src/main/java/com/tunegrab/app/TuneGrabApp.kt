@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.tunegrab.app.yt.potoken.PoTokenManager
 
 /**
  * Application class que instala um handler global de crashes:
@@ -15,6 +16,8 @@ class TuneGrabApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // contexto do gerador de PoTokens (BotGuard via WebView)
+        PoTokenManager.init(this)
         val systemHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {

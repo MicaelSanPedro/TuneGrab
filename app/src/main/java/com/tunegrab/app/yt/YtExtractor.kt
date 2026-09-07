@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.services.youtube.YoutubeStreamExtractor
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
@@ -22,6 +23,11 @@ object YtExtractor {
         if (ready) return
         synchronized(this) {
             if (ready) return
+            // PoTokens via BotGuard (WebView): destrava o bot-check do YouTube
+            // ("Sign in to confirm you're not a bot") e os streams bloqueados (403).
+            YoutubeStreamExtractor.setPoTokenProvider(TuneGrabPoTokenProvider)
+            // iOS client com poToken devolve URLs diretas de áudio/vídeo
+            YoutubeStreamExtractor.setFetchIosClient(true)
             NewPipe.init(DownloaderImpl, Localization.DEFAULT)
             ready = true
         }

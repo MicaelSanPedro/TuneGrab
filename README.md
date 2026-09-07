@@ -100,20 +100,42 @@ A v0.26.5 oficial do NewPipeExtractor usa `URLDecoder.decode(String, Charset)`,
 APIs que só existem no **Android 13 (API 33)+**. Em aparelhos mais antigos isso
 lança `NoSuchMethodError` (é o famoso crash/erro ao buscar). O
 [fork `MicaelSanPedro/NewPipeExtractor`](https://github.com/MicaelSanPedro/NewPipeExtractor/tree/android-compat)
-(tag `v0.26.5-android2`) corrige isso e adiciona duas proteções contra as
-mudanças recentes do YouTube, sem alterar nada mais:
+(tag `v0.26.5-android3`) corrige isso e adiciona proteções contra as mudanças
+recentes do YouTube, sem alterar nada mais:
 
 1. **Compatibilidade Android < 13** — overloads legacy de URLDecoder/URLEncoder
    e `isBlank` reimplementado.
-2. **Client TVHTML5 como fonte extra de streams** — o YouTube passou a devolver
-   **HTTP 403** nos streams de vídeo de clients sem PoToken (por isso o MP4 às
-   vezes falhava). Os URLs do client de TV ainda funcionam sem PoToken para a
-   maioria dos vídeos, e têm prioridade na hora de listar os itags.
-3. **Fallback de bot-check** — quando o YouTube responde *"Sign in to confirm
-   you're not a bot"* ao client Android, o extractor tenta automaticamente o
-   visionOS e depois o TVHTML5. As buscas de fallback são opcionais: se todos
-   falharem, o erro sobe e o app mostra uma mensagem clara (com retry
-   automático).
+2. **Clients extras de streams** — TVHTML5 e visionOS (android_vr), cujos URLs
+   de vídeo ainda funcionam sem PoToken para a maioria dos vídeos.
+3. **Fallback de bot-check em cascata** — quando o YouTube responde *"Sign in
+   to confirm you're not a bot"* ao client Android, o extractor tenta o WEB
+   com PoToken, depois visionOS e TVHTML5.
+4. **Suporte completo a `PoTokenProvider`** — o app implementa a interface e
+   alimenta o extractor com PoTokens reais (ver abaixo), incluindo um novo
+   player request do client WEB com PoToken (client WEB+PoToken não existia na
+   v0.26.5) e o client iOS com PoToken (URLs diretas de áudio/vídeo).
+
+## 🔐 Como o TuneGrab vence o anti-bot do YouTube (PoToken/BotGuard)
+
+Desde 2025/2026 o YouTube exige *proof-of-origin tokens* (PoTokens) e responde
+com *"Sign in to confirm you're not a bot"* para clientes anônimos — inclusive
+apps. O TuneGrab resolve isso **no próprio aparelho, sem servidor**:
+
+1. Baixa a homepage do YouTube (OkHttp) e extrai o `ytcfg` + o desafio atual do
+   BotGuard (`window.ytAtN`), que muda o tempo todo;
+2. Baixa o *interpreter JavaScript* do desafio;
+3. Roda a VM do BotGuard num **WebView fora da tela** (página local, sem
+   acesso à rede) e tira um *snapshot* — exatamente como o site faz no
+   navegador;
+4. Troca o snapshot por um *integrity token* (válido ~12h) no endpoint
+   `api/jnn/v1/GenerateIT` que o próprio player do YouTube usa;
+5. Gera PoTokens "mintados" por vídeo e os envia nos player requests (clients
+   WEB/ANDROID/iOS) e nos URLs de stream (parâmetro `pot`).
+
+Com um PoToken válido, o YouTube trata a requisição como um navegador real e
+devolve os streams. A sessão fica em cache (12h); se algo falhar, ela é
+recriada automaticamente e o download é tentado de novo. Se o aparelho não
+tiver WebView, o app volta para os clients anônimos do extractor.
 
 Assim que o upstream corrigir/absorver essas questões, o fork pode ser
 substituído pela versão oficial.
@@ -124,6 +146,7 @@ substituído pela versão oficial.
 - [x] Conversão para MP3 (LAME embutido, 320/256/192/128 kbps)
 - [x] MP4 com áudio (até 720p) + seletor de formato/qualidade
 - [x] Configurações de qualidade por formato
+- [x] Bypass do anti-bot (PoToken/BotGuard via WebView)
 - [ ] Fila de downloads / múltiplos links
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)

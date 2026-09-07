@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TuneGrab</title>
+<script>
+/**
+ * TuneGrab PoToken engine (runs inside an off-screen WebView).
+ *
+ * Implements the BotGuard proof-of-origin flow used by the YouTube web player
+ * (same protocol as bgutils-js, MIT): challenge program -> BotGuard VM ->
+ * snapshot -> integrity token -> per-video poToken minting.
+ *
+ * Network access is disabled for this page on purpose (blockNetworkLoads):
+ * all HTTP (homepage, interpreter JS, GenerateIT) is done by the Kotlin side,
+ * which injects exactly what this page needs to run the VM locally.
+ */
+(function () {
+  'use strict';
+
+  var state = {
+    signals: null,       // webPoSignalOutput filled by the VM during the snapshot
+    mintCallback: null,  // minter built from the current integrity token
+    integrityB64: null   // integrity token the current minter was built with
+  };
+
+  function b64ToU8(b64) {
+    var normalized = String(b64).replace(/-/g, '+').replace(/_/g, '/').replace(/\./g, '=');
+    var bin = atob(normalized);
+    var u8 = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+
+  function u8ToB64url(u8) {
+    var s = '';
+    for (var i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_');
+  }
+
+  function jsErr(e) {
+    return String(e) + (e && e.stack ? '\n' + e.stack : '');
+  }
+
+  /**
+   * Runs the BotGuard VM and takes a snapshot.
+   * @param jsonArgs {ytcfg, interpreterJs, program, globalName}
+   * Result is reported through TgPoInterface.onSnapshot/onSnapshotError.
+   */
+  window.TgPoSnapshot = function (jsonArgs) {
+    try {
+      var data = JSON.parse(jsonArgs);
+      // BotGuard reads yt.config_ (EVENT_ID etc.) during the snapshot
+      window.yt = { config_: data.ytcfg };
+
+      // Load the interpreter VM (defines window[data.globalName])
+      new Function(data.interpreterJs)();
+      var vm = window[data.globalName];
+      if (!vm || !vm.a) throw new Error('VM nao encontrada: ' + data.globalName);
+
+      var fns = { snapshot: null, syncSnapshot: null };
+      var noop = function () {};
+      var telemetry = function () {};
+      var loggerFns = [noop, noop, noop, noop, noop];
+      var syncResult = vm.a(data.program, function (fn) { fns.snapshot = fn; },
+        true, undefined, telemetry, [[], []], undefined, false, loggerFns);
+      if (syncResult && syncResult[0]) fns.syncSnapshot = syncResult[0];
+
+      var signals = [];
+      state.signals = signals;
+
+      var started = Date.now();
+      var trySnapshot = function () {
+        if (fns.snapshot) {
+          fns.snapshot(function (response) {
+              TgPoInterface.onSnapshot(String(response));
+            },
+            [undefined, undefined, signals, undefined]);
+        } else if (fns.syncSnapshot) {
+          TgPoInterface.onSnapshot(String(fns.syncSnapshot(
+            [undefined, undefined, signals, undefined])));
+        } else if (Date.now() - started < 10000) {
+          setTimeout(trySnapshot, 10);
+        } else {
+          TgPoInterface.onSnapshotError('funcao de snapshot indisponivel apos 10s');
+        }
+      };
+      trySnapshot();
+    } catch (e) {
+      TgPoInterface.onSnapshotError(jsErr(e));
+    }
+  };
+
+  /**
+   * Mints a poToken for `binding` (visitor data or video ID).
+   * @param id unique mint id (to match the Kotlin waiter)
+   * @param integrityTokenB64 integrity token from GenerateIT
+   * @param binding content binding string
+   * Result is reported through TgPoInterface.onMinted/onMintError.
+   */
+  window.TgPoMint = function (id, integrityTokenB64, binding) {
+    var finishMint = function (result) {
+      if (!result || !(result instanceof Uint8Array)) throw new Error('ODM:Invalid');
+      TgPoInterface.onMinted(id, u8ToB64url(result));
+    };
+    try {
+      var rebuild = state.integrityB64 !== integrityTokenB64 || !state.mintCallback;
+      if (rebuild) {
+        var getMinter = state.signals && state.signals[0];
+        if (!getMinter) throw new Error('PMD:Undefined');
+        state.integrityB64 = integrityTokenB64;
+        Promise.resolve()
+          .then(function () { return getMinter(b64ToU8(integrityTokenB64)); })
+          .then(function (mintCallback) {
+            if (!(mintCallback instanceof Function)) throw new Error('APF:Failed');
+            state.mintCallback = mintCallback;
+            return state.mintCallback(new TextEncoder().encode(binding));
+          })
+          .then(finishMint)
+          .catch(function (e) { TgPoInterface.onMintError(id, jsErr(e)); });
+      } else {
+        Promise.resolve()
+          .then(function () { return state.mintCallback(new TextEncoder().encode(binding)); })
+          .then(finishMint)
+          .catch(function (e) { TgPoInterface.onMintError(id, jsErr(e)); });
+      }
+    } catch (e) {
+      TgPoInterface.onMintError(id, jsErr(e));
+    }
+  };
+})();
+</script>
+</head>
+<body></body>
+</html>

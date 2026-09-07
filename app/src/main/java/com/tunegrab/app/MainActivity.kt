@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import com.tunegrab.app.databinding.ActivityMainBinding
 import com.tunegrab.app.download.DownloadService
 import com.tunegrab.app.yt.YtExtractor
+import com.tunegrab.app.yt.potoken.PoTokenManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -136,7 +137,9 @@ class MainActivity : AppCompatActivity() {
     /**
      * Busca o vídeo com retry automático: o bot-check do YouTube
      * ("Sign in to confirm you're not a bot") é intermitente, e tentar
-     * novamente após alguns segundos costuma passar.
+     * novamente após alguns segundos costuma passar. Antes de cada retry a
+     * sessão de PoToken é renovada, para não reusar um integrity token
+     * possivelmente queimado.
      */
     private suspend fun fetchWithRetry(url: String, maxAttempts: Int = 3): StreamInfo {
         var last: Throwable? = null
@@ -146,7 +149,8 @@ class MainActivity : AppCompatActivity() {
             } catch (t: Throwable) {
                 last = t
                 if (t !is SignInConfirmNotBotException || attempt == maxAttempts - 1) throw t
-                Log.w(TAG, "Bot-check do YouTube na ${attempt + 1}ª tentativa; retry em 2s")
+                Log.w(TAG, "Bot-check do YouTube na ${attempt + 1}ª tentativa; renovando sessão e retry em 2s")
+                withContext(Dispatchers.IO) { PoTokenManager.invalidate() }
                 delay(2000)
             }
         }
