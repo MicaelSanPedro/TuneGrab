@@ -13,9 +13,12 @@ significa máxima compatibilidade e correções rápidas sempre que o YouTube mu
 
 ## ✨ Funcionalidades
 
-- Cole o link (ou compartilhe direto do YouTube) e toque em **Buscar**
-- Prévia com capa, título, canal e duração do vídeo
-- Escolha da qualidade: **M4A** (recomendado) ou **Opus/WebM**, conforme disponível
+- **Cole o link e toque em “Baixar”** — é só isso. O app escolhe a melhor qualidade
+  automaticamente (M4A de maior bitrate) e inicia o download na hora
+- Compartilhe direto do YouTube (“Compartilhar → TuneGrab”) e o download começa sozinho
+- Prefere escolher? Toque em **“Escolher qualidade (opcional)”** e selecione entre
+  **M4A** (recomendado) ou **Opus/WebM**, conforme disponível
+- Ícone de colar na área de transferência dentro do campo de link
 - Download com **notificação de progresso**
 - Arquivos salvos em `Downloads/TuneGrab`
 - Suporte a links `youtube.com`, `m.youtube.com`, `music.youtube.com` e `youtu.be`
@@ -53,7 +56,7 @@ por terceiros.
 |---|---|
 | Linguagem | Kotlin |
 | UI | Material 3 (Views + ViewBinding) |
-| Extração | [NewPipeExtractor v0.26.5](https://github.com/TeamNewPipe/NewPipeExtractor) |
+| Extração | [NewPipeExtractor v0.26.5](https://github.com/TeamNewPipe/NewPipeExtractor) — [fork compatível com Android antigo](https://github.com/MicaelSanPedro/NewPipeExtractor/tree/android-compat) |
 | Rede | OkHttp |
 | Imagens | Coil |
 | Mínimo | Android 7.0 (API 24) |
@@ -74,6 +77,17 @@ O GitHub Actions já compila e publica automaticamente a cada tag `v*`.
 > commitado com senha pública propositalmente, para garantir builds reprodutíveis
 > que se atualizam entre versões. É uma escolha aceitável para um app gratuito e
 > sem dados sensíveis — para uso comercial, mova o keystore para *GitHub Secrets*.
+
+## 🧩 Sobre o fork do NewPipeExtractor
+
+A v0.26.5 oficial do NewPipeExtractor usa `URLDecoder.decode(String, Charset)`,
+`URLEncoder.encode(String, Charset)` (Java 10) e `String.isBlank()` (Java 11) —
+APIs que só existem no **Android 13 (API 33)+**. Em aparelhos mais antigos isso
+lança `NoSuchMethodError` (é o famoso crash/erro ao buscar). O
+[fork `MicaelSanPedro/NewPipeExtractor`](https://github.com/MicaelSanPedro/NewPipeExtractor/tree/android-compat)
+(tag `v0.26.5-android1`) corrige exatamente esses três pontos, sem mudar
+nenhum comportamento. Assim que o upstream corrigir, o fork pode ser
+substituído pela versão oficial.
 
 ## 🗺️ Roadmap
 

@@ -5,14 +5,18 @@
     <string name="app_sub">Baixe o áudio de vídeos do YouTube</string>
 
     <string name="hint_url">Cole o link do YouTube aqui</string>
-    <string name="btn_search">Buscar</string>
+    <string name="btn_quick_download">Baixar</string>
+    <string name="btn_choose">Escolher qualidade (opcional)</string>
     <string name="btn_download">Baixar áudio</string>
     <string name="choose_quality">Escolha a qualidade do áudio</string>
     <string name="cd_thumb">Miniatura do vídeo</string>
+    <string name="cd_paste">Colar da área de transferência</string>
+    <string name="paste_empty">Nada para colar na área de transferência.</string>
 
-    <string name="status_idle">Pronto. Cole um link e toque em Buscar.</string>
+    <string name="status_idle">Pronto. Cole um link e toque em Baixar.</string>
     <string name="status_fetching">Buscando informações…</string>
     <string name="status_ready">Tudo certo — escolha a qualidade e toque em Baixar.</string>
+    <string name="status_downloading_title">Baixando “%1$s” — em instantes o download começa.</string>
     <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
 
     <string name="meta_line">%1$s · %2$s</string>

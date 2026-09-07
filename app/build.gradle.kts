@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
     }
 
     signingConfigs {
@@ -60,7 +60,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("io.coil-kt:coil:2.6.0")
 
-    // Extração do YouTube — mesma engine usada pelo app NewPipe
-    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.26.5")
+    // Extração do YouTube — mesma engine usada pelo app NewPipe.
+    // Fork próprio (https://github.com/MicaelSanPedro/NewPipeExtractor, tag v0.26.5-android1)
+    // com patch de compatibilidade Android < 13: a v0.26.5 oficial usa
+    // URLDecoder/URLEncoder com Charset (Java 10) e String.isBlank() (Java 11),
+    // que só existem no Android API 33+ e causam NoSuchMethodError em aparelhos antigos.
+    implementation("com.github.MicaelSanPedro:NewPipeExtractor:v0.26.5-android1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
