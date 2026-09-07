@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TuneGrab</string>
+    <string name="app_tagline">♪ TuneGrab</string>
+    <string name="app_sub">Baixe o áudio de vídeos do YouTube</string>
+
+    <string name="hint_url">Cole o link do YouTube aqui</string>
+    <string name="btn_search">Buscar</string>
+    <string name="btn_download">Baixar áudio</string>
+    <string name="choose_quality">Escolha a qualidade do áudio</string>
+    <string name="cd_thumb">Miniatura do vídeo</string>
+
+    <string name="status_idle">Pronto. Cole um link e toque em Buscar.</string>
+    <string name="status_fetching">Buscando informações…</string>
+    <string name="status_ready">Tudo certo — escolha a qualidade e toque em Baixar.</string>
+    <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
+
+    <string name="meta_line">%1$s · %2$s</string>
+
+    <string name="err_invalid_url">Link inválido. Cole a URL de um vídeo do YouTube.</string>
+    <string name="err_no_audio">Nenhuma faixa de áudio disponível para este vídeo.</string>
+    <string name="err_recaptcha">O YouTube pediu verificação anti-bot. Tente novamente em alguns minutos.</string>
+    <string name="err_unavailable">Vídeo indisponível, privado ou com restrição de idade.</string>
+    <string name="err_generic_short">Não foi possível buscar este vídeo.</string>
+    <string name="err_generic">Erro: %1$s</string>
+
+    <string name="notif_channel_name">Downloads</string>
+    <string name="notif_channel_desc">Progresso dos downloads de áudio</string>
+    <string name="notif_downloading">Baixando %1$s</string>
+    <string name="notif_done">Download concluído</string>
+    <string name="notif_failed">Falha no download</string>
+
+    <string name="tos_note">Use apenas com conteúdo próprio, Creative Commons ou quando permitido. Respeite os Termos de Serviço do YouTube e os direitos autorais.</string>
+</resources>
