@@ -35,6 +35,8 @@
     <string name="err_invalid_url">Link inválido. Cole a URL de um vídeo do YouTube.</string>
     <string name="err_no_audio">Nenhuma faixa de áudio disponível para este vídeo.</string>
     <string name="err_recaptcha">O YouTube pediu verificação anti-bot. Tente novamente em alguns minutos.</string>
+    <string name="err_bot_check">O YouTube está pedindo verificação anti-bot agora. Aguarde alguns segundos e tente de novo.</string>
+    <string name="err_blocked_403">O YouTube bloqueou este stream agora. Tente baixar novamente em alguns minutos.</string>
     <string name="err_unavailable">Vídeo indisponível, privado ou com restrição de idade.</string>
     <string name="err_generic_short">Não foi possível buscar este vídeo.</string>
     <string name="err_generic">Erro: %1$s</string>
@@ -49,6 +51,7 @@
     <string name="notif_downloading">Baixando %1$s</string>
     <string name="notif_phase_download">baixando</string>
     <string name="notif_phase_convert">convertendo para MP3</string>
+    <string name="notif_phase_save">salvando arquivo</string>
     <string name="notif_done">Download concluído</string>
     <string name="notif_failed">Falha no download</string>
 

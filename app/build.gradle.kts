@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.2.0"
+        versionCode = 5
+        versionName = "0.2.1"
     }
 
     signingConfigs {
@@ -68,10 +68,15 @@ dependencies {
     implementation("io.coil-kt:coil:2.6.0")
 
     // Extração do YouTube — mesma engine usada pelo app NewPipe.
-    // Fork próprio (https://github.com/MicaelSanPedro/NewPipeExtractor, tag v0.26.5-android1)
-    // com patch de compatibilidade Android < 13: a v0.26.5 oficial usa
-    // URLDecoder/URLEncoder com Charset (Java 10) e String.isBlank() (Java 11),
-    // que só existem no Android API 33+ e causam NoSuchMethodError em aparelhos antigos.
-    implementation("com.github.MicaelSanPedro:NewPipeExtractor:v0.26.5-android1")
+    // Fork próprio (https://github.com/MicaelSanPedro/NewPipeExtractor, tag v0.26.5-android2):
+    //  1) compatibilidade Android < 13 (a v0.26.5 oficial usa URLDecoder/URLEncoder com
+    //     Charset — Java 10 — e String.isBlank() — Java 11 —, que causam NoSuchMethodError
+    //     em aparelhos antigos);
+    //  2) client TVHTML5 como fonte extra de streams (URLs de vídeo que ainda não exigem
+    //     PoToken — o YouTube começou a devolver HTTP 403 nos streams de vídeo de clients
+    //     sem PoToken);
+    //  3) fallback visionOS → TVHTML5 quando o YouTube devolve o bot-check
+    //     "Sign in to confirm you're not a bot".
+    implementation("com.github.MicaelSanPedro:NewPipeExtractor:v0.26.5-android2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

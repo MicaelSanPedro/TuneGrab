@@ -17,11 +17,13 @@ import com.tunegrab.app.databinding.ActivityMainBinding
 import com.tunegrab.app.download.DownloadService
 import com.tunegrab.app.yt.YtExtractor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException
 import org.schabi.newpipe.extractor.exceptions.ParsingException
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
+import org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -110,7 +112,7 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val si = withContext(Dispatchers.IO) { YtExtractor.fetch(url) }
+                val si = withContext(Dispatchers.IO) { fetchWithRetry(url) }
                 val audio = withContext(Dispatchers.IO) { YtExtractor.audioOptions(si) }
                 val video = withContext(Dispatchers.IO) { YtExtractor.videoOptions(si) }
                 if (audio.isEmpty() && video.isEmpty()) {
@@ -129,6 +131,26 @@ class MainActivity : AppCompatActivity() {
                 setBusy(false)
             }
         }
+    }
+
+    /**
+     * Busca o vídeo com retry automático: o bot-check do YouTube
+     * ("Sign in to confirm you're not a bot") é intermitente, e tentar
+     * novamente após alguns segundos costuma passar.
+     */
+    private suspend fun fetchWithRetry(url: String, maxAttempts: Int = 3): StreamInfo {
+        var last: Throwable? = null
+        repeat(maxAttempts) { attempt ->
+            try {
+                return YtExtractor.fetch(url)
+            } catch (t: Throwable) {
+                last = t
+                if (t !is SignInConfirmNotBotException || attempt == maxAttempts - 1) throw t
+                Log.w(TAG, "Bot-check do YouTube na ${attempt + 1}ª tentativa; retry em 2s")
+                delay(2000)
+            }
+        }
+        throw last ?: IllegalStateException("fetch falhou sem exceção")
     }
 
     private fun start(request: DownloadRequest) {
@@ -221,6 +243,9 @@ class MainActivity : AppCompatActivity() {
     private fun friendlyError(t: Throwable): String = when (t) {
         is ReCaptchaException -> getString(R.string.err_recaptcha)
         is ContentNotAvailableException -> getString(R.string.err_unavailable)
+        // antes de ParsingException: é subclasse dela, e a mensagem genérica
+        // "Link inválido" enganaria o usuário — o problema é o YouTube, não a URL
+        is SignInConfirmNotBotException -> getString(R.string.err_bot_check)
         is ParsingException, is IllegalArgumentException -> getString(R.string.err_invalid_url)
         else -> "${t.javaClass.simpleName}: ${t.message ?: getString(R.string.err_generic_short)}"
     }

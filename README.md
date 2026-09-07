@@ -100,8 +100,22 @@ A v0.26.5 oficial do NewPipeExtractor usa `URLDecoder.decode(String, Charset)`,
 APIs que só existem no **Android 13 (API 33)+**. Em aparelhos mais antigos isso
 lança `NoSuchMethodError` (é o famoso crash/erro ao buscar). O
 [fork `MicaelSanPedro/NewPipeExtractor`](https://github.com/MicaelSanPedro/NewPipeExtractor/tree/android-compat)
-(tag `v0.26.5-android1`) corrige exatamente esses três pontos, sem mudar
-nenhum comportamento. Assim que o upstream corrigir, o fork pode ser
+(tag `v0.26.5-android2`) corrige isso e adiciona duas proteções contra as
+mudanças recentes do YouTube, sem alterar nada mais:
+
+1. **Compatibilidade Android < 13** — overloads legacy de URLDecoder/URLEncoder
+   e `isBlank` reimplementado.
+2. **Client TVHTML5 como fonte extra de streams** — o YouTube passou a devolver
+   **HTTP 403** nos streams de vídeo de clients sem PoToken (por isso o MP4 às
+   vezes falhava). Os URLs do client de TV ainda funcionam sem PoToken para a
+   maioria dos vídeos, e têm prioridade na hora de listar os itags.
+3. **Fallback de bot-check** — quando o YouTube responde *"Sign in to confirm
+   you're not a bot"* ao client Android, o extractor tenta automaticamente o
+   visionOS e depois o TVHTML5. As buscas de fallback são opcionais: se todos
+   falharem, o erro sobe e o app mostra uma mensagem clara (com retry
+   automático).
+
+Assim que o upstream corrigir/absorver essas questões, o fork pode ser
 substituído pela versão oficial.
 
 ## 🗺️ Roadmap

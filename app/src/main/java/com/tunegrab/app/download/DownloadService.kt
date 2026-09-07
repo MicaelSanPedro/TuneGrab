@@ -92,6 +92,7 @@ class DownloadService : Service() {
                         )
                     }
 
+                    showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
                     publish(mp3.inputStream().buffered(), mp3.length(), fileName, "audio/mpeg")
                 } else {
                     val request = Request.Builder()
@@ -114,15 +115,22 @@ class DownloadService : Service() {
                                 )
                             }
                         }
+                        // quando o total não é conhecido, mostra a fase de salvamento
+                        if (total <= 0) {
+                            showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
+                        }
                     }
                 }
                 notifyFinished(title, fileName, savedUri)
             } catch (e: Exception) {
-                notifyFailed(fileName, e.message ?: "erro desconhecido")
+                notifyFailed(fileName, friendlyFailure(e))
             } finally {
                 tmpSource?.delete()
                 tmpOut?.delete()
-                stopForeground(STOP_FOREGROUND_DETACH)
+                // IMPORTANTE: remove a notificação de progresso da barra.
+                // Antes usávamos STOP_FOREGROUND_DETACH, que mantinha a notificação
+                // de progresso presa (ex.: “99%”) mesmo depois do download terminar.
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf(startId)
             }
         }
@@ -312,6 +320,16 @@ class DownloadService : Service() {
             .setOngoing(false)
             .setAutoCancel(true)
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID + 1, b.build())
+    }
+
+    /** Traduz erros técnicos para mensagens que o usuário entende. */
+    private fun friendlyFailure(e: Exception): String {
+        val msg = e.message ?: return "erro desconhecido"
+        return if (msg.contains("HTTP 403") || msg.contains("HTTP 4")) {
+            getString(R.string.err_blocked_403)
+        } else {
+            msg
+        }
     }
 
     private fun pct(done: Long, total: Long): Int =
