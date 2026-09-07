@@ -56,6 +56,11 @@
             android:foregroundServiceType="dataSync" />
 
         <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TuneGrab" />
+
+        <activity
             android:name=".CrashReportActivity"
             android:exported="false"
             android:theme="@style/Theme.TuneGrab" />

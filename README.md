@@ -13,13 +13,18 @@ significa máxima compatibilidade e correções rápidas sempre que o YouTube mu
 
 ## ✨ Funcionalidades
 
-- **Cole o link e toque em “Baixar”** — é só isso. O app escolhe a melhor qualidade
-  automaticamente (M4A de maior bitrate) e inicia o download na hora
-- Compartilhe direto do YouTube (“Compartilhar → TuneGrab”) e o download começa sozinho
-- Prefere escolher? Toque em **“Escolher qualidade (opcional)”** e selecione entre
-  **M4A** (recomendado) ou **Opus/WebM**, conforme disponível
-- Ícone de colar na área de transferência dentro do campo de link
-- Download com **notificação de progresso**
+- **Cole o link e toque em “Baixar”** — o app pergunta **qual formato e qualidade**
+  você quer e baixa na hora
+- **3 formatos, qualidades configuradas separadamente** (em ⚙️ Configurações):
+  - **MP3 320/256/192/128 kbps** — convertido **no próprio celular**
+    (MediaCodec decodifica + LAME nativo codifica), com ID3 e nome da música
+  - **M4A** — o áudio original do YouTube, sem reconversão (melhor fidelidade)
+  - **MP4** — vídeo com áudio embutido (até 720p, resolução máxima que o YouTube
+    serve com áudio junto)
+- O app **lembra a última escolha** de formato e qualidade
+- Compartilhe direto do YouTube (“Compartilhar → TuneGrab”) e o seletor abre na hora
+- Ícone de colar da área de transferência no campo de link
+- Download com **notificação de progresso em fases** (baixando → convertendo)
 - Arquivos salvos em `Downloads/TuneGrab`
 - Suporte a links `youtube.com`, `m.youtube.com`, `music.youtube.com` e `youtu.be`
 
@@ -57,14 +62,24 @@ por terceiros.
 | Linguagem | Kotlin |
 | UI | Material 3 (Views + ViewBinding) |
 | Extração | [NewPipeExtractor v0.26.5](https://github.com/TeamNewPipe/NewPipeExtractor) — [fork compatível com Android antigo](https://github.com/MicaelSanPedro/NewPipeExtractor/tree/android-compat) |
+| Conversão MP3 | LAME 3.100 (libmp3lame) via NDK + MediaCodec |
 | Rede | OkHttp |
 | Imagens | Coil |
 | Mínimo | Android 7.0 (API 24) |
 | Alvo | Android 14 (API 34) |
 
+## 🎵 Sobre o MP3 (transparência)
+
+O YouTube não serve MP3 — só **M4A (AAC)** e **Opus**. Por isso o TuneGrab
+**converte no seu aparelho**: baixa a melhor faixa, decodifica com o MediaCodec
+(hardwares do próprio telefone) e recodifica com o LAME 320 kbps. Detalhe técnico
+honesto: a fonte tem até ~160 kbps, então um MP3 320 preserva (mas não adiciona)
+qualidade — é o padrão que muita gente pede para compatibilidade com players,
+pen drives e carros.
+
 ## 🚀 Buildar você mesmo
 
-Requisitos: JDK 17 e Android SDK 34.
+Requisitos: JDK 17, Android SDK 34 e NDK/CMake (o Gradle baixa o que faltar).
 
 ```bash
 ./gradlew assembleRelease   # APK assinado em app/build/outputs/apk/release/
@@ -92,7 +107,9 @@ substituído pela versão oficial.
 ## 🗺️ Roadmap
 
 - [x] **Fase 1** — App Android (APK)
-- [ ] Conversão para MP3 (ffmpeg embutido)
+- [x] Conversão para MP3 (LAME embutido, 320/256/192/128 kbps)
+- [x] MP4 com áudio (até 720p) + seletor de formato/qualidade
+- [x] Configurações de qualidade por formato
 - [ ] Fila de downloads / múltiplos links
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
@@ -112,3 +129,5 @@ direitos autorais e a legislação do seu país.
 ## 📄 Licença
 
 [GPL-3.0](LICENSE) — mesmo modelo de licença do NewPipe e do NewPipeExtractor.
+A conversão MP3 usa [LAME 3.100](https://lame.sourceforge.io/) (LGPL), vendida
+em `app/src/main/cpp/lame/` com direitos reservados aos autores do LAME.

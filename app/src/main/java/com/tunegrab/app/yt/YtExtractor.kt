@@ -2,10 +2,12 @@ package com.tunegrab.app.yt
 
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.localization.Localization
+import org.schabi.newpipe.extractor.Localization
+import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.VideoStream
 
 /**
  * Wrapper em torno do NewPipeExtractor para buscar informações
@@ -66,5 +68,34 @@ object YtExtractor {
     private fun normalize(url: String): String {
         val trimmed = url.trim().trim('"', '\'', '>', '<')
         return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
+    }
+
+    /**
+     * Faixas de vídeo MP4 COM áudio embutido (progressivas, ex.: 360p/720p).
+     * São baixáveis direto, sem remux. Ordena por resolução decrescente.
+     */
+    fun videoOptions(info: StreamInfo): List<VideoStream> {
+        return info.videoStreams
+            .filter {
+                !it.isVideoOnly &&
+                    it.format == MediaFormat.MPEG_4 &&
+                    it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
+                    !it.url.isNullOrBlank() &&
+                    it.height > 0
+            }
+            .sortedByDescending { it.height }
+            .distinctBy { it.height }
+            .take(4)
+    }
+
+    /**
+     * Melhor faixa de áudio-fonte para conversão MP3:
+     * M4A (AAC decodifica em qualquer aparelho via MediaCodec) e,
+     * na falta dela, a melhor disponível.
+     */
+    fun bestMp3Source(info: StreamInfo): AudioStream? {
+        val options = audioOptions(info)
+        return options.firstOrNull { it.format == MediaFormat.M4A }
+            ?: options.firstOrNull()
     }
 }

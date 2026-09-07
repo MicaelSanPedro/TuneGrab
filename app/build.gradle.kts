@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.2.0"
     }
 
     signingConfigs {
@@ -43,6 +43,13 @@ android {
 
     buildFeatures {
         viewBinding = true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     lint {

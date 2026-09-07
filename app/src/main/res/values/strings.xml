@@ -5,19 +5,30 @@
     <string name="app_sub">Baixe o áudio de vídeos do YouTube</string>
 
     <string name="hint_url">Cole o link do YouTube aqui</string>
-    <string name="btn_quick_download">Baixar</string>
-    <string name="btn_choose">Escolher qualidade (opcional)</string>
-    <string name="btn_download">Baixar áudio</string>
-    <string name="choose_quality">Escolha a qualidade do áudio</string>
+    <string name="btn_download">Baixar</string>
     <string name="cd_thumb">Miniatura do vídeo</string>
     <string name="cd_paste">Colar da área de transferência</string>
     <string name="paste_empty">Nada para colar na área de transferência.</string>
 
+    <string name="back">Voltar</string>
+    <string name="cancel">Cancelar</string>
+
+    <!-- Seletor de formato/qualidade -->
+    <string name="pick_format">Formato</string>
+    <string name="pick_quality">Qualidade</string>
     <string name="status_idle">Pronto. Cole um link e toque em Baixar.</string>
     <string name="status_fetching">Buscando informações…</string>
-    <string name="status_ready">Tudo certo — escolha a qualidade e toque em Baixar.</string>
-    <string name="status_downloading_title">Baixando “%1$s” — em instantes o download começa.</string>
+    <string name="status_pick_format">Escolha o formato e a qualidade 👇</string>
     <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
+    <string name="status_converting">Baixando e convertendo para MP3 %1$s… acompanhe pela notificação.</string>
+
+    <string name="hint_mp3">Convertido no próprio celular a partir da melhor faixa disponível</string>
+    <string name="hint_m4a">Original do YouTube — máxima qualidade sem reconversão</string>
+    <string name="hint_mp4">Vídeo com áudio (até 720p)</string>
+    <string name="hint_mp3_unavailable">Sem faixa de áudio neste vídeo</string>
+    <string name="hint_m4a_unavailable">Sem faixa M4A neste vídeo</string>
+    <string name="hint_mp4_unavailable">Sem vídeo MP4 com áudio neste vídeo</string>
+    <string name="q_kbps">%1$s kbps</string>
 
     <string name="meta_line">%1$s · %2$s</string>
 
@@ -36,8 +47,25 @@
     <string name="notif_channel_name">Downloads</string>
     <string name="notif_channel_desc">Progresso dos downloads de áudio</string>
     <string name="notif_downloading">Baixando %1$s</string>
+    <string name="notif_phase_download">baixando</string>
+    <string name="notif_phase_convert">convertendo para MP3</string>
     <string name="notif_done">Download concluído</string>
     <string name="notif_failed">Falha no download</string>
+
+    <!-- Configurações -->
+    <string name="settings_title">Configurações</string>
+    <string name="settings_sub">Padrão de qualidade para cada formato. Você ainda pode trocar na hora de baixar.</string>
+    <string name="settings_mp3">MP3 · qualidade da conversão</string>
+    <string name="settings_mp3_hint">A fonte do YouTube tem até ~160 kbps; bitrates maiores preservam a qualidade sem adicioná-la.</string>
+    <string name="settings_m4a">M4A · áudio original</string>
+    <string name="settings_mp4">MP4 · vídeo com áudio</string>
+    <string name="settings_mp4_hint">Resoluções maiores que 720p no YouTube só existem separadas do áudio (DASH) — por isso o MP4 vai até 720p.</string>
+    <string name="q_mp3_320">320 kbps (melhor)</string>
+    <string name="q_mp3_256">256 kbps</string>
+    <string name="q_mp3_192">192 kbps</string>
+    <string name="q_mp3_128">128 kbps (menor arquivo)</string>
+    <string name="q_best">Melhor disponível</string>
+    <string name="q_smallest">Menor arquivo</string>
 
     <string name="tos_note">Use apenas com conteúdo próprio, Creative Commons ou quando permitido. Respeite os Termos de Serviço do YouTube e os direitos autorais.</string>
 </resources>

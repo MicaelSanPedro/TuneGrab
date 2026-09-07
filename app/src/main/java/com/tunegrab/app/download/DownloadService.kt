@@ -15,6 +15,7 @@ import android.os.IBinder
 import android.provider.MediaStore
 import androidx.core.app.NotificationCompat
 import com.tunegrab.app.R
+import com.tunegrab.app.audio.Mp3Converter
 import com.tunegrab.app.yt.DownloaderImpl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,8 +31,11 @@ import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 
 /**
- * Serviço em primeiro plano que baixa a faixa de áudio selecionada
- * e salva o arquivo em Downloads/TuneGrab, com notificação de progresso.
+ * Serviço em primeiro plano que baixa a faixa selecionada e salva em
+ * Downloads/TuneGrab, com notificação de progresso em fases:
+ *
+ *  - MODO_DIRETO (M4A/MP4): download → arquivo final (0–100%)
+ *  - MODO_MP3:              download (0–60%) → conversão LAME (60–99%) → salvar
  */
 class DownloadService : Service() {
 
@@ -49,23 +53,75 @@ class DownloadService : Service() {
         val fileName = intent?.getStringExtra(EXTRA_FILE) ?: "audio.m4a"
         val title = intent?.getStringExtra(EXTRA_TITLE) ?: fileName
         val mime = intent?.getStringExtra(EXTRA_MIME) ?: "audio/mp4"
+        val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_DIRECT
+        val bitrate = intent?.getIntExtra(EXTRA_BITRATE, 320) ?: 320
         if (url.isNullOrBlank()) {
             stopSelf()
             return START_NOT_STICKY
         }
 
         createChannel()
-        startForeground(NOTIF_ID, progressNotification(fileName, 0L, 0L, indeterminate = true))
+        startForeground(NOTIF_ID, notificationProgress(fileName, 0, indeterminate = true))
 
         scope.launch {
+            var tmpSource: File? = null
+            var tmpOut: File? = null
             try {
-                val savedUri = download(url, fileName, mime) { done, total ->
-                    showProgress(fileName, done, total)
+                val savedUri: Uri = if (mode == MODE_MP3) {
+                    val cache = File(applicationContext.cacheDir, "convert").apply { mkdirs() }
+                    val src = File(cache, "$fileName.src").also { tmpSource = it }
+                    val mp3 = File(cache, fileName).also { tmpOut = it }
+
+                    downloadTo(src, url) { frac, _ ->
+                        // download = 0–60% do total
+                        showPhase(
+                            fileName,
+                            getString(R.string.notif_phase_download),
+                            (frac * 60).toInt(),
+                            indeterminate = frac < 0f
+                        )
+                    }
+
+                    // conversão = 60–99%
+                    showPhase(fileName, getString(R.string.notif_phase_convert), 60)
+                    Mp3Converter.convert(src, mp3, bitrate, title) { p ->
+                        showPhase(
+                            fileName,
+                            getString(R.string.notif_phase_convert),
+                            60 + (p * 39).toInt().coerceAtMost(39)
+                        )
+                    }
+
+                    publish(mp3.inputStream().buffered(), mp3.length(), fileName, "audio/mpeg")
+                } else {
+                    val request = Request.Builder()
+                        .url(url)
+                        .header("User-Agent", DownloaderImpl.USER_AGENT)
+                        .build()
+                    client.newCall(request).execute().use { resp ->
+                        if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
+                        val body = resp.body ?: throw IOException("resposta sem corpo")
+                        val total = body.contentLength()
+                        publish(body.byteStream(), total, fileName, mime) { done ->
+                            val now = System.currentTimeMillis()
+                            if (now - lastNotify > 400) {
+                                lastNotify = now
+                                showPhase(
+                                    fileName,
+                                    getString(R.string.notif_phase_download),
+                                    pct(done, total),
+                                    indeterminate = total <= 0
+                                )
+                            }
+                        }
+                    }
                 }
                 notifyFinished(title, fileName, savedUri)
             } catch (e: Exception) {
                 notifyFailed(fileName, e.message ?: "erro desconhecido")
             } finally {
+                tmpSource?.delete()
+                tmpOut?.delete()
                 stopForeground(STOP_FOREGROUND_DETACH)
                 stopSelf(startId)
             }
@@ -78,12 +134,10 @@ class DownloadService : Service() {
         super.onDestroy()
     }
 
-    private fun download(
-        url: String,
-        fileName: String,
-        mime: String,
-        onProgress: (Long, Long) -> Unit
-    ): Uri {
+    private var lastNotify = 0L
+
+    /** Baixa a URL para um arquivo local (usado na conversão MP3). */
+    private fun downloadTo(target: File, url: String, onProgress: (Float, Long) -> Unit) {
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", DownloaderImpl.USER_AGENT)
@@ -92,23 +146,34 @@ class DownloadService : Service() {
             if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
             val body = resp.body ?: throw IOException("resposta sem corpo")
             val total = body.contentLength()
-            var lastNotify = 0L
-            return save(body.byteStream(), total, fileName, mime) { done ->
-                val now = System.currentTimeMillis()
-                if (now - lastNotify > 400) {
-                    lastNotify = now
-                    onProgress(done, total)
+            target.outputStream().use { out ->
+                val buffer = ByteArray(64 * 1024)
+                var done = 0L
+                var lastNotifyLocal = 0L
+                while (true) {
+                    val n = body.byteStream().read(buffer)
+                    if (n == -1) break
+                    out.write(buffer, 0, n)
+                    done += n
+                    val now = System.currentTimeMillis()
+                    if (now - lastNotifyLocal > 400) {
+                        lastNotifyLocal = now
+                        onProgress(if (total > 0) done.toFloat() / total else -1f, done)
+                    }
                 }
+                out.flush()
             }
+            if (target.length() < 1024L) throw IOException("arquivo baixado vazio/incompleto")
         }
     }
 
-    private fun save(
+    /** Publica o arquivo final em Downloads/TuneGrab (MediaStore API 29+ / File API 24–28). */
+    private fun publish(
         input: InputStream,
         total: Long,
         fileName: String,
         mime: String,
-        onProgress: (Long) -> Unit
+        onProgress: (Long) -> Unit = {}
     ): Uri {
         return if (Build.VERSION.SDK_INT >= 29) {
             saveViaMediaStore(input, fileName, mime, onProgress)
@@ -217,16 +282,16 @@ class DownloadService : Service() {
             .setOnlyAlertOnce(true)
             .setOngoing(true)
 
-    private fun progressNotification(name: String, done: Long, total: Long, indeterminate: Boolean): Notification {
-        val percent = pct(done, total)
-        return baseBuilder(getString(R.string.notif_downloading, name), if (total > 0) "$percent%" else "")
+    private fun notificationProgress(name: String, percent: Int, indeterminate: Boolean): Notification =
+        baseBuilder(getString(R.string.notif_downloading, name), "$percent%")
             .setProgress(100, percent, indeterminate)
             .build()
-    }
 
-    private fun showProgress(name: String, done: Long, total: Long) {
-        getSystemService(NotificationManager::class.java)
-            .notify(NOTIF_ID, progressNotification(name, done, total, indeterminate = total <= 0))
+    private fun showPhase(name: String, phase: String, percent: Int, indeterminate: Boolean = false) {
+        val n = baseBuilder(getString(R.string.notif_downloading, name), "$phase · $percent%")
+            .setProgress(100, percent.coerceIn(0, 100), indeterminate)
+            .build()
+        getSystemService(NotificationManager::class.java).notify(NOTIF_ID, n)
     }
 
     private fun notifyFinished(title: String, fileName: String, uri: Uri) {
@@ -259,13 +324,36 @@ class DownloadService : Service() {
         private const val EXTRA_FILE = "file"
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_MIME = "mime"
+        private const val EXTRA_MODE = "mode"
+        private const val EXTRA_BITRATE = "bitrate"
 
-        fun intent(context: Context, title: String, url: String, fileName: String, mime: String): Intent =
+        const val MODE_DIRECT = "direct"
+        const val MODE_MP3 = "mp3"
+
+        /** Download direto (M4A ou MP4). */
+        fun intent(
+            context: Context,
+            title: String,
+            url: String,
+            fileName: String,
+            mime: String
+        ): Intent = Intent(context, DownloadService::class.java).apply {
+            putExtra(EXTRA_URL, url)
+            putExtra(EXTRA_FILE, fileName)
+            putExtra(EXTRA_TITLE, title)
+            putExtra(EXTRA_MIME, mime)
+            putExtra(EXTRA_MODE, MODE_DIRECT)
+        }
+
+        /** Download + conversão MP3 no dispositivo. */
+        fun mp3Intent(context: Context, title: String, url: String, fileName: String, bitrateKbps: Int): Intent =
             Intent(context, DownloadService::class.java).apply {
                 putExtra(EXTRA_URL, url)
                 putExtra(EXTRA_FILE, fileName)
                 putExtra(EXTRA_TITLE, title)
-                putExtra(EXTRA_MIME, mime)
+                putExtra(EXTRA_MIME, "audio/mpeg")
+                putExtra(EXTRA_MODE, MODE_MP3)
+                putExtra(EXTRA_BITRATE, bitrateKbps)
             }
     }
 }
