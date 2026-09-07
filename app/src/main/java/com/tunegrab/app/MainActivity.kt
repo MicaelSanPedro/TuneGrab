@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import coil.load
 import com.google.android.material.chip.Chip
 import com.tunegrab.app.databinding.ActivityMainBinding
 import com.tunegrab.app.download.DownloadService
