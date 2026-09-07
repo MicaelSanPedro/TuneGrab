@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.3.1"
+        versionCode = 8
+        versionName = "0.3.2"
     }
 
     signingConfigs {
@@ -68,14 +68,14 @@ dependencies {
     implementation("io.coil-kt:coil:2.6.0")
 
     // Extração do YouTube — mesma engine usada pelo app NewPipe.
-    // Fork próprio (https://github.com/MicaelSanPedro/NewPipeExtractor, tag v0.26.5-android3):
+    // Fork próprio (https://github.com/MicaelSanPedro/NewPipeExtractor, tag v0.26.5-android4):
     //  1) compatibilidade Android < 13 (a v0.26.5 oficial usa URLDecoder/URLEncoder com
     //     Charset — Java 10 — e String.isBlank() — Java 11 —, que causam NoSuchMethodError
     //     em aparelhos antigos);
-    //  2) clients extras de streams (TVHTML5 + visionOS) e fallback em cascata;
+    //  2) clients extras de streams (TVHTML5 + visionOS + iOS) e fallback em cascata;
     //  3) suporte completo a PoTokenProvider: player request WEB com PoToken (destrava o
     //     bot-check "Sign in to confirm you're not a bot"), client iOS com PoToken e
-    //     WEB+PoToken como fallback primário quando todos os clients anônimos falham.
-    implementation("com.github.MicaelSanPedro:NewPipeExtractor:v0.26.5-android3")
+    //     WEB+PoToken/iOS/visionOS/TV como fallback primário quando os clients anônimos falham.
+    implementation("com.github.MicaelSanPedro:NewPipeExtractor:v0.26.5-android4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

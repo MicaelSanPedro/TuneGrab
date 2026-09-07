@@ -86,6 +86,17 @@ object PoTokenManager {
     private var integrityTokenB64: String? = null
     private var expiresAtMillis = 0L
 
+    // Cooldown anti-martelada: o GenerateIT do YouTube tem limite por IP. Renovar
+    // a sessão sem parar (retry em cascata) derruba 429 e mata o PoToken justo
+    // quando ele é a única rota que passa. Em cooldown, falhamos rápido e de
+    // graça, sem tocar no YouTube.
+    @Volatile private var cooldownUntilMillis = 0L
+    @Volatile private var cooldownSeconds = 60L
+
+    // Diagnóstico: último motivo de falha do pipeline (visível na UI quando a
+    // extração falha com bot-check — acabou o erro cego).
+    @Volatile private var lastFailure: String? = null
+
     private var snapshotWaiter: Waiter? = null
     private val mintWaiters = HashMap<String, Waiter>()
     private val playerPotCache = HashMap<String, String>()
@@ -108,6 +119,12 @@ object PoTokenManager {
         synchronized(lock) { closeSessionLocked() }
     }
 
+    /** True enquanto estivermos em cooldown pós-falha (não adianta renovar agora). */
+    fun inCooldown(): Boolean = System.currentTimeMillis() < cooldownUntilMillis
+
+    /** Último motivo de falha do pipeline de PoToken (null se tudo certo). */
+    fun lastFailureMessage(): String? = lastFailure
+
     /**
      * Devolve o [PoTokenResult] para o vídeo (visitorData + player pot +
      * streaming pot), bloqueando a thread chamante. Retorna null se a geração
@@ -121,16 +138,57 @@ object PoTokenManager {
         }
         val ctx = appContext ?: return null
         if (webViewSupported == false) return null
+        if (inCooldown()) {
+            Log.w(TAG, "PoToken em cooldown pós-falha (${(cooldownUntilMillis - System.currentTimeMillis()) / 1000}s); falhando rápido")
+            lastFailure = "em pausa após falha (${(cooldownUntilMillis - System.currentTimeMillis()) / 1000}s)"
+            return null
+        }
         return try {
-            obtain(ctx, videoId, forceRecreate = false)
+            val result = obtain(ctx, videoId, forceRecreate = false)
+            onPipelineSuccess()
+            result
         } catch (t: Throwable) {
             Log.e(TAG, "PoToken falhou; recriando sessão e tentando de novo", t)
+            val rateLimited = t.message?.contains("429") == true
+            markFailure(t, armCooldown = rateLimited)
+            if (rateLimited || inCooldown()) {
+                // 429 do GenerateIT: insistir agora seria martelar o limite do
+                // YouTube e piorar o bloqueio. Falhamos rápido de graça.
+                return null
+            }
             try {
-                obtain(ctx, videoId, forceRecreate = true)
+                val result = obtain(ctx, videoId, forceRecreate = true)
+                onPipelineSuccess()
+                result
             } catch (t2: Throwable) {
                 Log.e(TAG, "PoToken falhou após recriar sessão", t2)
+                markFailure(t2, armCooldown = true)
                 null
             }
+        }
+    }
+
+    private fun markFailure(t: Throwable, armCooldown: Boolean) {
+        lastFailure = t.message ?: t.javaClass.simpleName
+        if (armCooldown) {
+            // 429 (rate limit) dobra o tempo de pausa a cada ocorrência
+            synchronized(lock) {
+                if (t.message?.contains("429") == true) {
+                    cooldownSeconds = (cooldownSeconds * 2).coerceAtMost(900)
+                    Log.w(TAG, "Rate limit do GenerateIT; cooldown de ${cooldownSeconds}s")
+                } else {
+                    cooldownSeconds = 60
+                }
+                cooldownUntilMillis = System.currentTimeMillis() + cooldownSeconds * 1000
+            }
+        }
+    }
+
+    private fun onPipelineSuccess() {
+        lastFailure = null
+        synchronized(lock) {
+            cooldownUntilMillis = 0L
+            cooldownSeconds = 60L
         }
     }
 

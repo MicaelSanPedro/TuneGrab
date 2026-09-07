@@ -147,7 +147,8 @@ class MainActivity : AppCompatActivity() {
      * Busca o vídeo e testa cada URL de stream antes de oferecer — o YouTube
      * às vezes entrega URLs que rejeitam o download (HTTP 403). Se TODAS
      * falharem, renova a sessão de PoToken (a atual pode ter sido queimada)
-     * e busca de novo uma vez, tudo automático.
+     * e busca de novo uma vez, tudo automático — mas sem renovar se o pipeline
+     * estiver em pausa pós-falha (rate limit), que seria gasolina no fogo.
      *
      * Suspend: cuida do próprio dispatch (rede em IO, setStatus na main).
      */
@@ -156,7 +157,7 @@ class MainActivity : AppCompatActivity() {
         setStatus(getString(R.string.status_checking))
         var audio = withContext(Dispatchers.IO) { YtExtractor.workingAudio(info) }
         var video = withContext(Dispatchers.IO) { YtExtractor.workingVideo(info) }
-        if (audio.isEmpty() && video.isEmpty()) {
+        if (audio.isEmpty() && video.isEmpty() && !PoTokenManager.inCooldown()) {
             Log.w(TAG, "Todas as URLs falharam no teste; renovando sessão de PoToken e buscando de novo")
             withContext(Dispatchers.IO) { PoTokenManager.invalidate() }
             info = withContext(Dispatchers.IO) { fetchWithRetry(url) }
@@ -170,9 +171,9 @@ class MainActivity : AppCompatActivity() {
     /**
      * Busca o vídeo com retry automático: o bot-check do YouTube
      * ("Sign in to confirm you're not a bot") é intermitente, e tentar
-     * novamente após alguns segundos costuma passar. Antes de cada retry a
-     * sessão de PoToken é renovada, para não reusar um integrity token
-     * possivelmente queimado.
+     * novamente costuma passar. A sessão de PoToken só é renovada no 1º
+     * bot-check — renovar em toda tentativa martela o GenerateIT (que tem
+     * limite por IP) e mata o token justo quando ele é a única rota.
      */
     private suspend fun fetchWithRetry(url: String, maxAttempts: Int = 3): StreamInfo {
         var last: Throwable? = null
@@ -182,9 +183,14 @@ class MainActivity : AppCompatActivity() {
             } catch (t: Throwable) {
                 last = t
                 if (t !is SignInConfirmNotBotException || attempt == maxAttempts - 1) throw t
-                Log.w(TAG, "Bot-check do YouTube na ${attempt + 1}ª tentativa; renovando sessão e retry em 2s")
-                withContext(Dispatchers.IO) { PoTokenManager.invalidate() }
-                delay(2000)
+                if (attempt == 0) {
+                    Log.w(TAG, "Bot-check do YouTube na 1ª tentativa; renovando sessão de PoToken")
+                    withContext(Dispatchers.IO) { PoTokenManager.invalidate() }
+                    delay(5000)
+                } else {
+                    Log.w(TAG, "Bot-check na ${attempt + 1}ª tentativa; mantendo a sessão e aguardando mais")
+                    delay(10_000)
+                }
             }
         }
         throw last ?: IllegalStateException("fetch falhou sem exceção")
@@ -288,7 +294,14 @@ class MainActivity : AppCompatActivity() {
         is ContentNotAvailableException -> getString(R.string.err_unavailable)
         // antes de ParsingException: é subclasse dela, e a mensagem genérica
         // "Link inválido" enganaria o usuário — o problema é o YouTube, não a URL
-        is SignInConfirmNotBotException -> getString(R.string.err_bot_check)
+        is SignInConfirmNotBotException -> when {
+            // em pausa pós-rate-limit: renovar agora piora; orientar a esperar
+            PoTokenManager.inCooldown() -> getString(R.string.err_bot_check_cooldown)
+            // com o motivo real da falha do token o erro deixa de ser cego
+            PoTokenManager.lastFailureMessage() != null ->
+                getString(R.string.err_bot_check_reason, PoTokenManager.lastFailureMessage())
+            else -> getString(R.string.err_bot_check)
+        }
         is ParsingException, is IllegalArgumentException -> getString(R.string.err_invalid_url)
         else -> "${t.javaClass.simpleName}: ${t.message ?: getString(R.string.err_generic_short)}"
     }

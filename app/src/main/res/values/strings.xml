@@ -39,6 +39,8 @@
     <string name="err_no_audio">Nenhuma faixa de áudio disponível para este vídeo.</string>
     <string name="err_recaptcha">O YouTube pediu verificação anti-bot. Tente novamente em alguns minutos.</string>
     <string name="err_bot_check">O YouTube pediu verificação anti-bot. O TuneGrab tentou renovar a sessão automaticamente — toque em Baixar de novo.</string>
+    <string name="err_bot_check_cooldown">O YouTube impôs um limite temporário de renovação de token neste IP. Aguarde 1–2 minutos sem tocar em nada e toque em Baixar de novo — insistir seguido piora o bloqueio.</string>
+    <string name="err_bot_check_reason">O YouTube bloqueou o acesso anônimo e a renovação do token interno falhou (%1$s). Aguarde um pouco e toque em Baixar de novo.</string>
     <string name="err_blocked_403">O YouTube bloqueou este stream agora. Tente baixar novamente em alguns minutos.</string>
     <string name="err_streams_blocked">O YouTube bloqueou os arquivos deste vídeo agora mesmo. O TuneGrab já renovou a sessão automaticamente — toque em Baixar de novo em alguns segundos.</string>
     <string name="err_network">A conexão caiu no meio do download e o TuneGrab já tentou retomar. Verifique sua internet e tente de novo.</string>
