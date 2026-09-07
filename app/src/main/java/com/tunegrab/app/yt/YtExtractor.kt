@@ -28,12 +28,18 @@ object YtExtractor {
     fun fetch(url: String): StreamInfo {
         init()
         val service = ServiceList.YouTube
-        val linkHandler = try {
-            service.streamLHFactory.fromUrl(normalize(url))
+        val cleanUrl = normalize(url)
+        // valida que a URL pertence ao YouTube antes de extrair
+        try {
+            service.streamLHFactory.fromUrl(cleanUrl) ?: throw IllegalArgumentException(
+                "URL do YouTube não reconhecida"
+            )
+        } catch (e: IllegalArgumentException) {
+            throw e
         } catch (e: Exception) {
-            null
-        } ?: throw IllegalArgumentException("URL do YouTube não reconhecida")
-        return StreamInfo.getInfo(service, linkHandler)
+            throw IllegalArgumentException("URL do YouTube não reconhecida")
+        }
+        return StreamInfo.getInfo(service, cleanUrl)
     }
 
     /**

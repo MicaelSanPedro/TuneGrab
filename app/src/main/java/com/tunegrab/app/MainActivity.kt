@@ -161,7 +161,12 @@ class MainActivity : AppCompatActivity() {
         val suffix = stream.format?.suffix ?: "m4a"
         val mime = stream.format?.mimeType ?: "audio/mp4"
         val fileName = sanitize(si.name) + "." + suffix
-        val intent = DownloadService.intent(this, si.name, stream.url, fileName, mime)
+        val streamUrl = stream.url
+        if (streamUrl.isNullOrBlank()) {
+            Toast.makeText(this, R.string.err_no_audio, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = DownloadService.intent(this, si.name, streamUrl, fileName, mime)
         if (Build.VERSION.SDK_INT >= 26) {
             startForegroundService(intent)
         } else {
