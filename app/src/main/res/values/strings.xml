@@ -18,15 +18,18 @@
     <string name="pick_quality">Qualidade</string>
     <string name="status_idle">Pronto. Cole um link e toque em Baixar.</string>
     <string name="status_fetching">Buscando informações…</string>
+    <string name="status_checking">Testando os links de download…</string>
     <string name="status_pick_format">Escolha o formato e a qualidade 👇</string>
     <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
     <string name="status_converting">Baixando e convertendo para MP3 %1$s… acompanhe pela notificação.</string>
 
     <string name="hint_mp3">Convertido no próprio celular a partir da melhor faixa disponível</string>
     <string name="hint_m4a">Original do YouTube — máxima qualidade sem reconversão</string>
+    <string name="hint_opus">Original em Opus/WebM — formato mais livre de bloqueio do YouTube</string>
     <string name="hint_mp4">Vídeo com áudio (até 720p)</string>
     <string name="hint_mp3_unavailable">Sem faixa de áudio neste vídeo</string>
     <string name="hint_m4a_unavailable">Sem faixa M4A neste vídeo</string>
+    <string name="hint_opus_unavailable">Sem faixa Opus/WebM neste vídeo</string>
     <string name="hint_mp4_unavailable">Sem vídeo MP4 com áudio neste vídeo</string>
     <string name="q_kbps">%1$s kbps</string>
 
@@ -37,12 +40,15 @@
     <string name="err_recaptcha">O YouTube pediu verificação anti-bot. Tente novamente em alguns minutos.</string>
     <string name="err_bot_check">O YouTube pediu verificação anti-bot. O TuneGrab tentou renovar a sessão automaticamente — toque em Baixar de novo.</string>
     <string name="err_blocked_403">O YouTube bloqueou este stream agora. Tente baixar novamente em alguns minutos.</string>
+    <string name="err_streams_blocked">O YouTube bloqueou os arquivos deste vídeo agora mesmo. O TuneGrab já renovou a sessão automaticamente — toque em Baixar de novo em alguns segundos.</string>
+    <string name="err_network">A conexão caiu no meio do download e o TuneGrab já tentou retomar. Verifique sua internet e tente de novo.</string>
     <string name="err_unavailable">Vídeo indisponível, privado ou com restrição de idade.</string>
     <string name="err_generic_short">Não foi possível buscar este vídeo.</string>
     <string name="err_generic">Erro: %1$s</string>
 
     <string name="crash_title">Ops, o TuneGrab fechou inesperadamente</string>
     <string name="crash_subtitle">Copie o relatório abaixo e envie para o desenvolvedor — isso ajuda muito a corrigir o problema.</string>
+    <string name="crash_subtitle_error">Toque em \"Copiar erro\" e envie para o desenvolvedor — com isso o problema fica muito mais fácil de corrigir.</string>
     <string name="crash_copy">Copiar erro</string>
     <string name="crash_copied">Erro copiado ✔</string>
 
@@ -54,6 +60,9 @@
     <string name="notif_phase_save">salvando arquivo</string>
     <string name="notif_done">Download concluído</string>
     <string name="notif_failed">Falha no download</string>
+    <string name="notif_retry">conexão caiu — retomando (tentativa %1$d de %2$d)</string>
+    <string name="notif_view_details">Ver detalhes</string>
+    <string name="err_details_title">Detalhes do erro</string>
 
     <!-- Configurações -->
     <string name="settings_title">Configurações</string>

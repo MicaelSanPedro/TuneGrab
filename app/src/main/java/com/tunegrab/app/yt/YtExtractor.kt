@@ -1,5 +1,7 @@
 package com.tunegrab.app.yt
 
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.localization.Localization
@@ -10,6 +12,9 @@ import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
 import com.tunegrab.app.yt.potoken.TuneGrabPoTokenProvider
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Wrapper em torno do NewPipeExtractor para buscar informações
@@ -19,6 +24,13 @@ object YtExtractor {
 
     @Volatile
     private var ready = false
+
+    /** Cliente enxuto só para o teste rápido de URLs ("belisca" 2 bytes). */
+    private val probeClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .build()
 
     fun init() {
         if (ready) return
@@ -53,17 +65,18 @@ object YtExtractor {
 
     /**
      * Filtra e ordena as faixas de áudio disponíveis:
-     * - prioriza URLs diretas (progressivas) — sem HLS;
+     * - só URLs diretas progressivas (HLS/m3u8 não serve para download de arquivo);
      * - prioriza M4A (melhor compatibilidade com players);
      * - ordena por bitrate decrescente;
      * - remove duplicatas (formato + bitrate + trilha).
      */
     fun audioOptions(info: StreamInfo): List<AudioStream> {
-        val direct = info.audioStreams.filter {
-            it.isUrl && it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP
-        }
-        val pool = direct.ifEmpty { info.audioStreams.filter { s -> s.isUrl } }
-        return pool
+        return info.audioStreams
+            .filter {
+                it.isUrl &&
+                    it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP &&
+                    !it.url.isNullOrBlank()
+            }
             .distinctBy { Triple(it.format?.name, it.averageBitrate, it.audioTrackName) }
             .sortedWith(
                 compareByDescending<AudioStream> { it.format?.name == "M4A" }
@@ -71,6 +84,56 @@ object YtExtractor {
             )
             .take(6)
     }
+
+    /**
+     * Testa se a URL do stream responde de verdade — o YouTube às vezes
+     * entrega URLs que rejeitam o download com HTTP 403 (streams bloqueados).
+     * Faz um GET com Range de 2 bytes: barato e fecha a conexão em seguida.
+     */
+    fun probeOk(url: String): Boolean = try {
+        val req = Request.Builder().url(url)
+            .header("User-Agent", DownloaderImpl.USER_AGENT)
+            .header("Range", "bytes=0-1")
+            .build()
+        probeClient.newCall(req).execute().use { resp ->
+            resp.code == 206 || resp.code == 200
+        }
+    } catch (t: Throwable) {
+        false
+    }
+
+    /**
+     * Mantém só as opções cuja URL responde. Testa em paralelo (até 6 por vez)
+     * para não transformar a busca em fila. Preserva a ordem original, que já
+     * é a ordem de preferência (melhor qualidade primeiro).
+     */
+    fun <T> filterWorking(options: List<T>, urlOf: (T) -> String?): List<T> {
+        if (options.isEmpty()) return options
+        val pool = Executors.newFixedThreadPool(options.size.coerceIn(1, 6))
+        try {
+            val futures = options.map { opt ->
+                pool.submit(Callable { opt to urlOf(opt)?.let(::probeOk) })
+            }
+            return futures.mapNotNull { f ->
+                try {
+                    val pair = f.get(15, TimeUnit.SECONDS)
+                    if (pair.second == true) pair.first else null
+                } catch (t: Throwable) {
+                    null
+                }
+            }
+        } finally {
+            pool.shutdownNow()
+        }
+    }
+
+    /** Opções de áudio com URL testada de verdade (só as que respondem). */
+    fun workingAudio(info: StreamInfo): List<AudioStream> =
+        filterWorking(audioOptions(info)) { it.url }
+
+    /** Opções de vídeo com URL testada de verdade (só as que respondem). */
+    fun workingVideo(info: StreamInfo): List<VideoStream> =
+        filterWorking(videoOptions(info)) { it.url }
 
     private fun normalize(url: String): String {
         val trimmed = url.trim().trim('"', '\'', '>', '<')

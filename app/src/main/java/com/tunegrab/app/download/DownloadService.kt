@@ -3,6 +3,7 @@ package com.tunegrab.app.download
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.ContentValues
 import android.content.Context
@@ -12,8 +13,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.IBinder
+import android.os.SystemClock
 import android.provider.MediaStore
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.tunegrab.app.CrashReportActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.audio.Mp3Converter
 import com.tunegrab.app.yt.DownloaderImpl
@@ -25,6 +29,7 @@ import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -36,6 +41,12 @@ import java.util.concurrent.TimeUnit
  *
  *  - MODO_DIRETO (M4A/MP4): download → arquivo final (0–100%)
  *  - MODO_MP3:              download (0–60%) → conversão LAME (60–99%) → salvar
+ *
+ * O download vai primeiro para um arquivo .part no cache e só depois é
+ * publicado. Se a conexão cair no meio, ele RETOMA de onde parou
+ * (Range HTTP) por até [MAX_ATTEMPTS] vezes — rede móvel oscila muito.
+ * URLs bloqueadas (HTTP 403/4xx) não são repetidas: repetir não resolve,
+ * o problema é a URL, e o usuário é avisado com a mensagem certa.
  */
 class DownloadService : Service() {
 
@@ -66,20 +77,28 @@ class DownloadService : Service() {
         scope.launch {
             var tmpSource: File? = null
             var tmpOut: File? = null
+            var tmpPart: File? = null
             try {
                 val savedUri: Uri = if (mode == MODE_MP3) {
                     val cache = File(applicationContext.cacheDir, "convert").apply { mkdirs() }
-                    val src = File(cache, "$fileName.src").also { tmpSource = it }
+                    // hash da URL no nome do .part: garante que a retomada só
+                    // aconteça com a MESMA faixa (qualidade) escolhida antes
+                    val src = File(cache, "$fileName.${url.hashCode().toString(36)}.src")
+                        .also { tmpSource = it }
                     val mp3 = File(cache, fileName).also { tmpOut = it }
 
-                    downloadTo(src, url) { frac, _ ->
+                    downloadWithRetries(src, url, fileName) { done, total ->
                         // download = 0–60% do total
-                        showPhase(
-                            fileName,
-                            getString(R.string.notif_phase_download),
-                            (frac * 60).toInt(),
-                            indeterminate = frac < 0f
-                        )
+                        val now = System.currentTimeMillis()
+                        if (now - lastNotify > 400) {
+                            lastNotify = now
+                            showPhase(
+                                fileName,
+                                getString(R.string.notif_phase_download),
+                                if (total > 0) (done * 60 / total).toInt().coerceIn(0, 60) else 0,
+                                indeterminate = total <= 0
+                            )
+                        }
                     }
 
                     // conversão = 60–99%
@@ -95,39 +114,34 @@ class DownloadService : Service() {
                     showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
                     publish(mp3.inputStream().buffered(), mp3.length(), fileName, "audio/mpeg")
                 } else {
-                    val request = Request.Builder()
-                        .url(url)
-                        .header("User-Agent", DownloaderImpl.USER_AGENT)
-                        .build()
-                    client.newCall(request).execute().use { resp ->
-                        if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
-                        val body = resp.body ?: throw IOException("resposta sem corpo")
-                        val total = body.contentLength()
-                        val uri = publish(body.byteStream(), total, fileName, mime) { done ->
-                            val now = System.currentTimeMillis()
-                            if (now - lastNotify > 400) {
-                                lastNotify = now
-                                showPhase(
-                                    fileName,
-                                    getString(R.string.notif_phase_download),
-                                    pct(done, total),
-                                    indeterminate = total <= 0
-                                )
-                            }
+                    val parts = File(applicationContext.cacheDir, "parts").apply { mkdirs() }
+                    val part = File(parts, "$fileName.${url.hashCode().toString(36)}.part")
+                        .also { tmpPart = it }
+
+                    downloadWithRetries(part, url, fileName) { done, total ->
+                        val now = System.currentTimeMillis()
+                        if (now - lastNotify > 400) {
+                            lastNotify = now
+                            showPhase(
+                                fileName,
+                                getString(R.string.notif_phase_download),
+                                pct(done, total),
+                                indeterminate = total <= 0
+                            )
                         }
-                        // quando o total não é conhecido, mostra a fase de salvamento
-                        if (total <= 0) {
-                            showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
-                        }
-                        uri
                     }
+
+                    showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
+                    publish(part.inputStream().buffered(), part.length(), fileName, mime)
                 }
                 notifyFinished(title, fileName, savedUri)
             } catch (e: Exception) {
-                notifyFailed(fileName, friendlyFailure(e))
+                Log.e(TAG, "Download falhou: $fileName", e)
+                notifyFailed(fileName, e)
             } finally {
                 tmpSource?.delete()
                 tmpOut?.delete()
+                tmpPart?.delete()
                 // IMPORTANTE: remove a notificação de progresso da barra.
                 // Antes usávamos STOP_FOREGROUND_DETACH, que mantinha a notificação
                 // de progresso presa (ex.: “99%”) mesmo depois do download terminar.
@@ -145,36 +159,92 @@ class DownloadService : Service() {
 
     private var lastNotify = 0L
 
-    /** Baixa a URL para um arquivo local (usado na conversão MP3). */
-    private fun downloadTo(target: File, url: String, onProgress: (Float, Long) -> Unit) {
-        val request = Request.Builder()
-            .url(url)
-            .header("User-Agent", DownloaderImpl.USER_AGENT)
-            .build()
-        client.newCall(request).execute().use { resp ->
-            if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
-            val body = resp.body ?: throw IOException("resposta sem corpo")
-            val total = body.contentLength()
-            target.outputStream().use { out ->
-                val buffer = ByteArray(64 * 1024)
-                var done = 0L
-                var lastNotifyLocal = 0L
-                while (true) {
-                    val n = body.byteStream().read(buffer)
-                    if (n == -1) break
-                    out.write(buffer, 0, n)
-                    done += n
-                    val now = System.currentTimeMillis()
-                    if (now - lastNotifyLocal > 400) {
-                        lastNotifyLocal = now
-                        onProgress(if (total > 0) done.toFloat() / total else -1f, done)
-                    }
-                }
-                out.flush()
+    // ---------- download com retomada ----------
+
+    /**
+     * Baixa a URL para [target], retomando de onde parou em até
+     * [MAX_ATTEMPTS] tentativas. Erros de rede (conexão caiu) disparam
+     * nova tentativa com Range; URL bloqueada (HTTP 4xx) aborta na hora.
+     */
+    private fun downloadWithRetries(
+        target: File,
+        url: String,
+        label: String,
+        onProgress: (Long, Long) -> Unit
+    ) {
+        var attempt = 1
+        while (true) {
+            try {
+                downloadOnce(target, url, onProgress)
+                return
+            } catch (e: BlockedStreamException) {
+                // 403/4xx: a URL nasceu bloqueada — repetir não resolve
+                throw e
+            } catch (e: Exception) {
+                if (attempt >= MAX_ATTEMPTS) throw e
+                Log.w(TAG, "download caiu na tentativa $attempt (${e.message}); retomando")
+                showPhase(
+                    label,
+                    getString(R.string.notif_retry, attempt + 1, MAX_ATTEMPTS),
+                    0,
+                    indeterminate = true
+                )
+                attempt++
+                SystemClock.sleep(1500L * attempt) // backoff: 3s, 4,5s…
             }
-            if (target.length() < 1024L) throw IOException("arquivo baixado vazio/incompleto")
         }
     }
+
+    private fun downloadOnce(
+        target: File,
+        url: String,
+        onProgress: (Long, Long) -> Unit
+    ) {
+        val resumeFrom = if (target.exists()) target.length() else 0L
+        val rb = Request.Builder()
+            .url(url)
+            .header("User-Agent", DownloaderImpl.USER_AGENT)
+        if (resumeFrom > 0) rb.header("Range", "bytes=$resumeFrom-")
+
+        client.newCall(rb.build()).execute().use { resp ->
+            val append: Boolean = when {
+                resp.code == 206 -> true // retomada aceita pelo servidor
+                resp.code == 200 -> {    // servidor ignorou o Range: recomeça
+                    target.delete()
+                    false
+                }
+                resp.code == 416 && resumeFrom > 0 -> { // intervalo inválido: parte corrompida
+                    target.delete()
+                    throw IOException("arquivo local rejeitado pelo servidor (HTTP 416); recomeçando")
+                }
+                else -> throw BlockedStreamException("HTTP ${resp.code}")
+            }
+            val body = resp.body ?: throw IOException("resposta sem corpo")
+            val total = resumeFrom + body.contentLength().coerceAtLeast(0)
+            var done = if (append) resumeFrom else 0L
+            FileOutputStream(target, append).use { out ->
+                val buffer = ByteArray(64 * 1024)
+                body.byteStream().use { input ->
+                    while (true) {
+                        val n = input.read(buffer)
+                        if (n == -1) break
+                        out.write(buffer, 0, n)
+                        done += n
+                        onProgress(done, total)
+                    }
+                    out.flush()
+                }
+            }
+        }
+        // resposta de erro do googlevideo às vezes vem com 200 e corpo minúsculo
+        if (target.length() < MIN_BYTES) {
+            target.delete()
+            throw IOException("arquivo baixado incompleto (${target.length()} bytes)")
+        }
+    }
+
+    /** HTTP 4xx na URL do stream: bloqueio do YouTube, não falha de rede. */
+    private class BlockedStreamException(message: String) : IOException(message)
 
     /** Publica o arquivo final em Downloads/TuneGrab (MediaStore API 29+ / File API 24–28). */
     private fun publish(
@@ -313,30 +383,64 @@ class DownloadService : Service() {
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID + 1, b.build())
     }
 
-    private fun notifyFailed(fileName: String, msg: String) {
+    /**
+     * Falha com o erro REAL à vista: texto expansível na notificação e ação
+     * "Ver detalhes" que abre a tela de relatório com botão de copiar —
+     * para nunca mais ficarmos cegos diante de um "Falha no download".
+     */
+    private fun notifyFailed(fileName: String, e: Exception) {
+        val userMsg = friendlyFailure(e)
+        val tech = buildString {
+            appendLine(fileName)
+            appendLine()
+            appendLine(userMsg)
+            appendLine()
+            append("Erro: ${e.javaClass.simpleName}")
+            e.message?.takeIf { it.isNotBlank() }?.let { append(": $it") }
+            appendLine()
+            append("TuneGrab ${appVersion()} • Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        }
+        val detailsIntent = Intent(this, CrashReportActivity::class.java).apply {
+            putExtra(CrashReportActivity.EXTRA_REPORT, tech)
+            putExtra(CrashReportActivity.EXTRA_FROM_NOTIFICATION, true)
+        }
+        val pending = PendingIntent.getActivity(
+            this,
+            0,
+            detailsIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         val b = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.notif_failed))
-            .setContentText("$fileName — $msg")
+            .setContentText("$fileName — $userMsg")
+            .setStyle(NotificationCompat.BigTextStyle().bigText(tech))
+            .setContentIntent(pending)
+            .addAction(0, getString(R.string.notif_view_details), pending)
             .setOngoing(false)
             .setAutoCancel(true)
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID + 1, b.build())
     }
 
     /** Traduz erros técnicos para mensagens que o usuário entende. */
-    private fun friendlyFailure(e: Exception): String {
-        val msg = e.message ?: return "erro desconhecido"
-        return if (msg.contains("HTTP 403") || msg.contains("HTTP 4")) {
-            getString(R.string.err_blocked_403)
-        } else {
-            msg
-        }
+    private fun friendlyFailure(e: Exception): String = when {
+        e is BlockedStreamException -> getString(R.string.err_blocked_403)
+        e is IOException -> getString(R.string.err_network)
+        else -> e.message ?: getString(R.string.err_generic_short)
+    }
+
+    private fun appVersion(): String = try {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+    } catch (t: Throwable) {
+        "?"
     }
 
     private fun pct(done: Long, total: Long): Int =
         if (total > 0) ((done * 100) / total).toInt().coerceIn(0, 100) else 0
 
     companion object {
+        private const val TAG = "TuneGrab"
         private const val CHANNEL_ID = "tunegrab_downloads"
         private const val NOTIF_ID = 100
         private const val EXTRA_URL = "url"
@@ -345,6 +449,12 @@ class DownloadService : Service() {
         private const val EXTRA_MIME = "mime"
         private const val EXTRA_MODE = "mode"
         private const val EXTRA_BITRATE = "bitrate"
+
+        /** Tentativas de download (a primeira + 2 retomadas). */
+        private const val MAX_ATTEMPTS = 3
+
+        /** Resposta menor que isso é página de erro, não mídia. */
+        private const val MIN_BYTES = 16L * 1024L
 
         const val MODE_DIRECT = "direct"
         const val MODE_MP3 = "mp3"

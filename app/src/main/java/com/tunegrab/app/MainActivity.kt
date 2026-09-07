@@ -113,15 +113,18 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val si = withContext(Dispatchers.IO) { fetchWithRetry(url) }
-                val audio = withContext(Dispatchers.IO) { YtExtractor.audioOptions(si) }
-                val video = withContext(Dispatchers.IO) { YtExtractor.videoOptions(si) }
-                if (audio.isEmpty() && video.isEmpty()) {
-                    setStatus(getString(R.string.err_no_audio))
+                val verified = fetchAndVerify(url)
+                if (verified.audio.isEmpty() && verified.video.isEmpty()) {
+                    setStatus(getString(R.string.err_streams_blocked))
                     return@launch
                 }
                 setStatus(getString(R.string.status_pick_format))
-                FormatPickerSheet(this@MainActivity, si, audio, video) { request ->
+                FormatPickerSheet(
+                    this@MainActivity,
+                    verified.info,
+                    verified.audio,
+                    verified.video
+                ) { request ->
                     ensurePermissionsThen { start(request) }
                 }.show()
             } catch (t: Throwable) {
@@ -132,6 +135,36 @@ class MainActivity : AppCompatActivity() {
                 setBusy(false)
             }
         }
+    }
+
+    private class VerifiedStreams(
+        val info: StreamInfo,
+        val audio: List<AudioStream>,
+        val video: List<VideoStream>
+    )
+
+    /**
+     * Busca o vídeo e testa cada URL de stream antes de oferecer — o YouTube
+     * às vezes entrega URLs que rejeitam o download (HTTP 403). Se TODAS
+     * falharem, renova a sessão de PoToken (a atual pode ter sido queimada)
+     * e busca de novo uma vez, tudo automático.
+     *
+     * Suspend: cuida do próprio dispatch (rede em IO, setStatus na main).
+     */
+    private suspend fun fetchAndVerify(url: String): VerifiedStreams {
+        var info = withContext(Dispatchers.IO) { fetchWithRetry(url) }
+        setStatus(getString(R.string.status_checking))
+        var audio = withContext(Dispatchers.IO) { YtExtractor.workingAudio(info) }
+        var video = withContext(Dispatchers.IO) { YtExtractor.workingVideo(info) }
+        if (audio.isEmpty() && video.isEmpty()) {
+            Log.w(TAG, "Todas as URLs falharam no teste; renovando sessão de PoToken e buscando de novo")
+            withContext(Dispatchers.IO) { PoTokenManager.invalidate() }
+            info = withContext(Dispatchers.IO) { fetchWithRetry(url) }
+            setStatus(getString(R.string.status_checking))
+            audio = withContext(Dispatchers.IO) { YtExtractor.workingAudio(info) }
+            video = withContext(Dispatchers.IO) { YtExtractor.workingVideo(info) }
+        }
+        return VerifiedStreams(info, audio, video)
     }
 
     /**
@@ -165,6 +198,12 @@ class MainActivity : AppCompatActivity() {
                 request.stream,
                 suffix = request.stream.format?.suffix ?: "m4a",
                 mime = request.stream.format?.mimeType ?: "audio/mp4"
+            )
+            is DownloadRequest.Webm -> startDirect(
+                request.title,
+                request.stream,
+                suffix = request.stream.format?.suffix ?: "webm",
+                mime = request.stream.format?.mimeType ?: "audio/webm"
             )
             is DownloadRequest.Mp4 -> startDirect(
                 request.title,

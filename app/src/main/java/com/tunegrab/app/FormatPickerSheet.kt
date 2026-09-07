@@ -8,6 +8,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.tunegrab.app.databinding.SheetFormatPickerBinding
+import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -23,6 +24,11 @@ sealed class DownloadRequest {
     ) : DownloadRequest()
 
     data class M4a(override val title: String, val stream: AudioStream) : DownloadRequest()
+
+    /** Áudio Opus no container WebM — o formato que o YouTube entrega sem
+     *  bloqueio, mesmo quando o M4A está indisponível (legado da v0.1.2). */
+    data class Webm(override val title: String, val stream: AudioStream) : DownloadRequest()
+
     data class Mp4(override val title: String, val stream: VideoStream) : DownloadRequest()
 }
 
@@ -37,6 +43,7 @@ object FormatPrefs {
 
     const val FORMAT_MP3 = "mp3"
     const val FORMAT_M4A = "m4a"
+    const val FORMAT_OPUS = "opus"
     const val FORMAT_MP4 = "mp4"
     const val PICK_BEST = "best"
     const val PICK_SMALL = "small"
@@ -81,6 +88,10 @@ class FormatPickerSheet(
 
     private val m4aStreams: List<AudioStream> =
         audioOptions.filter { it.format?.name == "M4A" }
+    private val opusStreams: List<AudioStream> =
+        audioOptions.filter {
+            it.format == MediaFormat.WEBMA || it.format == MediaFormat.WEBMA_OPUS
+        }
     private val mp3Source: AudioStream? =
         audioOptions.firstOrNull { it.format?.name == "M4A" } ?: audioOptions.firstOrNull()
 
@@ -113,6 +124,8 @@ class FormatPickerSheet(
             context.getString(R.string.hint_mp3_unavailable))
         addFormatChip(FormatPrefs.FORMAT_M4A, "M4A", m4aStreams.isNotEmpty(),
             context.getString(R.string.hint_m4a_unavailable))
+        addFormatChip(FormatPrefs.FORMAT_OPUS, "OPUS · WebM", opusStreams.isNotEmpty(),
+            context.getString(R.string.hint_opus_unavailable))
         addFormatChip(FormatPrefs.FORMAT_MP4, "MP4", videoOptions.isNotEmpty(),
             context.getString(R.string.hint_mp4_unavailable))
     }
@@ -149,6 +162,7 @@ class FormatPickerSheet(
         binding.sheetFormatHint.text = when (format) {
             FormatPrefs.FORMAT_MP3 -> context.getString(R.string.hint_mp3)
             FormatPrefs.FORMAT_M4A -> context.getString(R.string.hint_m4a)
+            FormatPrefs.FORMAT_OPUS -> context.getString(R.string.hint_opus)
             else -> context.getString(R.string.hint_mp4)
         }
 
@@ -157,6 +171,10 @@ class FormatPickerSheet(
                 it to context.getString(R.string.q_kbps, it)
             }
             FormatPrefs.FORMAT_M4A -> m4aStreams
+                .sortedByDescending { it.averageBitrate }
+                .map { "${it.averageBitrate}" to context.getString(R.string.q_kbps, "${it.averageBitrate}") }
+                .distinctBy { it.first }
+            FormatPrefs.FORMAT_OPUS -> opusStreams
                 .sortedByDescending { it.averageBitrate }
                 .map { "${it.averageBitrate}" to context.getString(R.string.q_kbps, "${it.averageBitrate}") }
                 .distinctBy { it.first }
@@ -199,6 +217,7 @@ class FormatPickerSheet(
             } else {
                 qualities.first().first
             }
+            FormatPrefs.FORMAT_OPUS -> qualities.first().first
             else -> if (FormatPrefs.mp4Pick(context) == FormatPrefs.PICK_SMALL) {
                 qualities.last().first
             } else {
@@ -225,6 +244,12 @@ class FormatPickerSheet(
                     "${it.averageBitrate}" == quality
                 } ?: m4aStreams.firstOrNull() ?: return
                 DownloadRequest.M4a(info.name, stream)
+            }
+            FormatPrefs.FORMAT_OPUS -> {
+                val stream = opusStreams.firstOrNull {
+                    "${it.averageBitrate}" == quality
+                } ?: opusStreams.firstOrNull() ?: return
+                DownloadRequest.Webm(info.name, stream)
             }
             else -> {
                 val stream = videoOptions.firstOrNull { "${it.height}" == quality }
