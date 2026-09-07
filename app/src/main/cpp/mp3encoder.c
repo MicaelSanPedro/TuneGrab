@@ -24,7 +24,6 @@ Java_com_tunegrab_app_audio_Mp3Encoder_nativeInit(
     lame_set_brate(gfp, (int) kbps);
     lame_set_quality(gfp, 2);          /* alta qualidade de encode */
     lame_set_bWriteVbrTag(gfp, 0);     /* CBR puro, sem header Xing/VBR */
-    lame_set_bEncodeReservoir(gfp, 1);
 
     if (title != NULL) {
         const char *t = (*env)->GetStringUTFChars(env, title, NULL);
