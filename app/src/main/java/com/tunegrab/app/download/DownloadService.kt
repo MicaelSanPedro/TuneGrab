@@ -103,7 +103,7 @@ class DownloadService : Service() {
                         if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
                         val body = resp.body ?: throw IOException("resposta sem corpo")
                         val total = body.contentLength()
-                        publish(body.byteStream(), total, fileName, mime) { done ->
+                        val uri = publish(body.byteStream(), total, fileName, mime) { done ->
                             val now = System.currentTimeMillis()
                             if (now - lastNotify > 400) {
                                 lastNotify = now
@@ -119,6 +119,7 @@ class DownloadService : Service() {
                         if (total <= 0) {
                             showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
                         }
+                        uri
                     }
                 }
                 notifyFinished(title, fileName, savedUri)
