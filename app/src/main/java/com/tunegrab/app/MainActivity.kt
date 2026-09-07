@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,8 +44,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        YtExtractor.init()
 
         binding.btnSearch.setOnClickListener { onSearch() }
         binding.btnDownload.setOnClickListener { onDownloadClicked() }
@@ -88,8 +87,11 @@ class MainActivity : AppCompatActivity() {
                 val result = withContext(Dispatchers.IO) { YtExtractor.fetch(url) }
                 val options = withContext(Dispatchers.IO) { YtExtractor.audioOptions(result) }
                 showInfo(result, options)
-            } catch (e: Exception) {
-                setStatus(getString(R.string.err_generic, friendlyError(e)))
+            } catch (t: Throwable) {
+                // Throwable em vez de Exception: captura também Errors
+                // (NoClassDefFoundError, ExceptionInInitializerError etc.)
+                Log.e(TAG, "Falha ao buscar vídeo", t)
+                setStatus(getString(R.string.err_generic, friendlyError(t)))
             } finally {
                 binding.progress.visibility = View.GONE
                 binding.btnSearch.isEnabled = true
@@ -188,14 +190,18 @@ class MainActivity : AppCompatActivity() {
         return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
     }
 
-    private fun friendlyError(e: Exception): String = when (e) {
+    private fun friendlyError(t: Throwable): String = when (t) {
         is ReCaptchaException -> getString(R.string.err_recaptcha)
         is ContentNotAvailableException -> getString(R.string.err_unavailable)
         is ParsingException, is IllegalArgumentException -> getString(R.string.err_invalid_url)
-        else -> e.message ?: getString(R.string.err_generic_short)
+        else -> "${t.javaClass.simpleName}: ${t.message ?: getString(R.string.err_generic_short)}"
     }
 
     private fun setStatus(text: String) {
         binding.tvStatus.text = text
+    }
+
+    companion object {
+        private const val TAG = "TuneGrab"
     }
 }

@@ -10,6 +10,7 @@
         android:maxSdkVersion="28" />
 
     <application
+        android:name=".TuneGrabApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -53,5 +54,10 @@
             android:name=".download.DownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <activity
+            android:name=".CrashReportActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TuneGrab" />
     </application>
 </manifest>

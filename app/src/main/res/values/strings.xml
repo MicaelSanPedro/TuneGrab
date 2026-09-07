@@ -24,6 +24,11 @@
     <string name="err_generic_short">Não foi possível buscar este vídeo.</string>
     <string name="err_generic">Erro: %1$s</string>
 
+    <string name="crash_title">Ops, o TuneGrab fechou inesperadamente</string>
+    <string name="crash_subtitle">Copie o relatório abaixo e envie para o desenvolvedor — isso ajuda muito a corrigir o problema.</string>
+    <string name="crash_copy">Copiar erro</string>
+    <string name="crash_copied">Erro copiado ✔</string>
+
     <string name="notif_channel_name">Downloads</string>
     <string name="notif_channel_desc">Progresso dos downloads de áudio</string>
     <string name="notif_downloading">Baixando %1$s</string>
