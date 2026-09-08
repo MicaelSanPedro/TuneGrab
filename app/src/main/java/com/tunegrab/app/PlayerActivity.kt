@@ -114,6 +114,11 @@ class PlayerActivity : AppCompatActivity() {
         binding.videoView.setVideoURI(uri)
         binding.videoView.setOnPreparedListener { mp ->
             mp.isLooping = false
+            // proporção real do arquivo (lida do MediaPlayer) → o FitVideoView
+            // usa para nunca deformar o vídeo na tela cheia
+            if (mp.getVideoWidth() > 0 && mp.getVideoHeight() > 0) {
+                binding.videoView.setVideoSize(mp.getVideoWidth(), mp.getVideoHeight())
+            }
             binding.videoView.start()
         }
         binding.videoView.setOnErrorListener { _, _, _ ->
