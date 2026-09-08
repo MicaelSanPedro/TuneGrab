@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write
 
+# Empilhou pushes? Cancela o run antigo e compila só o último commit.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build & Publish APK
@@ -23,19 +28,36 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Cacheia GRADLE_USER_HOME (dependências, wrapper e build cache).
+      # O build cache do Gradle (ligado no gradle.properties) faz a tag do
+      # mesmo commit reaproveitar as saídas compiladas pela push de origem.
       - name: Setup Gradle (com cache)
         uses: gradle/actions/setup-gradle@v4
 
+      # Push normal compila SÓ o release (é o que a gente instala).
+      # Tag compila o debug também (vai anexado na release para depurar).
+      # Sem --no-daemon: o daemon aproveita o JIT quente e o setup-gradle o encerra no fim.
       - name: Build APKs
-        run: ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            ./gradlew assembleRelease assembleDebug --stacktrace
+          else
+            ./gradlew assembleRelease --stacktrace
+          fi
 
-      - name: Upload artifacts
+      - name: Upload artifact (release)
         uses: actions/upload-artifact@v4
         with:
           name: TuneGrab-APK-${{ github.sha }}
-          path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload artifact (debug, só na tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: TuneGrab-Debug-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
       - name: Rename APKs (release)
