@@ -17,29 +17,13 @@
             android:orientation="vertical"
             android:padding="20dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageButton
-                    android:id="@+id/btnBack"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="@string/back"
-                    android:src="@drawable/ic_back" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:text="@string/settings_title"
-                    android:textColor="@color/on_background"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                android:text="@string/settings_title"
+                android:textColor="@color/on_background"
+                android:textSize="20sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -235,8 +219,4 @@
                 android:textSize="11sp" />
         </LinearLayout>
     </ScrollView>
-
-    <include
-        android:id="@+id/navBar"
-        layout="@layout/view_bottom_nav" />
 </LinearLayout>

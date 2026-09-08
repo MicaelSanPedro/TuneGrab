@@ -26,7 +26,11 @@ sem servidor, sem depender de nada instalado no aparelho.
 ## ✨ Funcionalidades
 
 - **Cole o link e toque em "Baixar"** — funciona de primeira, sem configurar nada
-- **Menu de navegação inferior com 4 abas**:
+- **Player embutido** — toque no ▶ na aba Músicas para ouvir (com barra de
+  progresso e play/pause) ou assistir ao vídeo dentro do próprio app
+- **Compartilhar em 1 toque** — botão de compartilhar na Central de Downloads
+  (concluídos) e na aba Músicas
+- **Menu de navegação inferior com 4 abas** (troca instantânea, sem recarregar):
   - **Início** — cole o link e baixe
   - **Downloads** — central em tempo real do que está baixando (fase, % e resultado)
   - **Músicas** — tudo que você já baixou, com abrir / compartilhar / apagar
@@ -214,6 +218,7 @@ clients anônimos com iOS à frente.
 - [x] **Motor yt-dlp embutido, auto-atualizável, com fallback duplo** (v0.4.0)
 - [x] **Menu de navegação inferior + central de downloads + biblioteca de músicas + pasta de download escolhível** (v0.5.0)
 - [x] **MP4 até 1080p de verdade (merge vídeo+áudio) e qualidades honestas** (v0.6.0)
+- [x] **Player embutido (áudio/vídeo) + compartilhar nos baixados + navegação instantânea em 1 activity** (v0.7.0)
 - [ ] Fila de downloads / múltiplos links
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)

@@ -11,4 +11,5 @@
     <color name="icon_bg_end">#C026D3</color>
     <color name="state_done">#4ADE80</color>
     <color name="state_failed">#F87171</color>
+    <color name="nav_pill">#2E2749</color>
 </resources>

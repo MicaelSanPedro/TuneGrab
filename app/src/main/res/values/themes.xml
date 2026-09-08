@@ -10,3 +10,8 @@
         <item name="android:navigationBarColor">@color/background</item>
     </style>
 </resources>
+
+<!-- Pílula do item ativo da navegação inferior (tom violeta, combinando com o tema) -->
+<style name="NavPillIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+    <item name="android:color">@color/nav_pill</item>
+</style>

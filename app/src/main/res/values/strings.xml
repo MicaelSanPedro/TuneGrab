@@ -124,4 +124,11 @@
     <string name="settings_choose_folder">Escolher pasta…</string>
     <string name="settings_reset_folder">Voltar ao padrão</string>
     <string name="settings_folder_hint">Os arquivos serão salvos na pasta que você escolher. Se ela ficar indisponível, o app volta para o padrão automaticamente.</string>
+
+    <!-- Player -->
+    <string name="player_play">Reproduzir</string>
+    <string name="player_pause">Pausar</string>
+    <string name="player_close">Fechar</string>
+    <string name="player_err">Não foi possível reproduzir este arquivo.</string>
+    <string name="dl_not_found">Arquivo não encontrado para compartilhar — confira na aba Músicas.</string>
 </resources>

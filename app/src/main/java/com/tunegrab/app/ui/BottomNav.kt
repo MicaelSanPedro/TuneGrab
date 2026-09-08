@@ -1,47 +1,55 @@
 package com.tunegrab.app.ui
 
-import android.content.Intent
+import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.tunegrab.app.DownloadsActivity
-import com.tunegrab.app.LibraryActivity
-import com.tunegrab.app.MainActivity
 import com.tunegrab.app.R
-import com.tunegrab.app.SettingsActivity
 
 /**
- * Barra de navegação inferior compartilhada pelas 4 telas
- * (Início · Downloads · Músicas · Configurações).
+ * Barra de navegação inferior (Início · Downloads · Músicas · Configurações).
  *
- * Padrão multi-activity: cada tela é uma Activity própria com a mesma barra;
- * navegar = abrir a activity de destino com CLEAR_TOP|SINGLE_TOP (a pilha
- * fica enxuta e o botão "voltar" do sistema continua natural).
+ * PADRÃO SINGLE-ACTIVITY: as 4 abas são fragments dentro da MainActivity e a
+ * troca é um replace() sem animação — instantânea, sem recriar a janela. Foi
+ * exatamente a recriação da activity (multi-activity antigo) que dava aquele
+ * "redimensionar + chacoalhar" ao trocar de aba.
  */
 object BottomNav {
 
-    fun setup(nav: BottomNavigationView, activity: AppCompatActivity, currentItemId: Int) {
+    fun setup(activity: AppCompatActivity, nav: BottomNavigationView, containerId: Int, defaultItemId: Int) {
         // marcado ANTES do listener: não dispara navegação no onCreate
-        nav.selectedItemId = currentItemId
+        nav.selectedItemId = defaultItemId
         nav.setOnItemSelectedListener { item ->
-            navigate(activity, item.itemId)
+            navigate(activity, nav, containerId, item.itemId)
             true
         }
     }
 
-    private fun navigate(activity: AppCompatActivity, itemId: Int) {
-        val target = when (itemId) {
-            R.id.navHome -> MainActivity::class.java
-            R.id.navDownloads -> DownloadsActivity::class.java
-            R.id.navLibrary -> LibraryActivity::class.java
-            R.id.navSettings -> SettingsActivity::class.java
-            else -> null
-        } ?: return
-        if (target == activity.javaClass) return
-        val intent = Intent(activity, target)
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        activity.startActivity(intent)
-        // sem animação: a troca de aba fica instantânea
-        @Suppress("DEPRECATION")
-        activity.overridePendingTransition(0, 0)
+    private fun navigate(activity: AppCompatActivity, nav: BottomNavigationView, containerId: Int, itemId: Int) {
+        val tag = when (itemId) {
+            R.id.navHome -> "home"
+            R.id.navDownloads -> "downloads"
+            R.id.navLibrary -> "library"
+            R.id.navSettings -> "settings"
+            else -> return
+        }
+        val fm = activity.supportFragmentManager
+        val current = fm.findFragmentById(containerId)
+        if (current?.tag == tag) return // mesma aba: nada a fazer
+
+        // teclado fechado antes da troca (evita resize estranho)
+        activity.currentFocus?.clearFocus()
+        activity.getSystemService(InputMethodManager::class.java)
+            ?.hideSoftInputFromWindow(activity.currentFocus?.windowToken, 0)
+
+        val fragment = when (itemId) {
+            R.id.navHome -> HomeFragment()
+            R.id.navDownloads -> DownloadsFragment()
+            R.id.navLibrary -> LibraryFragment()
+            R.id.navSettings -> SettingsFragment()
+            else -> return
+        }
+        fm.beginTransaction()
+            .replace(containerId, fragment, tag)
+            .commit()
     }
 }

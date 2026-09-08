@@ -64,18 +64,9 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Player embutido (áudio com controles próprios / vídeo em tela) -->
         <activity
-            android:name=".SettingsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.TuneGrab" />
-
-        <activity
-            android:name=".DownloadsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.TuneGrab" />
-
-        <activity
-            android:name=".LibraryActivity"
+            android:name=".PlayerActivity"
             android:exported="false"
             android:theme="@style/Theme.TuneGrab" />
 

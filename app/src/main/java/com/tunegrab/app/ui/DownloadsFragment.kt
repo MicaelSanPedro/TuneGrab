@@ -1,49 +1,65 @@
-package com.tunegrab.app
+package com.tunegrab.app.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.tunegrab.app.databinding.ActivityDownloadsBinding
+import com.tunegrab.app.R
+import com.tunegrab.app.databinding.FragmentDownloadsBinding
 import com.tunegrab.app.databinding.ItemDownloadBinding
 import com.tunegrab.app.download.DownloadBus
-import com.tunegrab.app.ui.BottomNav
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Central de Downloads: o que está baixando agora + o que terminou ou falhou.
  *
  * É só um ESPELHO do estado que o DownloadService já publica nas notificações
  * (via DownloadBus) — nada aqui interfere na mecânica de download.
+ * Itens concluídos ganham botão de compartilhar (procura o arquivo nas
+ * fontes de listagem — pasta escolhida, MediaStore ou pasta legada).
  */
-class DownloadsActivity : AppCompatActivity() {
+class DownloadsFragment : Fragment() {
 
-    private lateinit var binding: ActivityDownloadsBinding
+    private var _binding: FragmentDownloadsBinding? = null
+    private val binding get() = _binding!!
     private val adapter = DownloadsAdapter()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityDownloadsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentDownloadsBinding.inflate(inflater, container, false)
+        return binding.root
+    }
 
-        binding.list.layoutManager = LinearLayoutManager(this)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = adapter
         binding.btnClear.setOnClickListener { DownloadBus.clearFinished() }
 
-        BottomNav.setup(binding.navBar.bottomNav, this, R.id.navDownloads)
-
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 DownloadBus.items.collect { render(it) }
             }
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     private fun render(items: List<DownloadBus.Item>) {
@@ -51,11 +67,27 @@ class DownloadsActivity : AppCompatActivity() {
         binding.tvEmpty.isVisible = items.isEmpty()
         binding.btnClear.isVisible = items.any { it.state != DownloadBus.State.RUNNING }
     }
+
+    /** Compartilhar um download concluído: acha o arquivo pelo nome publicado. */
+    internal fun shareFinished(item: DownloadBus.Item) {
+        val ctx = context ?: return
+        lifecycleScope.launch {
+            val entry = withContext(Dispatchers.IO) {
+                LibraryFiles.findByFileName(ctx, item.fileName)
+            }
+            if (entry != null) {
+                LibraryFiles.share(ctx, entry)
+            } else {
+                Toast.makeText(ctx, R.string.dl_not_found, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 }
 
 class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
 
     private var items: List<DownloadBus.Item> = emptyList()
+    var onShare: ((DownloadBus.Item) -> Unit)? = null
 
     fun submit(list: List<DownloadBus.Item>) {
         items = list
@@ -84,6 +116,7 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 b.progress.isVisible = true
                 b.progress.isIndeterminate = item.indeterminate
                 b.progress.progress = item.percent
+                b.btnShare.isVisible = false
             }
             DownloadBus.State.DONE -> {
                 b.icon.setImageResource(R.drawable.ic_check)
@@ -91,6 +124,9 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 b.tvPhase.text = ctx.getString(R.string.dl_state_done)
                 b.tvPercent.isVisible = false
                 b.progress.isVisible = false
+                // download concluído → compartilhar direto daqui
+                b.btnShare.isVisible = true
+                b.btnShare.setOnClickListener { onShare?.invoke(item) }
             }
             DownloadBus.State.FAILED -> {
                 b.icon.setImageResource(R.drawable.ic_error)
@@ -102,6 +138,7 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 }
                 b.tvPercent.isVisible = false
                 b.progress.isVisible = false
+                b.btnShare.isVisible = false
             }
         }
     }

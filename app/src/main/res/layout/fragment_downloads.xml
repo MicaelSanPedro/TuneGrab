@@ -13,36 +13,25 @@
         android:paddingStart="20dp"
         android:paddingTop="16dp"
         android:paddingEnd="12dp"
-        android:paddingBottom="4dp">
+        android:paddingBottom="8dp">
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="@string/lib_title"
+            android:text="@string/dl_title"
             android:textColor="@color/on_background"
             android:textSize="20sp"
             android:textStyle="bold" />
 
-        <ImageButton
-            android:id="@+id/btnRefresh"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/cd_refresh"
-            android:src="@drawable/ic_refresh"
-            app:tint="@color/on_surface_variant" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClear"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/dl_clear"
+            android:visibility="gone" />
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/tvFolder"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="20dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="6dp"
-        android:textColor="@color/on_surface_variant"
-        android:textSize="12sp" />
 
     <TextView
         android:id="@+id/tvEmpty"
@@ -51,7 +40,7 @@
         android:layout_weight="1"
         android:gravity="center"
         android:padding="32dp"
-        android:text="@string/lib_empty"
+        android:text="@string/dl_empty"
         android:textAlignment="center"
         android:textColor="@color/on_surface_variant"
         android:textSize="14sp"
@@ -65,8 +54,4 @@
         android:clipToPadding="false"
         android:paddingHorizontal="12dp"
         android:paddingBottom="8dp" />
-
-    <include
-        android:id="@+id/navBar"
-        layout="@layout/view_bottom_nav" />
 </LinearLayout>
