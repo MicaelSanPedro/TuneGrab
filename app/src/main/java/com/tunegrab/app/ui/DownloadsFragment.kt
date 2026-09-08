@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -245,6 +246,15 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 b.progress.isVisible = true
                 b.progress.isIndeterminate = item.indeterminate
                 b.progress.progress = item.percent
+                // fase visível: baixando = violeta; processando/salvando = verde
+                val finishingPhase = item.phase == ctx.getString(R.string.notif_phase_convert) ||
+                    item.phase == ctx.getString(R.string.notif_phase_save)
+                b.progress.progressTintList = ColorStateList.valueOf(
+                    ContextCompat.getColor(
+                        ctx,
+                        if (finishingPhase) R.color.state_done else R.color.primary
+                    )
+                )
                 // só o download ATIVO pausa; o que está na fila só cancela
                 b.btnPause.isVisible = !isQueued
                 b.btnPause.setOnClickListener { onPause?.invoke() }
