@@ -1,5 +1,7 @@
 package com.tunegrab.app.ui
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -13,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentDownloadsBinding
 import com.tunegrab.app.databinding.ItemDownloadBinding
@@ -49,6 +52,9 @@ class DownloadsFragment : Fragment() {
         binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = adapter
         binding.btnClear.setOnClickListener { DownloadBus.clearFinished() }
+        // LIGAÇÃO dos botões dos itens concluídos (o clique era morto sem isto)
+        adapter.onShare = { item -> shareFinished(item) }
+        adapter.onPlay = { item -> playFinished(item) }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -82,12 +88,43 @@ class DownloadsFragment : Fragment() {
             }
         }
     }
+
+    /** Reproduzir um download concluído direto daqui (player embutido). */
+    internal fun playFinished(item: DownloadBus.Item) {
+        val ctx = context ?: return
+        lifecycleScope.launch {
+            val entry = withContext(Dispatchers.IO) {
+                LibraryFiles.findByFileName(ctx, item.fileName)
+            }
+            if (entry == null) {
+                Toast.makeText(ctx, R.string.dl_not_found, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val uri = LibraryFiles.shareableUri(ctx, entry)
+            if (uri == Uri.EMPTY) {
+                Toast.makeText(ctx, R.string.lib_err_open, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            try {
+                startActivity(
+                    Intent(ctx, PlayerActivity::class.java)
+                        .setDataAndType(uri, entry.mime.ifBlank { "*/*" })
+                        .putExtra(PlayerActivity.EXTRA_TITLE, entry.name)
+                        .putExtra(PlayerActivity.EXTRA_IS_VIDEO, entry.isVideoKind)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                )
+            } catch (t: Throwable) {
+                Toast.makeText(ctx, R.string.player_err, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 }
 
 class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
 
     private var items: List<DownloadBus.Item> = emptyList()
     var onShare: ((DownloadBus.Item) -> Unit)? = null
+    var onPlay: ((DownloadBus.Item) -> Unit)? = null
 
     fun submit(list: List<DownloadBus.Item>) {
         items = list
@@ -116,6 +153,7 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 b.progress.isVisible = true
                 b.progress.isIndeterminate = item.indeterminate
                 b.progress.progress = item.percent
+                b.btnPlay.isVisible = false
                 b.btnShare.isVisible = false
             }
             DownloadBus.State.DONE -> {
@@ -124,7 +162,9 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 b.tvPhase.text = ctx.getString(R.string.dl_state_done)
                 b.tvPercent.isVisible = false
                 b.progress.isVisible = false
-                // download concluído → compartilhar direto daqui
+                // download concluído → reproduzir e compartilhar direto daqui
+                b.btnPlay.isVisible = true
+                b.btnPlay.setOnClickListener { onPlay?.invoke(item) }
                 b.btnShare.isVisible = true
                 b.btnShare.setOnClickListener { onShare?.invoke(item) }
             }
@@ -138,6 +178,7 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 }
                 b.tvPercent.isVisible = false
                 b.progress.isVisible = false
+                b.btnPlay.isVisible = false
                 b.btnShare.isVisible = false
             }
         }

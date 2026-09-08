@@ -98,7 +98,13 @@ object YtDlpEngine {
                     addOption("-f", "ba/best")
                     addOption("-x")
                     addOption("--audio-format", "mp3")
-                    addOption("--audio-quality", "${preset.bitrateKbps}K")
+                    // NUMÉRICO, sem sufixo "K": versões do yt-dlp que não
+                    // stripam o sufixo tratariam "320K" como qualidade VBR
+                    // inválida e o ffmpeg sairia no padrão (128k). O número
+                    // puro mapeia direto para "-b:a 320k" (CBR real).
+                    addOption("--audio-quality", "${preset.bitrateKbps}")
+                    // ID3 com título/artista, como o yt-dlp faz no desktop
+                    addOption("--add-metadata")
                 }
                 is Preset.M4a -> {
                     // TOLERÂNCIA +16: o YouTube reporta abr fracionário (ex.: itag 140

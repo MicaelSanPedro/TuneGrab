@@ -23,7 +23,7 @@
     <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
     <string name="status_converting">Baixando e convertendo para MP3 %1$s… acompanhe pela notificação.</string>
 
-    <string name="hint_mp3">MP3 de verdade no bitrate escolhido, convertido do original do YouTube (~160 kbps máx.) — bitrates acima disso preservam, não criam, qualidade</string>
+    <string name="hint_mp3">MP3 no bitrate escolhido — o app confere o arquivo salvo e garante o bitrate (320 kbps CBR de verdade no arquivo). Fonte: o áudio original do YouTube, como no yt-dlp do PC</string>
     <string name="hint_m4a">Original do YouTube (~128 kbps AAC) copiado sem reconversão — compatível com tudo</string>
     <string name="hint_opus">Original do YouTube (~160 kbps Opus) sem reconversão — a qualidade máxima REAL que o site oferece</string>
     <string name="hint_mp4">Até 1080p — acima de 720p o YouTube separa vídeo e áudio: o app baixa os dois e junta sem re-codificar (se cair no motor reserva, até 720p)</string>
@@ -78,7 +78,7 @@
     <string name="settings_m4a">M4A · áudio original</string>
     <string name="settings_mp4">MP4 · vídeo com áudio</string>
     <string name="settings_mp4_hint">Até 1080p: acima de 720p o YouTube entrega vídeo e áudio separados — o app baixa os dois e junta com o ffmpeg embutido, sem perder qualidade. Se cair para o motor reserva, o limite é 720p.</string>
-    <string name="q_mp3_320">320 kbps (máx. compatibilidade)</string>
+    <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>
     <string name="q_mp3_192">192 kbps</string>
     <string name="q_mp3_128">128 kbps (menor arquivo)</string>

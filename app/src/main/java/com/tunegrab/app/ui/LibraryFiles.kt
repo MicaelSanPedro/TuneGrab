@@ -91,11 +91,14 @@ object LibraryFiles {
         )
         val out = mutableListOf<LibraryEntry>()
         try {
+            // LIKE (não =): o MediaProvider armazena RELATIVE_PATH com barra
+            // final ("Download/TuneGrab/"), então a igualdade exata sem barra
+            // devolvia 0 linhas — e a aba Músicas ficava vazia.
             ctx.contentResolver.query(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI,
                 proj,
-                "${MediaStore.MediaColumns.RELATIVE_PATH}=?",
-                arrayOf("Download/TuneGrab"),
+                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
+                arrayOf("Download/TuneGrab%"),
                 "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
             )?.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
@@ -162,14 +165,16 @@ object LibraryFiles {
         val uri = shareableUri(ctx, e)
         if (uri == Uri.EMPTY) return
         try {
+            val send = Intent(Intent.ACTION_SEND)
+                .setType(e.mime.ifBlank { "*/*" })
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // ClipData garante a concessão de leitura ao app destino em todos
+            // os fabricantes (alguns ignoram a flag do intent interno)
+            send.clipData = android.content.ClipData.newRawUri(e.name, uri)
             ctx.startActivity(
-                Intent.createChooser(
-                    Intent(Intent.ACTION_SEND)
-                        .setType(e.mime.ifBlank { "*/*" })
-                        .putExtra(Intent.EXTRA_STREAM, uri)
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-                    ctx.getString(R.string.cd_share)
-                )
+                Intent.createChooser(send, ctx.getString(R.string.cd_share))
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             )
         } catch (t: Throwable) {
             Log.w(TAG, "compartilhar falhou: ${e.name}", t)

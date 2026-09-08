@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat
 import androidx.documentfile.provider.DocumentFile
 import com.tunegrab.app.CrashReportActivity
 import com.tunegrab.app.R
+import com.tunegrab.app.audio.AudioQuality
 import com.tunegrab.app.audio.Mp3Converter
 import com.tunegrab.app.yt.DownloaderImpl
 import com.tunegrab.app.yt.YtDlpEngine
@@ -92,7 +93,7 @@ class DownloadService : Service() {
                 // ---------- PLANO A: yt-dlp embutido ----------
                 if (!videoUrl.isNullOrBlank() && !engineFormat.isNullOrBlank()) {
                     try {
-                        val savedUri = runYtDlp(videoUrl, engineFormat, bitrate, maxHeight, fileName)
+                        val savedUri = runYtDlp(videoUrl, engineFormat, bitrate, maxHeight, fileName, title)
                         notifyFinished(title, fileName, savedUri)
                         return@launch
                     } catch (e: Exception) {
@@ -138,6 +139,16 @@ class DownloadService : Service() {
                     // conversão = 60–99%
                     showPhase(fileName, getString(R.string.notif_phase_convert), 60)
                     Mp3Converter.convert(src, mp3, bitrate, title) { p ->
+                        showPhase(
+                            fileName,
+                            getString(R.string.notif_phase_convert),
+                            60 + (p * 39).toInt().coerceAtMost(39)
+                        )
+                    }
+
+                    // guarda de bitrate: garante que o MP3 final está no bitrate
+                    // pedido (leitura do arquivo; re-encode só se vier abaixo)
+                    AudioQuality.ensureMp3Bitrate(mp3, bitrate, title) { p ->
                         showPhase(
                             fileName,
                             getString(R.string.notif_phase_convert),
@@ -195,7 +206,8 @@ class DownloadService : Service() {
         format: String,
         bitrate: Int,
         maxHeight: Int,
-        fileName: String
+        fileName: String,
+        title: String
     ): Uri {
         YtDlpEngine.ensureReady(applicationContext) { statusMsg ->
             showPhase(fileName, statusMsg, 0, indeterminate = true)
@@ -208,7 +220,7 @@ class DownloadService : Service() {
                 "opus" -> YtDlpEngine.Preset.Opus(preferBitrate = bitrate.takeIf { it in 1..512 })
                 else -> YtDlpEngine.Preset.Mp4(maxHeight = if (maxHeight > 0) maxHeight else 1080)
             }
-            val produced = YtDlpEngine.download(videoUrl, preset, outDir) { progress, _ ->
+            val produced0 = YtDlpEngine.download(videoUrl, preset, outDir) { progress, _ ->
                 val now = System.currentTimeMillis()
                 if (now - lastNotify > 400) {
                     lastNotify = now
@@ -225,6 +237,21 @@ class DownloadService : Service() {
                     }
                 }
             }
+
+            // GUARDA DE BITRATE (MP3): mede o bitrate real do arquivo que o
+            // yt-dlp/ffmpeg produziu; se vier abaixo do pedido (ex.: ffmpeg
+            // sem libmp3lame caindo no padrão 128k), re-encoda no LAME interno
+            // no bitrate exato. O usuário pediu 320 e vai receber 320 no arquivo.
+            val produced = if (preset is YtDlpEngine.Preset.Mp3) {
+                AudioQuality.ensureMp3Bitrate(produced0, bitrate, title) { p ->
+                    showPhase(
+                        fileName,
+                        getString(R.string.notif_phase_convert),
+                        60 + (p * 39).toInt().coerceAtMost(39),
+                        indeterminate = false
+                    )
+                }
+            } else produced0
 
             showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
             val finalName = sanitizeFileName(produced.name)
