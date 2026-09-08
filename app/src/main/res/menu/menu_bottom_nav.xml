@@ -10,10 +10,10 @@
         android:title="@string/nav_downloads" />
     <item
         android:id="@+id/navLibrary"
-        android:icon="@drawable/ic_music_note"
+        android:icon="@drawable/ic_nav_library"
         android:title="@string/nav_library" />
     <item
         android:id="@+id/navSettings"
-        android:icon="@drawable/ic_settings"
+        android:icon="@drawable/ic_nav_settings"
         android:title="@string/nav_settings" />
 </menu>

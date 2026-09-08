@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Navegação: contorno quando inativo, preenchido quando ativo (Material Symbols Rounded) -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_checked="true" android:drawable="@drawable/ic_download" />
-    <item android:drawable="@drawable/ic_download_outline" />
+    <item android:state_checked="true" android:drawable="@drawable/ic_library_music_fill" />
+    <item android:drawable="@drawable/ic_library_music" />
 </selector>

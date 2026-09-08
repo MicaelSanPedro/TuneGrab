@@ -8,6 +8,26 @@
         <item name="colorSurface">@color/surface</item>
         <item name="android:statusBarColor">@color/background</item>
         <item name="android:navigationBarColor">@color/background</item>
+
+        <!-- Poppins em todo o app -->
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+        <item name="android:textViewStyle">@style/Widget.TuneGrab.TextView</item>
+        <item name="textAppearanceDisplayLarge">@style/TextAppearance.TuneGrab.DisplayLarge</item>
+        <item name="textAppearanceDisplayMedium">@style/TextAppearance.TuneGrab.DisplayMedium</item>
+        <item name="textAppearanceDisplaySmall">@style/TextAppearance.TuneGrab.DisplaySmall</item>
+        <item name="textAppearanceHeadlineLarge">@style/TextAppearance.TuneGrab.HeadlineLarge</item>
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.TuneGrab.HeadlineMedium</item>
+        <item name="textAppearanceHeadlineSmall">@style/TextAppearance.TuneGrab.HeadlineSmall</item>
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.TuneGrab.TitleLarge</item>
+        <item name="textAppearanceTitleMedium">@style/TextAppearance.TuneGrab.TitleMedium</item>
+        <item name="textAppearanceTitleSmall">@style/TextAppearance.TuneGrab.TitleSmall</item>
+        <item name="textAppearanceBodyLarge">@style/TextAppearance.TuneGrab.BodyLarge</item>
+        <item name="textAppearanceBodyMedium">@style/TextAppearance.TuneGrab.BodyMedium</item>
+        <item name="textAppearanceBodySmall">@style/TextAppearance.TuneGrab.BodySmall</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.TuneGrab.LabelLarge</item>
+        <item name="textAppearanceLabelMedium">@style/TextAppearance.TuneGrab.LabelMedium</item>
+        <item name="textAppearanceLabelSmall">@style/TextAppearance.TuneGrab.LabelSmall</item>
     </style>
 
     <!-- Pílula do item ativo da navegação inferior (tom violeta, combinando com o tema) -->
