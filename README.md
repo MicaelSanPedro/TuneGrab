@@ -28,6 +28,14 @@ sem servidor, sem depender de nada instalado no aparelho.
 - **Cole o link e toque em "Baixar"** — funciona de primeira, sem configurar nada
 - **Player embutido** — toque no ▶ na aba Músicas para ouvir (com barra de
   progresso e play/pause) ou assistir ao vídeo dentro do próprio app
+- **Música em segundo plano** — a música continua tocando com o app fechado
+  ou a tela apagada, com **notificação de mídia** (play/pause/fechar) e botão
+  nas configurações de som do aparelho
+- **Vídeo em tela cheia de verdade** — botão de tela cheia no player **gira o
+  app** para paisagem (dos dois lados), esconde as barras do sistema e mantém
+  a proporção do vídeo (nada de imagem esticada)
+- **Downloads rodam em segundo plano** — serviço em primeiro plano com
+  notificação de progresso: pode fechar o app e deixar baixando
 - **Compartilhar em 1 toque** — botão de compartilhar na Central de Downloads
   (concluídos) e na aba Músicas
 - **Menu de navegação inferior com 4 abas** (troca instantânea, sem recarregar):
@@ -223,6 +231,7 @@ clients anônimos com iOS à frente.
 - [x] **MP4 até 1080p de verdade (merge vídeo+áudio) e qualidades honestas** (v0.6.0)
 - [x] **Player embutido (áudio/vídeo) + compartilhar nos baixados + navegação instantânea em 1 activity** (v0.7.0)
 - [x] **MP4 até 4K (2160p) com resolução verificada e confirmada no arquivo salvo** (v0.8.0)
+- [x] **Música em segundo plano (notificação de mídia) + vídeo em tela cheia girando o app** (v0.9.0)
 - [ ] Fila de downloads / múltiplos links
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)

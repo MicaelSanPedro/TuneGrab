@@ -133,5 +133,9 @@
     <string name="player_pause">Pausar</string>
     <string name="player_close">Fechar</string>
     <string name="player_err">Não foi possível reproduzir este arquivo.</string>
+    <string name="player_fullscreen">Tela cheia</string>
+    <string name="player_exit_fullscreen">Sair da tela cheia</string>
+    <string name="notif_channel_playback">Reprodução</string>
+    <string name="notif_channel_playback_desc">Controles da música que está tocando em segundo plano</string>
     <string name="dl_not_found">Arquivo não encontrado para compartilhar — confira na aba Músicas.</string>
 </resources>

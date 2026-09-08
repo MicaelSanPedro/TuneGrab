@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
@@ -64,10 +65,19 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- Player embutido (áudio com controles próprios / vídeo em tela) -->
+        <!-- Música em segundo plano: mediaPlayback com notificação de mídia -->
+        <service
+            android:name=".playback.PlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Player embutido (áudio com controles próprios / vídeo em tela).
+             configChanges: girar para tela cheia NÃO recria a activity — o
+             vídeo continua tocando na rotação. -->
         <activity
             android:name=".PlayerActivity"
             android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.TuneGrab" />
 
         <activity

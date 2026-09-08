@@ -106,4 +106,17 @@
         android:contentDescription="@string/player_close"
         android:src="@drawable/ic_back"
         app:tint="@color/on_background" />
+
+    <!-- Tela cheia do VÍDEO: gira o app para paisagem (só aparece no vídeo) -->
+    <ImageButton
+        android:id="@+id/btnFullscreen"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/player_fullscreen"
+        android:src="@drawable/ic_fullscreen"
+        android:visibility="gone"
+        app:tint="@color/on_background" />
 </FrameLayout>
