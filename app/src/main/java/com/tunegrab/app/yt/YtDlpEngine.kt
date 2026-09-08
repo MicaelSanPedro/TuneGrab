@@ -101,12 +101,14 @@ object YtDlpEngine {
         outDir.mkdirs()
 
         // O request é montado A CADA TENTATIVA porque o client do innertube
-        // é rotacionado: tentativa 0 usa o default do yt-dlp e, se o bot-check
-        // derrubar, as tentativas ímpares voltam com o ANDROID_VR — client
-        // historicamente imune ao "Sign in to confirm you're not a bot".
-        // Prova empírica (2026-09-08, yt-dlp 2026.08.19): com HTTP 429 na
-        // cabeça, default e android_vr extraem; ios/tv/tv_simply/web_safari
-        // não devolvem formato NENHUM no yt-dlp atual.
+        // é rotacionado: tentativa 0 usa o default do yt-dlp (que hoje se
+        // auto-protege — escolhe clients tipo visionos e cai no HLS, que não
+        // exige PO Token) e os retries forçam clients ALTERNATIVOS COMPROVADOS
+        // por download real de ponta a ponta (2026-09-08, yt-dlp 2026.08.19,
+        // mesmo com 429 na cabeça):
+        //   BAIXAM: default, visionos, tv_embedded
+        //   NÃO baixam: android_vr (403 — GVS exige PO Token), mweb,
+        //   web, web_embedded, ios, tv, tv_simply, web_safari (zero formatos)
         fun buildRequest(client: String?): YoutubeDLRequest = YoutubeDLRequest(videoUrl).apply {
             addOption("--no-playlist")
             addOption("--no-mtime")
@@ -165,9 +167,9 @@ object YtDlpEngine {
                 is Preset.Mp4 -> {
                     // TETO 4K: 8K (4320p) saiu do app — arquivo gigante para
                     // uma resolução que quase nenhum aparelho reproduz liso.
-                    // (nota: se o retry cair no android_vr, que não serve VP9/AV1
-                    // 4K, a cadeia de fallback termina em /b[height<=h] — pior
-                    // caso baixa 1080p em vez de falhar; melhor assim.)
+                    // (nota: num retry com client alternativo que sirva menos
+                    // formatos, a cadeia de fallback termina em /b[height<=h] —
+                    // pior caso baixa menos que o pedido em vez de falhar.)
                     val h = preset.maxHeight.coerceAtLeast(144).coerceAtMost(2160)
                     // TODOS os ramos são limitados à altura pedida: o app nunca
                     // baixa MAIS do que foi escolhido. Áudio sempre m4a (AAC
@@ -240,10 +242,10 @@ object YtDlpEngine {
                     // O bot-check do YouTube ("Sign in to confirm you're not a
                     // bot") depende da reputação do IP E do client do innertube
                     // escolhido na extração: para além do processo novo (novo
-                    // desafio, novo sorteio de client), o retry volta com o
-                    // ANDROID_VR — imune ao bot-check. Os parciais são apagados:
-                    // trocar de client pode mudar o formato escolhido e retomar
-                    // bytes de OUTRO formato corromperia o arquivo.
+                    // desafio), o retry força OUTRO client comprovado por
+                    // download real (visionos, tv_embedded). Os parciais são
+                    // apagados: trocar de client pode mudar o formato escolhido
+                    // e retomar bytes de OUTRO formato corromperia o arquivo.
                     outDir.listFiles()?.forEach { it.delete() }
                     Log.w(
                         TAG,
@@ -259,13 +261,15 @@ object YtDlpEngine {
     }
 
     /**
-     * Rotação de clients do innertube entre tentativas: ímpares usam o
-     * ANDROID_VR (históricamente imune ao "Sign in to confirm you're not a
-     * bot"), pares voltam ao default do yt-dlp — cada execute() é um processo
-     * novo, então até repetir o default refaz a extração e o desafio.
+     * Rotação de clients do innertube entre tentativas — SOMENTE clients que
+     * comprovadamente BAIXAM de ponta a ponta (2026-09-08): visionos e
+     * tv_embedded. O android_vr, histórico queridinho anti-bot-check, agora
+     * serve formato que EXIGE PO Token do GVS e dá HTTP 403 no download —
+     * fora da rotação. Tentativa 0 = default do yt-dlp (se auto-protege com
+     * HLS); cada retry é também um processo novo (novo desafio BotGuard).
      */
-    private const val ALT_CLIENT = "android_vr"
-    private fun clientFor(attempt: Int): String? = if (attempt % 2 == 1) ALT_CLIENT else null
+    private val RETRY_CLIENTS = listOf("visionos", "tv_embedded")
+    private fun clientFor(attempt: Int): String? = RETRY_CLIENTS.getOrNull(attempt - 1)
 
     /**
      * Re-tentativas extras quando o yt-dlp cai no bot-check do YouTube.
