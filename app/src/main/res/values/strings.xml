@@ -23,10 +23,10 @@
     <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
     <string name="status_converting">Baixando e convertendo para MP3 %1$s… acompanhe pela notificação.</string>
 
-    <string name="hint_mp3">Convertido no próprio celular a partir da melhor faixa disponível</string>
-    <string name="hint_m4a">Original do YouTube — máxima qualidade sem reconversão</string>
-    <string name="hint_opus">Original em Opus/WebM — formato mais livre de bloqueio do YouTube</string>
-    <string name="hint_mp4">Vídeo com áudio (até 720p)</string>
+    <string name="hint_mp3">MP3 de verdade no bitrate escolhido, convertido do original do YouTube (~160 kbps máx.) — bitrates acima disso preservam, não criam, qualidade</string>
+    <string name="hint_m4a">Original do YouTube (~128 kbps AAC) copiado sem reconversão — compatível com tudo</string>
+    <string name="hint_opus">Original do YouTube (~160 kbps Opus) sem reconversão — a qualidade máxima REAL que o site oferece</string>
+    <string name="hint_mp4">Até 1080p — acima de 720p o YouTube separa vídeo e áudio: o app baixa os dois e junta sem re-codificar (se cair no motor reserva, até 720p)</string>
     <string name="hint_mp3_unavailable">Sem faixa de áudio neste vídeo</string>
     <string name="hint_m4a_unavailable">Sem faixa M4A neste vídeo</string>
     <string name="hint_opus_unavailable">Sem faixa Opus/WebM neste vídeo</string>
@@ -63,6 +63,7 @@
     <string name="notif_phase_engine_prepare">preparando o motor de download (só na primeira vez)</string>
     <string name="notif_phase_engine_update">atualizando o motor de download (só na primeira vez)</string>
     <string name="notif_phase_fallback">plano A falhou — tentando o plano B</string>
+    <string name="notif_phase_fallback_720p">plano A falhou — plano B (vídeo limitado a 720p nesta via)</string>
     <string name="notif_done">Download concluído</string>
     <string name="notif_failed">Falha no download</string>
     <string name="notif_retry">conexão caiu — retomando (tentativa %1$d de %2$d)</string>
@@ -76,8 +77,8 @@
     <string name="settings_mp3_hint">A fonte do YouTube tem até ~160 kbps; bitrates maiores preservam a qualidade sem adicioná-la.</string>
     <string name="settings_m4a">M4A · áudio original</string>
     <string name="settings_mp4">MP4 · vídeo com áudio</string>
-    <string name="settings_mp4_hint">Resoluções maiores que 720p no YouTube só existem separadas do áudio (DASH) — por isso o MP4 vai até 720p.</string>
-    <string name="q_mp3_320">320 kbps (melhor)</string>
+    <string name="settings_mp4_hint">Até 1080p: acima de 720p o YouTube entrega vídeo e áudio separados — o app baixa os dois e junta com o ffmpeg embutido, sem perder qualidade. Se cair para o motor reserva, o limite é 720p.</string>
+    <string name="q_mp3_320">320 kbps (máx. compatibilidade)</string>
     <string name="q_mp3_256">256 kbps</string>
     <string name="q_mp3_192">192 kbps</string>
     <string name="q_mp3_128">128 kbps (menor arquivo)</string>

@@ -226,7 +226,9 @@ class MainActivity : AppCompatActivity() {
                 mime = request.stream.format?.mimeType ?: "video/mp4",
                 videoUrl = request.videoUrl,
                 engineFormat = "mp4",
-                maxHeight = request.stream.height
+                // altura ESCOLHIDA (pode ser 1080p via merge do yt-dlp);
+                // a faixa combinada vai só como plano B (limitado a 720p)
+                maxHeight = request.height
             )
         }
     }

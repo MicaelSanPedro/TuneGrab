@@ -135,6 +135,24 @@ object YtExtractor {
     fun workingVideo(info: StreamInfo): List<VideoStream> =
         filterWorking(videoOptions(info)) { it.url }
 
+    /**
+     * Todas as RESOLUÇÕES que o vídeo oferece (combinadas 360p/720p + faixas
+     * DASH vídeo-only, ex.: 1080p), deduplicadas e limitadas a 1080p.
+     *
+     * Alturas acima de 720p só existem como faixas separadas do áudio — são
+     * baixáveis pelo plano A (yt-dlp junta vídeo+áudio com o ffmpeg embutido).
+     * Acima de 1080p o YouTube só entrega VP9/AV1, que quebraria a
+     * compatibilidade do MP4 em vários players — por isso o teto é 1080p.
+     * Metadado, não precisa de probe de URL.
+     */
+    fun videoHeights(info: StreamInfo): List<Int> =
+        info.videoStreams
+            .map { it.height }
+            .filter { it > 0 }
+            .distinct()
+            .sortedDescending()
+            .filter { it <= 1080 }
+
     private fun normalize(url: String): String {
         val trimmed = url.trim().trim('"', '\'', '>', '<')
         return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"

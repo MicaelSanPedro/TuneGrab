@@ -8,6 +8,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.tunegrab.app.databinding.SheetFormatPickerBinding
+import com.tunegrab.app.yt.YtExtractor
 import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
@@ -44,6 +45,10 @@ sealed class DownloadRequest {
     data class Mp4(
         override val title: String,
         val stream: VideoStream,
+        /** Altura escolhida no seletor (pode ser > 720p: o plano A junta
+         *  vídeo+áudio com ffmpeg). [stream] é a faixa combinada usada só
+         *  pelo plano B, que não sabe juntar (limitado a 720p). */
+        val height: Int,
         override val videoUrl: String? = null
     ) : DownloadRequest()
 }
@@ -111,6 +116,9 @@ class FormatPickerSheet(
     private val mp3Source: AudioStream? =
         audioOptions.firstOrNull { it.format?.name == "M4A" } ?: audioOptions.firstOrNull()
 
+    /** Resoluções oferecidas nos chips de MP4: combinadas + DASH (até 1080p). */
+    private val mp4Heights: List<Int> = YtExtractor.videoHeights(info)
+
     private val dialog = BottomSheetDialog(context)
     private val binding = SheetFormatPickerBinding.inflate(LayoutInflater.from(context))
 
@@ -140,7 +148,7 @@ class FormatPickerSheet(
             context.getString(R.string.hint_mp3_unavailable))
         addFormatChip(FormatPrefs.FORMAT_M4A, "M4A", m4aStreams.isNotEmpty(),
             context.getString(R.string.hint_m4a_unavailable))
-        addFormatChip(FormatPrefs.FORMAT_OPUS, "OPUS · WebM", opusStreams.isNotEmpty(),
+        addFormatChip(FormatPrefs.FORMAT_OPUS, "OPUS (original)", opusStreams.isNotEmpty(),
             context.getString(R.string.hint_opus_unavailable))
         addFormatChip(FormatPrefs.FORMAT_MP4, "MP4", videoOptions.isNotEmpty(),
             context.getString(R.string.hint_mp4_unavailable))
@@ -194,10 +202,7 @@ class FormatPickerSheet(
                 .sortedByDescending { it.averageBitrate }
                 .map { "${it.averageBitrate}" to context.getString(R.string.q_kbps, "${it.averageBitrate}") }
                 .distinctBy { it.first }
-            else -> videoOptions
-                .sortedByDescending { it.height }
-                .map { "${it.height}" to "${it.height}p" }
-                .distinctBy { it.first }
+            else -> mp4Heights.map { "$it" to "${it}p" }
         }
 
         val preferred = when {
@@ -269,9 +274,15 @@ class FormatPickerSheet(
                 DownloadRequest.Webm(info.name, stream, videoUrl)
             }
             else -> {
-                val stream = videoOptions.firstOrNull { "${it.height}" == quality }
-                    ?: videoOptions.firstOrNull() ?: return
-                DownloadRequest.Mp4(info.name, stream, videoUrl)
+                val chosen = quality.toIntOrNull() ?: return
+                // Plano B (URL direta) só sabe baixar faixa COM áudio: usa a
+                // combinada mais próxima abaixo da altura escolhida; o plano A
+                // (yt-dlp) é quem baixa a altura real (bv+ba, merge ffmpeg).
+                val stream = videoOptions.filter { it.height <= chosen }
+                    .maxByOrNull { it.height }
+                    ?: videoOptions.minByOrNull { it.height }
+                    ?: return
+                DownloadRequest.Mp4(info.name, stream, chosen, videoUrl)
             }
         }
         dialog.dismiss()

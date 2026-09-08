@@ -101,9 +101,15 @@ object YtDlpEngine {
                     addOption("--audio-quality", "${preset.bitrateKbps}K")
                 }
                 is Preset.M4a -> {
+                    // TOLERÂNCIA +16: o YouTube reporta abr fracionário (ex.: itag 140
+                    // = 129,5 kbps) e o NewPipe arredonda para 129 — sem tolerância o
+                    // filtro "abr<=129" perde o stream exato e cai no fallback (que
+                    // pode ser um Opus 70k re-encodado = qualidade PIOR). Com a
+                    // tolerância, o M4A original é baixado SEM reconversão.
                     val q = preset.preferBitrate
                     val filter = if (q != null && q > 0) {
-                        "ba[ext=m4a][abr<=$q]/ba[abr<=$q]/ba/best"
+                        val cap = q + 16
+                        "ba[ext=m4a][abr<=$cap]/ba[ext=m4a]/ba/best"
                     } else {
                         "ba[ext=m4a]/ba/best"
                     }
@@ -112,9 +118,11 @@ object YtDlpEngine {
                     addOption("--audio-format", "m4a")
                 }
                 is Preset.Opus -> {
+                    // mesma tolerância do M4A (abr reportado: 158 vs chip "160")
                     val q = preset.preferBitrate
                     val filter = if (q != null && q > 0) {
-                        "ba[ext=webm][abr<=$q]/ba[ext=webm]/ba/best"
+                        val cap = q + 16
+                        "ba[ext=webm][abr<=$cap]/ba[ext=webm]/ba/best"
                     } else {
                         "ba[ext=webm]/ba/best"
                     }

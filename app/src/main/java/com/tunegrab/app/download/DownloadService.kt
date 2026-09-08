@@ -98,7 +98,14 @@ class DownloadService : Service() {
                     } catch (e: Exception) {
                         if (url.isNullOrBlank()) throw e
                         Log.w(TAG, "yt-dlp falhou; tentando o plano B (URL direta)", e)
-                        showPhase(fileName, getString(R.string.notif_phase_fallback), 0, indeterminate = true)
+                        // honestidade: se era vídeo >720p, o plano B (faixa combinada)
+                        // não alcança a altura pedida — avisar na notificação
+                        val phaseMsg = if (engineFormat == "mp4" && maxHeight > 720) {
+                            getString(R.string.notif_phase_fallback_720p)
+                        } else {
+                            getString(R.string.notif_phase_fallback)
+                        }
+                        showPhase(fileName, phaseMsg, 0, indeterminate = true)
                     }
                 }
 
