@@ -219,8 +219,14 @@ class HomeFragment : Fragment() {
             is DownloadRequest.Mp4 -> startDirect(
                 request.title,
                 request.stream,
-                suffix = "mp4",
-                mime = request.stream?.format?.mimeType ?: "video/mp4",
+                // contêiner acompanha o pedido: >1080p sai em MKV (VP9/AV1
+                // dentro de MP4 o Android não lê); ≤1080p sai em MP4/H.264
+                suffix = if (request.height > 1080) "mkv" else "mp4",
+                mime = if (request.height > 1080) {
+                    "video/x-matroska"
+                } else {
+                    request.stream?.format?.mimeType ?: "video/mp4"
+                },
                 videoUrl = request.videoUrl,
                 engineFormat = "mp4",
                 // altura ESCOLHIDA (pode ser 1080p via merge do yt-dlp);

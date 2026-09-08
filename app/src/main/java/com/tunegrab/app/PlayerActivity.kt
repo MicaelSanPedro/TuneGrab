@@ -29,8 +29,10 @@ import java.util.Locale
  *  - ÁUDIO (MP3/M4A/Opus): a reprodução vive no PlaybackService (foreground
  *    service com notificação de mídia) — a música CONTINUA tocando quando o
  *    app vai para o fundo ou a tela apaga. Esta activity só é a interface.
- *  - VÍDEO (MP4): VideoView com controles do sistema + botão de TELA CHEIA
- *    que GIRA O APP (activity) para paisagem, com barras do sistema ocultas.
+ *  - VÍDEO (MP4/MKV): VideoView com controles do sistema + botão de TELA
+ *    CHEIA que GIRA O APP (activity) para paisagem, com barras ocultas. O
+ *    VideoView (MediaPlayer) lê Matroska/VP9 nativamente — 4K baixado toca
+ *    aqui igual toca no Google Fotos.
  *
  * O arquivo é o mesmo que está na aba Músicas — o player não move nem apaga nada.
  */

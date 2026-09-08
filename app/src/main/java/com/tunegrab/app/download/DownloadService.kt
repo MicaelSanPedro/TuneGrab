@@ -282,6 +282,8 @@ class DownloadService : Service() {
                 "opus", "ogg" -> "audio/ogg"
                 "webm" -> "audio/webm"
                 "mp4" -> "video/mp4"
+                // 1440p/4K sai em Matroska (VP9/AV1 + AAC) — v0.9.1
+                "mkv" -> "video/x-matroska"
                 else -> "application/octet-stream"
             }
             val saved = publish(produced.inputStream().buffered(), produced.length(), finalName, finalMime)

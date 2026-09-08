@@ -137,36 +137,47 @@ object YtDlpEngine {
                     addOption("--audio-format", "opus")
                 }
                 is Preset.Mp4 -> {
-                    val h = preset.maxHeight.coerceAtLeast(144)
+                    // TETO 4K: 8K (4320p) saiu do app — arquivo gigante para
+                    // uma resolução que quase nenhum aparelho reproduz liso.
+                    val h = preset.maxHeight.coerceAtLeast(144).coerceAtMost(2160)
                     // TODOS os ramos são limitados à altura pedida: o app nunca
                     // baixa MAIS do que foi escolhido. Áudio sempre m4a (AAC
-                    // entra no MP4 sem drama; Opus no MP4 é aposta).
-                    // >1080p: o YouTube não tem h264 nessas alturas (só
-                    // VP9/AV1) — VP9 vem antes do AV1 por compatibilidade
-                    // de decode, e o merge sai remuxado no MP4 (VP9+AAC).
+                    // entra em qualquer contêiner sem drama).
+                    //
+                    // CONTÊINER É AQUI QUE NÃO PODE ERRAR: o YouTube só serve
+                    // VP9/AV1 acima de 1080p — e VP9/AV1 dentro de MP4 fica
+                    // ILEGÍVEL para o Android (MediaExtractor/Google Photos/
+                    // players tratam como arquivo corrompido: tela preta,
+                    // "não é possível reproduzir"). Por isso >1080p é mesclado
+                    // em MKV — VP9/AV1 + AAC no Matroska é o par nativo (o
+                    // yt-dlp do desktop faz o mesmo) e abre em qualquer player.
+                    // ≤1080p segue em MP4/H.264, que é universal de verdade.
+                    //
                     // Pedido >1080 num vídeo que NÃO tem nada acima de 1080
                     // (clamp, ex.: 4K num vídeo de 1080p): a cadeia cai no
-                    // ramo h264/mp4 ≤1080 — mesma altura que um pedido 1080p,
-                    // com compatibilidade máxima. A notificação final confirma
-                    // a altura real do arquivo salvo.
-                    val chain = if (h > 1080) {
-                        "bv*[vcodec^=vp9][height>1080][height<=$h]+ba[ext=m4a]" +
+                    // ramo h264/mp4 ≤1080 (saído em MKV, mesma altura que um
+                    // pedido 1080p). A notificação final confirma a altura real
+                    // do arquivo salvo.
+                    val chain: String
+                    if (h > 1080) {
+                        chain = "bv*[vcodec^=vp9][height>1080][height<=$h]+ba[ext=m4a]" +
                             "/bv*[height>1080][height<=$h]+ba[ext=m4a]" +
                             "/bv*[ext=mp4][height<=1080]+ba[ext=m4a]" +
                             "/bv*[vcodec^=vp9][height<=$h]+ba[ext=m4a]" +
                             "/bv*[height<=$h]+ba[ext=m4a]" +
                             "/b[ext=mp4][height<=1080]" +
                             "/b[height<=$h]"
+                        addOption("--merge-output-format", "mkv")
                     } else {
-                        "bv*[ext=mp4][height<=$h]+ba[ext=m4a]" +
+                        chain = "bv*[ext=mp4][height<=$h]+ba[ext=m4a]" +
                             "/bv*[vcodec^=vp9][height<=$h]+ba[ext=m4a]" +
                             "/bv*[height<=$h]+ba[ext=m4a]" +
                             "/b[ext=mp4][height<=$h]" +
                             "/b[height<=$h]"
+                        addOption("--merge-output-format", "mp4")
                     }
                     addOption("-f", chain)
                     addOption("-S", "res:$h")
-                    addOption("--merge-output-format", "mp4")
                 }
             }
         }

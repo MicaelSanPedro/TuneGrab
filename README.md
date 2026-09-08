@@ -50,12 +50,15 @@ sem servidor, sem depender de nada instalado no aparelho.
     embutido, com tags ID3 e nome da música
   - **M4A** — o áudio original do YouTube, sem reconversão (melhor fidelidade)
   - **OPUS** — o áudio original em WebM, máxima qualidade por bit
-  - **MP4** — vídeo até **4K (2160p)**, com **todas as qualidades sempre
+  - **Vídeo (MP4/MKV)** — até **4K (2160p)**, com **todas as qualidades sempre
     liberadas**: acima de 720p o YouTube separa vídeo e áudio, então o app
     baixa os dois e junta com o ffmpeg embutido **sem re-codificar**. Pediu
     4K num vídeo de 1080p? Baixa em 1080p — o máximo que o vídeo tem — e a
     notificação final **confirma a resolução do arquivo salvo** (motor
-    reserva: até 720p, com aviso)
+    reserva: até 720p, com aviso). Até 1080p o arquivo sai em **MP4/H.264**
+    (abre em qualquer lugar); **1440p/4K saem em MKV** — o contêiner nativo
+    do YouTube nessas resoluções (VP9/AV1 dentro de MP4 o Android lê como
+    arquivo corrompido)
 - **Motor yt-dlp embutido e auto-atualizável** — o app atualiza o motor sozinho
   (canal estável, 1 checagem por versão), então quando o YouTube mudar algo o
   TuneGrab "se conserta" na próxima abertura, sem precisar de versão nova
@@ -232,6 +235,7 @@ clients anônimos com iOS à frente.
 - [x] **Player embutido (áudio/vídeo) + compartilhar nos baixados + navegação instantânea em 1 activity** (v0.7.0)
 - [x] **MP4 até 4K (2160p) com resolução verificada e confirmada no arquivo salvo** (v0.8.0)
 - [x] **Música em segundo plano (notificação de mídia) + vídeo em tela cheia girando o app** (v0.9.0)
+- [x] **4K/1440p em MKV (arquivos que abrem de verdade) + teto 4K** (v0.9.1)
 - [ ] Fila de downloads / múltiplos links
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)

@@ -26,11 +26,11 @@
     <string name="hint_mp3">MP3 no bitrate escolhido — o app confere o arquivo salvo e garante o bitrate (320 kbps CBR de verdade no arquivo). Fonte: o áudio original do YouTube, como no yt-dlp do PC</string>
     <string name="hint_m4a">Original do YouTube (~128 kbps AAC) copiado sem reconversão — compatível com tudo</string>
     <string name="hint_opus">Original do YouTube (~160 kbps Opus) sem reconversão — a qualidade máxima REAL que o site oferece</string>
-    <string name="hint_mp4">Qualidade livre de 360p a 4K — pediu 4K num vídeo de 1080p? Baixa em 1080p (o máximo que o vídeo tem) e a notificação confirma a resolução real. Acima de 720p, vídeo e áudio são baixados e juntos sem re-codificar</string>
+    <string name="hint_mp4">Qualidade livre de 360p a 4K — pediu 4K num vídeo de 1080p? Baixa em 1080p (o máximo que o vídeo tem) e a notificação confirma a resolução real. Até 1080p o arquivo sai em MP4 (abre em qualquer lugar); em 1440p/4K sai em MKV, o contêiner nativo dessas resoluções — sem re-codificar e sem arquivo corrompido</string>
     <string name="hint_mp3_unavailable">Sem faixa de áudio neste vídeo</string>
     <string name="hint_m4a_unavailable">Sem faixa M4A neste vídeo</string>
     <string name="hint_opus_unavailable">Sem faixa Opus/WebM neste vídeo</string>
-    <string name="hint_mp4_unavailable">Sem vídeo MP4 com áudio neste vídeo</string>
+    <string name="hint_mp4_unavailable">Sem vídeo disponível neste vídeo</string>
     <string name="q_kbps">%1$s kbps</string>
 
     <string name="meta_line">%1$s · %2$s</string>
@@ -79,8 +79,8 @@
     <string name="settings_mp3">MP3 · qualidade da conversão</string>
     <string name="settings_mp3_hint">A fonte do YouTube tem até ~160 kbps; bitrates maiores preservam a qualidade sem adicioná-la.</string>
     <string name="settings_m4a">M4A · áudio original</string>
-    <string name="settings_mp4">MP4 · vídeo com áudio</string>
-    <string name="settings_mp4_hint">Até 1080p: acima de 720p o YouTube entrega vídeo e áudio separados — o app baixa os dois e junta com o ffmpeg embutido, sem perder qualidade. Se cair para o motor reserva, o limite é 720p.</string>
+    <string name="settings_mp4">Vídeo (MP4/MKV) · com áudio</string>
+    <string name="settings_mp4_hint">Até 1080p sai em MP4/H.264; 1440p e 4K saem em MKV (contêiner nativo do YouTube nessas resoluções — VP9/AV1 em MP4 ficaria ilegível). Vídeo e áudio são baixados separados e juntos com o ffmpeg embutido, sem perder qualidade. Se cair para o motor reserva, o limite é 720p.</string>
     <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>
     <string name="q_mp3_192">192 kbps</string>

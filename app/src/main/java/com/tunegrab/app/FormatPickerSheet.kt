@@ -152,9 +152,11 @@ class FormatPickerSheet(
             context.getString(R.string.hint_m4a_unavailable))
         addFormatChip(FormatPrefs.FORMAT_OPUS, "OPUS (original)", opusStreams.isNotEmpty(),
             context.getString(R.string.hint_opus_unavailable))
-        // MP4 sempre liberado: o plano A (yt-dlp) baixa só com a URL do vídeo,
-        // sem depender de faixas progressivas na extração
-        addFormatChip(FormatPrefs.FORMAT_MP4, "MP4", true,
+        // Vídeo sempre liberado: o plano A (yt-dlp) baixa só com a URL do
+        // vídeo, sem depender de faixas progressivas na extração. Até 1080p
+        // sai em MP4; 1440p/4K sai em MKV (VP9/AV1 dentro de MP4 o Android
+        // não lê — v0.9.1).
+        addFormatChip(FormatPrefs.FORMAT_MP4, "Vídeo", true,
             context.getString(R.string.hint_mp4_unavailable))
     }
 
@@ -249,15 +251,16 @@ class FormatPickerSheet(
     }
 
     /**
-     * Escada padrão de MP4 (360p → 4K): TODOS os degraus ficam habilitados
+     * Escada padrão de vídeo (360p → 4K): TODOS os degraus ficam habilitados
      * sempre — escolheu 4K num vídeo de 1080p? O motor baixa em 1080p (o
      * máximo que o vídeo tem) e a notificação confirma a resolução real.
      * Alturas não-padrão detectadas na extração (ex.: 1072p) entram como
-     * degraus extras; a detecção nunca bloqueia nada.
+     * degraus extras; a detecção nunca bloqueia nada. TETO 4K: 8K saiu do
+     * app (v0.9.1) — altura acima de 2160 nunca vira degrau.
      */
     private fun mp4Entries(): List<Triple<String, String, Boolean>> {
         val standard = listOf(2160, 1440, 1080, 720, 480, 360)
-        val rungs = (standard + mp4Heights.filter { it > 0 && it !in standard })
+        val rungs = (standard + mp4Heights.filter { it in 144..2160 && it !in standard })
             .distinct()
             .sortedDescending()
         return rungs.map { Triple("$it", mp4Label(it), true) }
@@ -265,7 +268,6 @@ class FormatPickerSheet(
 
     private fun mp4Label(h: Int): String = when (h) {
         2160 -> "4K (2160p)"
-        4320 -> "8K (4320p)"
         else -> "${h}p"
     }
 
