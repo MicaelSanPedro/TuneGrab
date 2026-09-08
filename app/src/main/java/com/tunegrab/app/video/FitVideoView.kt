@@ -2,7 +2,7 @@ package com.tunegrab.app.video
 
 import android.content.Context
 import android.util.AttributeSet
-import android.view.MeasureSpec
+import android.view.View.MeasureSpec
 import android.widget.VideoView
 
 /**
