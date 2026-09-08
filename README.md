@@ -26,6 +26,13 @@ sem servidor, sem depender de nada instalado no aparelho.
 ## ✨ Funcionalidades
 
 - **Cole o link e toque em "Baixar"** — funciona de primeira, sem configurar nada
+- **Menu de navegação inferior com 4 abas**:
+  - **Início** — cole o link e baixe
+  - **Downloads** — central em tempo real do que está baixando (fase, % e resultado)
+  - **Músicas** — tudo que você já baixou, com abrir / compartilhar / apagar
+  - **Config.** — qualidades e pasta de download
+- **Escolha onde salvar** — qualquer pasta do aparelho em ⚙️ Configurações → Pasta
+  de download (padrão: `Downloads/TuneGrab`, com fallback automático)
 - **4 formatos, qualidades configuradas separadamente** (em ⚙️ Configurações):
   - **MP3 320/256/192/128 kbps** — convertido no próprio celular com o ffmpeg
     embutido, com tags ID3 e nome da música
@@ -203,6 +210,7 @@ clients anônimos com iOS à frente.
 - [x] Configurações de qualidade por formato
 - [x] Bypass do anti-bot (PoToken/BotGuard via WebView)
 - [x] **Motor yt-dlp embutido, auto-atualizável, com fallback duplo** (v0.4.0)
+- [x] **Menu de navegação inferior + central de downloads + biblioteca de músicas + pasta de download escolhível** (v0.5.0)
 - [ ] Fila de downloads / múltiplos links
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
