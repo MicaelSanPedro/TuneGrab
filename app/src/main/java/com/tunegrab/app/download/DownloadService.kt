@@ -376,7 +376,7 @@ class DownloadService : Service() {
             name = if (ext.isBlank()) "$base ($i)" else "$base ($i).$ext"
             i++
         }
-        val doc = dir.createDocument(mime, name)
+        val doc = dir.createFile(mime, name)
             ?: throw IOException("não foi possível criar o arquivo na pasta escolhida")
         try {
             applicationContext.contentResolver.openOutputStream(doc.uri)?.use { out ->

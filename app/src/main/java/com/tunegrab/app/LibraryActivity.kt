@@ -30,7 +30,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Um arquivo salvo pelo TuneGrab, de qualquer uma das 3 fontes de listagem. */
-internal data class LibraryEntry(
+data class LibraryEntry(
     val name: String,
     val size: Long,
     val modifiedMs: Long,
@@ -269,7 +269,7 @@ class LibraryActivity : AppCompatActivity() {
     }
 }
 
-class LibraryAdapter : RecyclerView.Adapter<LibraryAdapter.VH>() {
+class LibraryAdapter : RecyclerView.Adapter<LibraryAdapter.EntryHolder>() {
 
     class EntryHolder(val binding: ItemLibraryFileBinding) : RecyclerView.ViewHolder(binding.root)
 
