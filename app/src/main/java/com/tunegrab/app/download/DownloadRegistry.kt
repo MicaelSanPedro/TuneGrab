@@ -29,7 +29,7 @@ object DownloadRegistry {
     @Volatile
     var paused: PausedDownload? = null
 
-    fun clearIf(fileName: String) {
+    fun clearIf(fileName: String?) {
         if (paused?.fileName == fileName) paused = null
     }
 }

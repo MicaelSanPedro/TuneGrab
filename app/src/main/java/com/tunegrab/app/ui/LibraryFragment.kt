@@ -3,7 +3,7 @@ package com.tunegrab.app.ui
 import android.app.Activity
 import android.app.RecoverableSecurityException
 import android.content.Intent
-import android.content.IntentSenderRequest
+import androidx.activity.result.IntentSenderRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
