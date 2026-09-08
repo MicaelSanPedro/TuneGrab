@@ -42,9 +42,11 @@ sem servidor, sem depender de nada instalado no aparelho.
     embutido, com tags ID3 e nome da música
   - **M4A** — o áudio original do YouTube, sem reconversão (melhor fidelidade)
   - **OPUS** — o áudio original em WebM, máxima qualidade por bit
-  - **MP4** — vídeo até **1080p**: acima de 720p o YouTube separa vídeo e áudio,
-    então o app baixa os dois e junta com o ffmpeg embutido **sem re-codificar**
-    (motor reserva: até 720p, com aviso na notificação)
+  - **MP4** — vídeo até **4K (2160p)**: acima de 720p o YouTube separa vídeo e
+    áudio, então o app baixa os dois e junta com o ffmpeg embutido
+    **sem re-codificar**. O seletor só habilita as resoluções que o vídeo
+    realmente tem (720p/1080p/1440p/4K), e a notificação final **confirma a
+    resolução do arquivo salvo** (motor reserva: até 720p, com aviso)
 - **Motor yt-dlp embutido e auto-atualizável** — o app atualiza o motor sozinho
   (canal estável, 1 checagem por versão), então quando o YouTube mudar algo o
   TuneGrab "se conserta" na próxima abertura, sem precisar de versão nova
@@ -219,6 +221,7 @@ clients anônimos com iOS à frente.
 - [x] **Menu de navegação inferior + central de downloads + biblioteca de músicas + pasta de download escolhível** (v0.5.0)
 - [x] **MP4 até 1080p de verdade (merge vídeo+áudio) e qualidades honestas** (v0.6.0)
 - [x] **Player embutido (áudio/vídeo) + compartilhar nos baixados + navegação instantânea em 1 activity** (v0.7.0)
+- [x] **MP4 até 4K (2160p) com resolução verificada e confirmada no arquivo salvo** (v0.8.0)
 - [ ] Fila de downloads / múltiplos links
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)

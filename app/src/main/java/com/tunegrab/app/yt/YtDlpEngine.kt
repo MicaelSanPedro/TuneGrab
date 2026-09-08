@@ -138,11 +138,25 @@ object YtDlpEngine {
                 }
                 is Preset.Mp4 -> {
                     val h = preset.maxHeight.coerceAtLeast(144)
-                    addOption(
-                        "-f",
-                        "bv*[ext=mp4][height<=$h]+ba[ext=m4a]/b[ext=mp4][height<=$h]/" +
-                            "bv*[height<=$h]+ba/b[height<=$h]/bv*+ba/best"
-                    )
+                    // TODOS os ramos são limitados à altura pedida: o app nunca
+                    // baixa MAIS do que foi escolhido. Áudio sempre m4a (AAC
+                    // entra no MP4 sem drama; Opus no MP4 é aposta).
+                    // ≤1080p: h264/mp4 primeiro (compatibilidade máxima);
+                    // >1080p: o YouTube não tem h264 nessas alturas (só
+                    // VP9/AV1) — VP9 vem antes do AV1 por compatibilidade
+                    // de decode, e o merge sai remuxado no MP4 (VP9+AAC).
+                    val chain = if (h > 1080) {
+                        "bv*[vcodec^=vp9][height<=$h]+ba[ext=m4a]" +
+                            "/bv*[height<=$h]+ba[ext=m4a]" +
+                            "/b[height<=$h]"
+                    } else {
+                        "bv*[ext=mp4][height<=$h]+ba[ext=m4a]" +
+                            "/bv*[vcodec^=vp9][height<=$h]+ba[ext=m4a]" +
+                            "/bv*[height<=$h]+ba[ext=m4a]" +
+                            "/b[ext=mp4][height<=$h]" +
+                            "/b[height<=$h]"
+                    }
+                    addOption("-f", chain)
                     addOption("-S", "res:$h")
                     addOption("--merge-output-format", "mp4")
                 }

@@ -22,6 +22,7 @@ import com.tunegrab.app.CrashReportActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.audio.AudioQuality
 import com.tunegrab.app.audio.Mp3Converter
+import com.tunegrab.app.video.VideoQuality
 import com.tunegrab.app.yt.DownloaderImpl
 import com.tunegrab.app.yt.YtDlpEngine
 import kotlinx.coroutines.CoroutineScope
@@ -93,8 +94,9 @@ class DownloadService : Service() {
                 // ---------- PLANO A: yt-dlp embutido ----------
                 if (!videoUrl.isNullOrBlank() && !engineFormat.isNullOrBlank()) {
                     try {
-                        val savedUri = runYtDlp(videoUrl, engineFormat, bitrate, maxHeight, fileName, title)
-                        notifyFinished(title, fileName, savedUri)
+                        val (savedUri, qualityNote) =
+                            runYtDlp(videoUrl, engineFormat, bitrate, maxHeight, fileName, title)
+                        notifyFinished(title, fileName, savedUri, qualityNote)
                         return@launch
                     } catch (e: Exception) {
                         if (url.isNullOrBlank()) throw e
@@ -198,8 +200,9 @@ class DownloadService : Service() {
     }
 
     /**
-     * PLANO A: yt-dlp embutido — prepara o motor (1ª vez), baixa, converte e
-     * publica o arquivo produzido. Bloqueante; rodar em thread de IO.
+     * PLANO A: yt-dlp embutido — prepara o motor (1ª vez), baixa, converte,
+     * VERIFICA a qualidade no arquivo e publica. Bloqueante; thread de IO.
+     * Devolve (uri salva, nota de qualidade para a notificação final).
      */
     private fun runYtDlp(
         videoUrl: String,
@@ -208,7 +211,7 @@ class DownloadService : Service() {
         maxHeight: Int,
         fileName: String,
         title: String
-    ): Uri {
+    ): Pair<Uri, String?> {
         YtDlpEngine.ensureReady(applicationContext) { statusMsg ->
             showPhase(fileName, statusMsg, 0, indeterminate = true)
         }
@@ -238,20 +241,38 @@ class DownloadService : Service() {
                 }
             }
 
-            // GUARDA DE BITRATE (MP3): mede o bitrate real do arquivo que o
-            // yt-dlp/ffmpeg produziu; se vier abaixo do pedido (ex.: ffmpeg
-            // sem libmp3lame caindo no padrão 128k), re-encoda no LAME interno
-            // no bitrate exato. O usuário pediu 320 e vai receber 320 no arquivo.
-            val produced = if (preset is YtDlpEngine.Preset.Mp3) {
-                AudioQuality.ensureMp3Bitrate(produced0, bitrate, title) { p ->
-                    showPhase(
-                        fileName,
-                        getString(R.string.notif_phase_convert),
-                        60 + (p * 39).toInt().coerceAtMost(39),
-                        indeterminate = false
-                    )
+            // GUARDAS DE QUALIDADE: mede o ARQUIVO produzido e garante que a
+            // qualidade pedida está nele — MP3: bitrate real (re-encode se veio
+            // abaixo); MP4: resolução real do vídeo. O resultado vai para a
+            // notificação final — confirmação honesta, nunca rótulo falso.
+            var produced = produced0
+            var qualityNote: String? = null
+            when (preset) {
+                is YtDlpEngine.Preset.Mp3 -> {
+                    produced = AudioQuality.ensureMp3Bitrate(produced, bitrate, title) { p ->
+                        showPhase(
+                            fileName,
+                            getString(R.string.notif_phase_convert),
+                            60 + (p * 39).toInt().coerceAtMost(39),
+                            indeterminate = false
+                        )
+                    }
+                    qualityNote = AudioQuality.actualBitrateKbps(produced)
+                        ?.let { getString(R.string.notif_quality_audio, it) }
                 }
-            } else produced0
+                is YtDlpEngine.Preset.Mp4 -> {
+                    val actual = VideoQuality.actualHeight(produced)
+                    qualityNote = when {
+                        actual == null -> null
+                        // tolerância de 24px: alturas não-padrão não são "menor"
+                        actual + 24 >= preset.maxHeight ->
+                            getString(R.string.notif_quality_video_ok, actual)
+                        else ->
+                            getString(R.string.notif_quality_video_lower, preset.maxHeight, actual)
+                    }
+                }
+                else -> {}
+            }
 
             showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
             val finalName = sanitizeFileName(produced.name)
@@ -263,7 +284,8 @@ class DownloadService : Service() {
                 "mp4" -> "video/mp4"
                 else -> "application/octet-stream"
             }
-            return publish(produced.inputStream().buffered(), produced.length(), finalName, finalMime)
+            val saved = publish(produced.inputStream().buffered(), produced.length(), finalName, finalMime)
+            return saved to qualityNote
         } finally {
             outDir.deleteRecursively()
         }
@@ -538,12 +560,14 @@ class DownloadService : Service() {
         DownloadBus.progress(name, phase, p, indeterminate)
     }
 
-    private fun notifyFinished(title: String, fileName: String, uri: Uri) {
+    private fun notifyFinished(title: String, fileName: String, uri: Uri, qualityNote: String? = null) {
         DownloadBus.finished(fileName)
+        val text = if (qualityNote != null) "$fileName · $qualityNote" else fileName
         val b = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.notif_done))
-            .setContentText(fileName)
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setOngoing(false)
             .setAutoCancel(true)
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID + 1, b.build())

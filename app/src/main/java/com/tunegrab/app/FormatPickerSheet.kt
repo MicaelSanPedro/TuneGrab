@@ -116,7 +116,7 @@ class FormatPickerSheet(
     private val mp3Source: AudioStream? =
         audioOptions.firstOrNull { it.format?.name == "M4A" } ?: audioOptions.firstOrNull()
 
-    /** Resoluções oferecidas nos chips de MP4: combinadas + DASH (até 1080p). */
+    /** Resoluções que o vídeo de fato oferece (combinadas + DASH, até 4K/8K). */
     private val mp4Heights: List<Int> = YtExtractor.videoHeights(info)
 
     private val dialog = BottomSheetDialog(context)
@@ -187,35 +187,66 @@ class FormatPickerSheet(
             FormatPrefs.FORMAT_MP3 -> context.getString(R.string.hint_mp3)
             FormatPrefs.FORMAT_M4A -> context.getString(R.string.hint_m4a)
             FormatPrefs.FORMAT_OPUS -> context.getString(R.string.hint_opus)
-            else -> context.getString(R.string.hint_mp4)
+            else -> mp4Heights.maxOrNull()?.takeIf { it > 0 }
+                ?.let { context.getString(R.string.hint_mp4_max, it) }
+                ?: context.getString(R.string.hint_mp4)
         }
 
-        val qualities: List<Pair<String, String>> = when (format) { // (valor, rótulo)
+        // (valor, rótulo, disponível) — MP4 usa a escada com disponibilidade
+        // real do vídeo; formatos de áudio sempre têm todas as opções
+        val qualities: List<Triple<String, String, Boolean>> = when (format) {
             FormatPrefs.FORMAT_MP3 -> listOf("320", "256", "192", "128").map {
-                it to context.getString(R.string.q_kbps, it)
+                Triple(it, context.getString(R.string.q_kbps, it), true)
             }
             FormatPrefs.FORMAT_M4A -> m4aStreams
                 .sortedByDescending { it.averageBitrate }
-                .map { "${it.averageBitrate}" to context.getString(R.string.q_kbps, "${it.averageBitrate}") }
+                .map {
+                    Triple(
+                        "${it.averageBitrate}",
+                        context.getString(R.string.q_kbps, "${it.averageBitrate}"),
+                        true
+                    )
+                }
                 .distinctBy { it.first }
             FormatPrefs.FORMAT_OPUS -> opusStreams
                 .sortedByDescending { it.averageBitrate }
-                .map { "${it.averageBitrate}" to context.getString(R.string.q_kbps, "${it.averageBitrate}") }
+                .map {
+                    Triple(
+                        "${it.averageBitrate}",
+                        context.getString(R.string.q_kbps, "${it.averageBitrate}"),
+                        true
+                    )
+                }
                 .distinctBy { it.first }
-            else -> mp4Heights.map { "$it" to "${it}p" }
+            else -> mp4Entries()
         }
 
-        val preferred = when {
-            rememberInitialQuality -> FormatPrefs.lastQuality(context, format)
-            else -> null
-        } ?: defaultQualityFor(format, qualities)
+        val availableValues = qualities.filter { it.third }.map { it.first }
+        val remembered = if (rememberInitialQuality) {
+            FormatPrefs.lastQuality(context, format)
+        } else null
+        // última escolha só vale se ainda existir nesta lista (ex.: 4K
+        // lembrado de outro vídeo não pode vir pré-selecionado aqui)
+        val preferred = remembered?.takeIf { it in availableValues }
+            ?: defaultQualityFor(format, availableValues)
 
-        qualities.forEachIndexed { _, (value, label) ->
+        qualities.forEach { (value, label, available) ->
             val chip = newChip(binding.sheetQualityGroup, label)
             chip.tag = value
             chip.isChecked = value == preferred
-            chip.setOnCheckedChangeListener { _, checked ->
-                if (checked) binding.sheetQualityGroup.tag = value
+            chip.isEnabled = available
+            if (available) {
+                chip.setOnCheckedChangeListener { _, checked ->
+                    if (checked) binding.sheetQualityGroup.tag = value
+                }
+            } else {
+                // guarda o motivo para mostrar quando o usuário tocar no chip
+                val why = context.getString(
+                    R.string.hint_mp4_height_unavailable,
+                    mp4Heights.maxOrNull() ?: 0
+                )
+                chip.contentDescription = why
+                chip.setOnClickListener { binding.sheetFormatHint.text = why }
             }
             binding.sheetQualityGroup.addView(chip)
         }
@@ -223,26 +254,54 @@ class FormatPickerSheet(
         binding.sheetQualityGroup.tag = preferred
     }
 
-    private fun defaultQualityFor(format: String, qualities: List<Pair<String, String>>): String {
-        if (qualities.isEmpty()) return ""
+    /**
+     * Escada padrão de MP4 (720p/1080p/4K...): cada degrau SÓ fica
+     * habilitado se a extração mostra que o vídeo realmente tem essa
+     * resolução — a certeza começa na escolha. Degraus acima do máximo do
+     * vídeo continuam visíveis, mas desabilitados (com o motivo no toque).
+     * Alturas não-padrão do vídeo (ex.: 1072p) entram como degraus extras.
+     */
+    private fun mp4Entries(): List<Triple<String, String, Boolean>> {
+        val max = mp4Heights.maxOrNull() ?: return emptyList()
+        val standard = listOf(2160, 1440, 1080, 720, 480, 360)
+        val rungs = (standard + mp4Heights.filter { it > 0 && it !in standard && it <= max })
+            .distinct()
+            .sortedDescending()
+        return rungs.mapNotNull { h ->
+            when {
+                h <= max -> Triple("$h", mp4Label(h), true)
+                h in standard && h <= 2160 -> Triple("$h", mp4Label(h), false)
+                else -> null
+            }
+        }
+    }
+
+    private fun mp4Label(h: Int): String = when (h) {
+        2160 -> "4K (2160p)"
+        4320 -> "8K (4320p)"
+        else -> "${h}p"
+    }
+
+    private fun defaultQualityFor(format: String, values: List<String>): String {
+        if (values.isEmpty()) return ""
         return when (format) {
             FormatPrefs.FORMAT_MP3 -> {
                 val def = FormatPrefs.mp3DefaultBitrate(context).toString()
                 // cai para a mais próxima caso o padrão não exista na lista
-                qualities.map { it.first }.minByOrNull {
+                values.minByOrNull {
                     kotlin.math.abs((it.toIntOrNull() ?: 0) - (def.toIntOrNull() ?: 0))
-                } ?: qualities.first().first
+                } ?: values.first()
             }
             FormatPrefs.FORMAT_M4A -> if (FormatPrefs.m4aPick(context) == FormatPrefs.PICK_SMALL) {
-                qualities.last().first
+                values.last()
             } else {
-                qualities.first().first
+                values.first()
             }
-            FormatPrefs.FORMAT_OPUS -> qualities.first().first
+            FormatPrefs.FORMAT_OPUS -> values.first()
             else -> if (FormatPrefs.mp4Pick(context) == FormatPrefs.PICK_SMALL) {
-                qualities.last().first
+                values.last()
             } else {
-                qualities.first().first
+                values.first()
             }
         }
     }
