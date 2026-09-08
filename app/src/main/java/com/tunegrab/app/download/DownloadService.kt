@@ -531,7 +531,7 @@ class DownloadService : Service() {
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_MIME = "mime"
         private const val EXTRA_MODE = "mode"
-        private const val EXTRA_BITRATE = "bitrate"
+        const val EXTRA_BITRATE = "bitrate"
 
         /** Plano A: URL do vídeo para o motor yt-dlp embutido + preset de formato. */
         const val EXTRA_VIDEO_URL = "video_url"
