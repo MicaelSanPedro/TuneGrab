@@ -248,6 +248,7 @@ clients anônimos com iOS à frente.
 - [x] **Biblioteca separa Músicas e Vídeos (com contagem) + padrões 1080p/320 kbps no seletor + tela cheia sem deformar o vídeo** (v0.10.1)
 - [x] **Identidade visual: fonte Poppins em toda a interface + ícones Material Symbols Rounded (navegação com contorno/preenchido)** (v0.10.2)
 - [x] **Motor de download tolerante ao bot-check do YouTube: re-tentativa automática com processo novo + mantém fallback PoToken** (v0.10.4)
+- [x] **Anti-bot-check de verdade: yt-dlp atualiza pelo canal NIGHTLY (correções diárias) + rotação de client android_vr nas re-tentativas + --sleep-requests + botão de copiar detalhes do erro na Central** (v0.10.5)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

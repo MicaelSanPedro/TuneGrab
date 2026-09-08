@@ -19,8 +19,10 @@ import java.util.UUID
  * acompanhar sozinho.
  *
  * Além disso, na primeira execução de cada versão do app o yt-dlp é
- * auto-atualizado para a última versão estável ([UpdateChannel.STABLE]) — é
- * isso que mantém o download funcionando quando o YouTube muda alguma coisa.
+ * auto-atualizado pelo canal NIGHTLY ([UpdateChannel.NIGHTLY]) — o yt-dlp
+ * publica correção contra as mudanças do YouTube praticamente TODO DIA nesse
+ * canal (a stable às vezes fica semanas parada). É isso que mantém o download
+ * funcionando quando o YouTube muda alguma coisa.
  *
  * A API é bloqueante: chamar de threads de IO (o DownloadService já faz isso).
  */
@@ -59,8 +61,8 @@ object YtDlpEngine {
                 updateChecked = true
                 try {
                     onStatus(ctx.getString(R.string.notif_phase_engine_update))
-                    val status = YoutubeDL.updateYoutubeDL(ctx, YoutubeDL.UpdateChannel.STABLE)
-                    Log.i(TAG, "update do yt-dlp: $status (agora ${versionName(ctx)})")
+                    val status = YoutubeDL.updateYoutubeDL(ctx, YoutubeDL.UpdateChannel.NIGHTLY)
+                    Log.i(TAG, "update do yt-dlp (nightly): $status (agora ${versionName(ctx)})")
                 } catch (t: Throwable) {
                     Log.w(TAG, "update do yt-dlp falhou; seguindo com a versão embutida", t)
                 }
@@ -98,12 +100,24 @@ object YtDlpEngine {
         if (clean) outDir.deleteRecursively()
         outDir.mkdirs()
 
-        val req = YoutubeDLRequest(videoUrl).apply {
+        // O request é montado A CADA TENTATIVA porque o client do innertube
+        // é rotacionado: tentativa 0 usa o default do yt-dlp e, se o bot-check
+        // derrubar, as tentativas ímpares voltam com o ANDROID_VR — client
+        // historicamente imune ao "Sign in to confirm you're not a bot".
+        // Prova empírica (2026-09-08, yt-dlp 2026.08.19): com HTTP 429 na
+        // cabeça, default e android_vr extraem; ios/tv/tv_simply/web_safari
+        // não devolvem formato NENHUM no yt-dlp atual.
+        fun buildRequest(client: String?): YoutubeDLRequest = YoutubeDLRequest(videoUrl).apply {
             addOption("--no-playlist")
             addOption("--no-mtime")
             addOption("--socket-timeout", "20")
             addOption("--retries", "5")
             addOption("--fragment-retries", "5")
+            // espaça as chamadas ao innertube — mitiga o bot-check na origem
+            addOption("--sleep-requests", "1")
+            if (client != null) {
+                addOption("--extractor-args", "youtube:player_client=$client")
+            }
             addOption("-o", File(outDir, "%(title)s.%(ext)s").absolutePath)
             when (preset) {
                 is Preset.Mp3 -> {
@@ -151,6 +165,9 @@ object YtDlpEngine {
                 is Preset.Mp4 -> {
                     // TETO 4K: 8K (4320p) saiu do app — arquivo gigante para
                     // uma resolução que quase nenhum aparelho reproduz liso.
+                    // (nota: se o retry cair no android_vr, que não serve VP9/AV1
+                    // 4K, a cadeia de fallback termina em /b[height<=h] — pior
+                    // caso baixa 1080p em vez de falhar; melhor assim.)
                     val h = preset.maxHeight.coerceAtLeast(144).coerceAtMost(2160)
                     // TODOS os ramos são limitados à altura pedida: o app nunca
                     // baixa MAIS do que foi escolhido. Áudio sempre m4a (AAC
@@ -203,7 +220,7 @@ object YtDlpEngine {
         var attempt = 0
         while (true) {
             try {
-                YoutubeDL.execute(req, processId, { progress, eta, line ->
+                YoutubeDL.execute(buildRequest(clientFor(attempt)), processId, { progress, eta, line ->
                     try {
                         onProgress(progress, eta, line)
                     } catch (ignored: Throwable) {
@@ -221,14 +238,16 @@ object YtDlpEngine {
                 val msg = (e.message ?: "").lowercase()
                 if (attempt <= BOT_CHECK_RETRIES && BOT_CHECK_MARKERS.any { it in msg }) {
                     // O bot-check do YouTube ("Sign in to confirm you're not a
-                    // bot") é intermitente e depende da reputação do IP: um
-                    // processo NOVO refaz a extração (outros clients do innertube,
-                    // novo desafio) e costuma passar — mesma política já usada
-                    // com sucesso na extração da Home. Recomeça do zero: o
-                    // progresso reinicia (a barra volta ao início, normal).
+                    // bot") depende da reputação do IP E do client do innertube
+                    // escolhido na extração: para além do processo novo (novo
+                    // desafio, novo sorteio de client), o retry volta com o
+                    // ANDROID_VR — imune ao bot-check. Os parciais são apagados:
+                    // trocar de client pode mudar o formato escolhido e retomar
+                    // bytes de OUTRO formato corromperia o arquivo.
+                    outDir.listFiles()?.forEach { it.delete() }
                     Log.w(
                         TAG,
-                        "bot-check do YouTube (tentativa $attempt/${BOT_CHECK_RETRIES + 1}); re-tentando com processo novo",
+                        "bot-check do YouTube (tentativa $attempt/${BOT_CHECK_RETRIES + 1}, client=${clientFor(attempt) ?: "default"}); re-tentando",
                         e
                     )
                     Thread.sleep(1500L * attempt)
@@ -240,10 +259,22 @@ object YtDlpEngine {
     }
 
     /**
+     * Rotação de clients do innertube entre tentativas: ímpares usam o
+     * ANDROID_VR (históricamente imune ao "Sign in to confirm you're not a
+     * bot"), pares voltam ao default do yt-dlp — cada execute() é um processo
+     * novo, então até repetir o default refaz a extração e o desafio.
+     */
+    private const val ALT_CLIENT = "android_vr"
+    private fun clientFor(attempt: Int): String? = if (attempt % 2 == 1) ALT_CLIENT else null
+
+    /**
      * Re-tentativas extras quando o yt-dlp cai no bot-check do YouTube.
      * Marcadores minúsculos contra a MENSAGEM do erro (o yt-dlp devolve
      * "Sign in to confirm you're not a bot" e variações; 429 é o rate-limit
-     * que antecede o desafio). Pausa/cancelamento nunca passam por aqui.
+     * que antecede o desafio; "requested format is not available" pode ser
+     * o YouTube entregando a lista de formatos VAZIA por desconfiança —
+     * outro client costuma devolver os formatos). Pausa/cancelamento nunca
+     * passam por aqui.
      */
     private const val BOT_CHECK_RETRIES = 2
     private val BOT_CHECK_MARKERS = listOf(
@@ -251,7 +282,8 @@ object YtDlpEngine {
         "sign in to confirm",
         "confirm you're not",
         "too many requests",
-        "http error 429"
+        "http error 429",
+        "requested format is not available"
     )
 
     /** Resposta menor que isso é página de erro, não mídia. */

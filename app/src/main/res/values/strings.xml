@@ -115,6 +115,8 @@
     <string name="dl_state_done">Concluído ✓</string>
     <string name="dl_state_failed">Falhou</string>
     <string name="dl_state_failed_reason">Falhou — %1$s</string>
+    <string name="dl_error_copied">Detalhes do erro copiados ✓</string>
+    <string name="cd_copy">Copiar detalhes do erro</string>
     <string name="dl_state_paused">Pausado</string>
     <string name="dl_state_cancelled">Cancelado</string>
     <string name="dl_queued">Na fila</string>

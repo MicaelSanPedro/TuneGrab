@@ -1,5 +1,8 @@
 package com.tunegrab.app.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -218,6 +221,11 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
         val b = holder.binding
         val ctx = b.root.context
         b.tvName.text = item.title
+        // reset do estado RECICLADO: botão de copiar do card "Falhou" e o
+        // limite de linhas da fase não podem vazar para os outros estados
+        b.btnCopy.isVisible = false
+        b.btnCopy.setOnClickListener(null)
+        b.tvPhase.maxLines = Int.MAX_VALUE
         when (item.state) {
             DownloadBus.State.RUNNING -> {
                 b.icon.setImageResource(R.drawable.ic_download)
@@ -282,12 +290,21 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 } else {
                     ctx.getString(R.string.dl_state_failed_reason, item.detail)
                 }
+                b.tvPhase.maxLines = 4
                 b.tvPercent.isVisible = false
                 b.progress.isVisible = false
                 b.btnPause.isVisible = false
                 b.btnPlay.isVisible = false
                 b.btnShare.isVisible = false
                 b.btnCancel.isVisible = false
+                // copiar o erro CRU (texto do yt-dlp/NewPipe) — é o que permite
+                // diagnosticar de verdade quando o download falha
+                b.btnCopy.isVisible = !item.detail.isNullOrBlank()
+                b.btnCopy.setOnClickListener {
+                    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("TuneGrab", item.detail ?: ""))
+                    Toast.makeText(ctx, R.string.dl_error_copied, Toast.LENGTH_SHORT).show()
+                }
             }
             DownloadBus.State.CANCELLED -> {
                 b.icon.setImageResource(R.drawable.ic_close)
