@@ -21,6 +21,7 @@ import com.tunegrab.app.CrashReportActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.audio.Mp3Converter
 import com.tunegrab.app.yt.DownloaderImpl
+import com.tunegrab.app.yt.YtDlpEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,16 +38,19 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Serviço em primeiro plano que baixa a faixa selecionada e salva em
- * Downloads/TuneGrab, com notificação de progresso em fases:
+ * Downloads/TuneGrab, com notificação de progresso em fases.
  *
+ * PLANO A — motor yt-dlp EMBUTIDO (quando o intent tem EXTRA_VIDEO_URL):
+ * yt-dlp faz extração + download + conversão sozinho (é a engine mantida
+ * semanalmente contra as mudanças do YouTube). Progresso 0–100 direto dele.
+ *
+ * PLANO B — URL direta (NewPipe + PoToken), se o plano A falhar:
  *  - MODO_DIRETO (M4A/MP4): download → arquivo final (0–100%)
  *  - MODO_MP3:              download (0–60%) → conversão LAME (60–99%) → salvar
  *
- * O download vai primeiro para um arquivo .part no cache e só depois é
- * publicado. Se a conexão cair no meio, ele RETOMA de onde parou
- * (Range HTTP) por até [MAX_ATTEMPTS] vezes — rede móvel oscila muito.
- * URLs bloqueadas (HTTP 403/4xx) não são repetidas: repetir não resolve,
- * o problema é a URL, e o usuário é avisado com a mensagem certa.
+ * No plano B o download vai primeiro para um arquivo .part no cache e só
+ * depois é publicado, com retomada (Range HTTP) por até [MAX_ATTEMPTS] vezes.
+ * URLs bloqueadas (HTTP 403/4xx) não são repetidas: repetir não resolve.
  */
 class DownloadService : Service() {
 
@@ -66,7 +70,10 @@ class DownloadService : Service() {
         val mime = intent?.getStringExtra(EXTRA_MIME) ?: "audio/mp4"
         val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_DIRECT
         val bitrate = intent?.getIntExtra(EXTRA_BITRATE, 320) ?: 320
-        if (url.isNullOrBlank()) {
+        val videoUrl = intent?.getStringExtra(EXTRA_VIDEO_URL)
+        val engineFormat = intent?.getStringExtra(EXTRA_FORMAT)
+        val maxHeight = intent?.getIntExtra(EXTRA_MAX_HEIGHT, 0) ?: 0
+        if (url.isNullOrBlank() && videoUrl.isNullOrBlank()) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -79,15 +86,32 @@ class DownloadService : Service() {
             var tmpOut: File? = null
             var tmpPart: File? = null
             try {
+                // ---------- PLANO A: yt-dlp embutido ----------
+                if (!videoUrl.isNullOrBlank() && !engineFormat.isNullOrBlank()) {
+                    try {
+                        val savedUri = runYtDlp(videoUrl, engineFormat, bitrate, maxHeight, fileName)
+                        notifyFinished(title, fileName, savedUri)
+                        return@launch
+                    } catch (e: Exception) {
+                        if (url.isNullOrBlank()) throw e
+                        Log.w(TAG, "yt-dlp falhou; tentando o plano B (URL direta)", e)
+                        showPhase(fileName, getString(R.string.notif_phase_fallback), 0, indeterminate = true)
+                    }
+                }
+
+                // ---------- PLANO B: URL direta (NewPipe + PoToken) ----------
+                // (chegou aqui ⇒ url é não-nula: ou não havia plano A, ou o plano A
+                // falhou e rethrow teria acontecido se url fosse nula)
+                val legacyUrl = url ?: throw IOException("sem URL direta para o plano B")
                 val savedUri: Uri = if (mode == MODE_MP3) {
                     val cache = File(applicationContext.cacheDir, "convert").apply { mkdirs() }
                     // hash da URL no nome do .part: garante que a retomada só
                     // aconteça com a MESMA faixa (qualidade) escolhida antes
-                    val src = File(cache, "$fileName.${url.hashCode().toString(36)}.src")
+                    val src = File(cache, "$fileName.${legacyUrl.hashCode().toString(36)}.src")
                         .also { tmpSource = it }
                     val mp3 = File(cache, fileName).also { tmpOut = it }
 
-                    downloadWithRetries(src, url, fileName) { done, total ->
+                    downloadWithRetries(src, legacyUrl, fileName) { done, total ->
                         // download = 0–60% do total
                         val now = System.currentTimeMillis()
                         if (now - lastNotify > 400) {
@@ -115,10 +139,10 @@ class DownloadService : Service() {
                     publish(mp3.inputStream().buffered(), mp3.length(), fileName, "audio/mpeg")
                 } else {
                     val parts = File(applicationContext.cacheDir, "parts").apply { mkdirs() }
-                    val part = File(parts, "$fileName.${url.hashCode().toString(36)}.part")
+                    val part = File(parts, "$fileName.${legacyUrl.hashCode().toString(36)}.part")
                         .also { tmpPart = it }
 
-                    downloadWithRetries(part, url, fileName) { done, total ->
+                    downloadWithRetries(part, legacyUrl, fileName) { done, total ->
                         val now = System.currentTimeMillis()
                         if (now - lastNotify > 400) {
                             lastNotify = now
@@ -151,6 +175,65 @@ class DownloadService : Service() {
         }
         return START_NOT_STICKY
     }
+
+    /**
+     * PLANO A: yt-dlp embutido — prepara o motor (1ª vez), baixa, converte e
+     * publica o arquivo produzido. Bloqueante; rodar em thread de IO.
+     */
+    private fun runYtDlp(
+        videoUrl: String,
+        format: String,
+        bitrate: Int,
+        maxHeight: Int,
+        fileName: String
+    ): Uri {
+        YtDlpEngine.ensureReady(applicationContext) { statusMsg ->
+            showPhase(fileName, statusMsg, 0, indeterminate = true)
+        }
+        val outDir = File(applicationContext.cacheDir, "ytdlp/${System.currentTimeMillis()}")
+        try {
+            val preset = when (format) {
+                "mp3" -> YtDlpEngine.Preset.Mp3(bitrate)
+                "m4a" -> YtDlpEngine.Preset.M4a(preferBitrate = bitrate.takeIf { it in 1..512 })
+                "opus" -> YtDlpEngine.Preset.Opus(preferBitrate = bitrate.takeIf { it in 1..512 })
+                else -> YtDlpEngine.Preset.Mp4(maxHeight = if (maxHeight > 0) maxHeight else 1080)
+            }
+            val produced = YtDlpEngine.download(videoUrl, preset, outDir) { progress, _ ->
+                val now = System.currentTimeMillis()
+                if (now - lastNotify > 400) {
+                    lastNotify = now
+                    if (progress >= 100f) {
+                        // pós-processamento (converter/remuxar) — sem porcentagem
+                        showPhase(fileName, getString(R.string.notif_phase_convert), 100, indeterminate = true)
+                    } else {
+                        showPhase(
+                            fileName,
+                            getString(R.string.notif_phase_download),
+                            progress.toInt().coerceIn(0, 99),
+                            indeterminate = false
+                        )
+                    }
+                }
+            }
+
+            showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
+            val finalName = sanitizeFileName(produced.name)
+            val finalMime = when (produced.extension.lowercase()) {
+                "mp3" -> "audio/mpeg"
+                "m4a" -> "audio/mp4"
+                "opus", "ogg" -> "audio/ogg"
+                "webm" -> "audio/webm"
+                "mp4" -> "video/mp4"
+                else -> "application/octet-stream"
+            }
+            return publish(produced.inputStream().buffered(), produced.length(), finalName, finalMime)
+        } finally {
+            outDir.deleteRecursively()
+        }
+    }
+
+    private fun sanitizeFileName(name: String): String =
+        name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().ifBlank { "audio" }
 
     override fun onDestroy() {
         scope.cancel()
@@ -449,6 +532,11 @@ class DownloadService : Service() {
         private const val EXTRA_MIME = "mime"
         private const val EXTRA_MODE = "mode"
         private const val EXTRA_BITRATE = "bitrate"
+
+        /** Plano A: URL do vídeo para o motor yt-dlp embutido + preset de formato. */
+        const val EXTRA_VIDEO_URL = "video_url"
+        const val EXTRA_FORMAT = "engine_format"
+        const val EXTRA_MAX_HEIGHT = "engine_max_height"
 
         /** Tentativas de download (a primeira + 2 retomadas). */
         private const val MAX_ATTEMPTS = 3

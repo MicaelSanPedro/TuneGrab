@@ -203,19 +203,28 @@ class MainActivity : AppCompatActivity() {
                 request.title,
                 request.stream,
                 suffix = request.stream.format?.suffix ?: "m4a",
-                mime = request.stream.format?.mimeType ?: "audio/mp4"
+                mime = request.stream.format?.mimeType ?: "audio/mp4",
+                videoUrl = request.videoUrl,
+                engineFormat = "m4a",
+                engineBitrate = request.stream.averageBitrate
             )
             is DownloadRequest.Webm -> startDirect(
                 request.title,
                 request.stream,
                 suffix = request.stream.format?.suffix ?: "webm",
-                mime = request.stream.format?.mimeType ?: "audio/webm"
+                mime = request.stream.format?.mimeType ?: "audio/webm",
+                videoUrl = request.videoUrl,
+                engineFormat = "opus",
+                engineBitrate = request.stream.averageBitrate
             )
             is DownloadRequest.Mp4 -> startDirect(
                 request.title,
                 request.stream,
                 suffix = "mp4",
-                mime = request.stream.format?.mimeType ?: "video/mp4"
+                mime = request.stream.format?.mimeType ?: "video/mp4",
+                videoUrl = request.videoUrl,
+                engineFormat = "mp4",
+                maxHeight = request.stream.height
             )
         }
     }
@@ -228,11 +237,24 @@ class MainActivity : AppCompatActivity() {
         }
         val fileName = sanitize(request.title) + ".mp3"
         val intent = DownloadService.mp3Intent(this, request.title, url, fileName, request.bitrateKbps)
+        if (request.videoUrl != null) {
+            intent.putExtra(DownloadService.EXTRA_VIDEO_URL, request.videoUrl)
+            intent.putExtra(DownloadService.EXTRA_FORMAT, "mp3")
+        }
         launchService(intent)
         setStatus(getString(R.string.status_converting, "${request.bitrateKbps}"))
     }
 
-    private fun startDirect(title: String, stream: Any, suffix: String, mime: String) {
+    private fun startDirect(
+        title: String,
+        stream: Any,
+        suffix: String,
+        mime: String,
+        videoUrl: String? = null,
+        engineFormat: String? = null,
+        maxHeight: Int = 0,
+        engineBitrate: Int = 0
+    ) {
         val url = when (stream) {
             is AudioStream -> stream.url
             is VideoStream -> stream.url
@@ -244,6 +266,13 @@ class MainActivity : AppCompatActivity() {
         }
         val fileName = sanitize(title) + "." + suffix
         val intent = DownloadService.intent(this, title, url, fileName, mime)
+        if (videoUrl != null && engineFormat != null) {
+            // plano A: yt-dlp embutido; a URL direta fica de plano B no intent
+            intent.putExtra(DownloadService.EXTRA_VIDEO_URL, videoUrl)
+            intent.putExtra(DownloadService.EXTRA_FORMAT, engineFormat)
+            if (maxHeight > 0) intent.putExtra(DownloadService.EXTRA_MAX_HEIGHT, maxHeight)
+            if (engineBitrate > 0) intent.putExtra(DownloadService.EXTRA_BITRATE, engineBitrate)
+        }
         launchService(intent)
         setStatus(getString(R.string.status_downloading))
     }

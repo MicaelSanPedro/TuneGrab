@@ -17,19 +17,35 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 sealed class DownloadRequest {
     abstract val title: String
 
+    /** URL do vídeo (não do stream) — usada pelo motor yt-dlp (plano A). */
+    abstract val videoUrl: String?
+
     data class Mp3(
         override val title: String,
         val source: AudioStream,
-        val bitrateKbps: Int
+        val bitrateKbps: Int,
+        override val videoUrl: String? = null
     ) : DownloadRequest()
 
-    data class M4a(override val title: String, val stream: AudioStream) : DownloadRequest()
+    data class M4a(
+        override val title: String,
+        val stream: AudioStream,
+        override val videoUrl: String? = null
+    ) : DownloadRequest()
 
     /** Áudio Opus no container WebM — o formato que o YouTube entrega sem
      *  bloqueio, mesmo quando o M4A está indisponível (legado da v0.1.2). */
-    data class Webm(override val title: String, val stream: AudioStream) : DownloadRequest()
+    data class Webm(
+        override val title: String,
+        val stream: AudioStream,
+        override val videoUrl: String? = null
+    ) : DownloadRequest()
 
-    data class Mp4(override val title: String, val stream: VideoStream) : DownloadRequest()
+    data class Mp4(
+        override val title: String,
+        val stream: VideoStream,
+        override val videoUrl: String? = null
+    ) : DownloadRequest()
 }
 
 /** Preferências de formato/qualidade (última escolha + padrões das Configurações). */
@@ -234,27 +250,28 @@ class FormatPickerSheet(
     private fun confirm() {
         val quality = selectedQuality() ?: return
         FormatPrefs.remember(context, currentFormat, quality)
+        val videoUrl = info.originalUrl ?: info.url
         val request: DownloadRequest = when (currentFormat) {
             FormatPrefs.FORMAT_MP3 -> {
                 val src = mp3Source ?: return
-                DownloadRequest.Mp3(info.name, src, quality.toIntOrNull() ?: 320)
+                DownloadRequest.Mp3(info.name, src, quality.toIntOrNull() ?: 320, videoUrl)
             }
             FormatPrefs.FORMAT_M4A -> {
                 val stream = m4aStreams.firstOrNull {
                     "${it.averageBitrate}" == quality
                 } ?: m4aStreams.firstOrNull() ?: return
-                DownloadRequest.M4a(info.name, stream)
+                DownloadRequest.M4a(info.name, stream, videoUrl)
             }
             FormatPrefs.FORMAT_OPUS -> {
                 val stream = opusStreams.firstOrNull {
                     "${it.averageBitrate}" == quality
                 } ?: opusStreams.firstOrNull() ?: return
-                DownloadRequest.Webm(info.name, stream)
+                DownloadRequest.Webm(info.name, stream, videoUrl)
             }
             else -> {
                 val stream = videoOptions.firstOrNull { "${it.height}" == quality }
                     ?: videoOptions.firstOrNull() ?: return
-                DownloadRequest.Mp4(info.name, stream)
+                DownloadRequest.Mp4(info.name, stream, videoUrl)
             }
         }
         dialog.dismiss()

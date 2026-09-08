@@ -11,8 +11,15 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 8
-        versionName = "0.3.2"
+        versionCode = 9
+        versionName = "0.4.0"
+
+        // ABIs do motor yt-dlp embutido (python + ffmpeg são nativos).
+        // x86/x86_64 ficam de fora para o APK não dobrar de tamanho —
+        // aparelhos físicos são arm32/arm64.
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     signingConfigs {
@@ -43,6 +50,14 @@ android {
 
     buildFeatures {
         viewBinding = true
+    }
+
+    packaging {
+        // Exigido pelo youtubedl-android: os binários do python/ffmpeg precisam
+        // ficar extraídos no disco (não dá para executar direto do APK).
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     externalNativeBuild {
@@ -78,4 +93,12 @@ dependencies {
     //     WEB+PoToken/iOS/visionOS/TV como fallback primário quando os clients anônimos falham.
     implementation("com.github.MicaelSanPedro:NewPipeExtractor:v0.26.5-android4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Motor de download yt-dlp EMBUTIDO no APK (python 3.12 + yt-dlp + ffmpeg),
+    // a mesma engine usada pelo app Seal — o “plano A” do download na v0.4.0.
+    // O yt-dlp é mantido semanalmente contra as mudanças do YouTube (rotação de
+    // clients, desafios de JS via QuickJS embutido) e ainda é auto-atualizado
+    // na primeira execução de cada versão do app (UpdateChannel.STABLE).
+    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
 }

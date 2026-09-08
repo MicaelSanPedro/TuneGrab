@@ -4,7 +4,9 @@ import android.app.Application
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.tunegrab.app.yt.YtDlpEngine
 import com.tunegrab.app.yt.potoken.PoTokenManager
+import kotlin.concurrent.thread
 
 /**
  * Application class que instala um handler global de crashes:
@@ -18,6 +20,15 @@ class TuneGrabApp : Application() {
         super.onCreate()
         // contexto do gerador de PoTokens (BotGuard via WebView)
         PoTokenManager.init(this)
+        // pré-aquece o motor yt-dlp em segundo plano: extrai python/yt-dlp e
+        // atualiza a versão UMA vez, para o primeiro download sair sem espera
+        thread(name = "ytdlp-warmup") {
+            try {
+                YtDlpEngine.ensureReady(this) { /* status silencioso no warm-up */ }
+            } catch (t: Throwable) {
+                Log.w("TuneGrab", "warm-up do yt-dlp falhou; será tentado no download", t)
+            }
+        }
         val systemHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {
