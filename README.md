@@ -42,11 +42,12 @@ sem servidor, sem depender de nada instalado no aparelho.
     embutido, com tags ID3 e nome da música
   - **M4A** — o áudio original do YouTube, sem reconversão (melhor fidelidade)
   - **OPUS** — o áudio original em WebM, máxima qualidade por bit
-  - **MP4** — vídeo até **4K (2160p)**: acima de 720p o YouTube separa vídeo e
-    áudio, então o app baixa os dois e junta com o ffmpeg embutido
-    **sem re-codificar**. O seletor só habilita as resoluções que o vídeo
-    realmente tem (720p/1080p/1440p/4K), e a notificação final **confirma a
-    resolução do arquivo salvo** (motor reserva: até 720p, com aviso)
+  - **MP4** — vídeo até **4K (2160p)**, com **todas as qualidades sempre
+    liberadas**: acima de 720p o YouTube separa vídeo e áudio, então o app
+    baixa os dois e junta com o ffmpeg embutido **sem re-codificar**. Pediu
+    4K num vídeo de 1080p? Baixa em 1080p — o máximo que o vídeo tem — e a
+    notificação final **confirma a resolução do arquivo salvo** (motor
+    reserva: até 720p, com aviso)
 - **Motor yt-dlp embutido e auto-atualizável** — o app atualiza o motor sozinho
   (canal estável, 1 checagem por versão), então quando o YouTube mudar algo o
   TuneGrab "se conserta" na próxima abertura, sem precisar de versão nova

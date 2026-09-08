@@ -22,6 +22,11 @@ object BottomNav {
             navigate(activity, nav, containerId, item.itemId)
             true
         }
+        // abre a aba inicial DE FATO: selectedItemId antes do listener não
+        // dispara navegação, e sem isso o app abria em tela branca até o
+        // primeiro toque numa aba. navigate() é idempotente (mesma aba =
+        // nada a fazer), então rotação/recriação não recarrega à toa.
+        navigate(activity, nav, containerId, defaultItemId)
     }
 
     private fun navigate(activity: AppCompatActivity, nav: BottomNavigationView, containerId: Int, itemId: Int) {

@@ -26,9 +26,7 @@
     <string name="hint_mp3">MP3 no bitrate escolhido — o app confere o arquivo salvo e garante o bitrate (320 kbps CBR de verdade no arquivo). Fonte: o áudio original do YouTube, como no yt-dlp do PC</string>
     <string name="hint_m4a">Original do YouTube (~128 kbps AAC) copiado sem reconversão — compatível com tudo</string>
     <string name="hint_opus">Original do YouTube (~160 kbps Opus) sem reconversão — a qualidade máxima REAL que o site oferece</string>
-    <string name="hint_mp4">Até 4K — acima de 720p o YouTube separa vídeo e áudio: o app baixa os dois e junta sem re-codificar (se cair no motor reserva, até 720p)</string>
-    <string name="hint_mp4_max">Este vídeo oferece até %1$dp — o app baixa na resolução escolhida e confere a resolução do arquivo salvo</string>
-    <string name="hint_mp4_height_unavailable">Esta resolução não está disponível neste vídeo (máximo: %1$dp)</string>
+    <string name="hint_mp4">Qualidade livre de 360p a 4K — pediu 4K num vídeo de 1080p? Baixa em 1080p (o máximo que o vídeo tem) e a notificação confirma a resolução real. Acima de 720p, vídeo e áudio são baixados e juntos sem re-codificar</string>
     <string name="hint_mp3_unavailable">Sem faixa de áudio neste vídeo</string>
     <string name="hint_m4a_unavailable">Sem faixa M4A neste vídeo</string>
     <string name="hint_opus_unavailable">Sem faixa Opus/WebM neste vídeo</string>

@@ -220,7 +220,7 @@ class HomeFragment : Fragment() {
                 request.title,
                 request.stream,
                 suffix = "mp4",
-                mime = request.stream.format?.mimeType ?: "video/mp4",
+                mime = request.stream?.format?.mimeType ?: "video/mp4",
                 videoUrl = request.videoUrl,
                 engineFormat = "mp4",
                 // altura ESCOLHIDA (pode ser 1080p via merge do yt-dlp);
@@ -248,7 +248,7 @@ class HomeFragment : Fragment() {
 
     private fun startDirect(
         title: String,
-        stream: Any,
+        stream: Any?,
         suffix: String,
         mime: String,
         videoUrl: String? = null,
@@ -261,12 +261,14 @@ class HomeFragment : Fragment() {
             is VideoStream -> stream.url
             else -> null
         }
-        if (url.isNullOrBlank()) {
+        // stream/url nulos são ok quando há videoUrl: o plano A (yt-dlp) baixa
+        // só com a URL do vídeo — MP4 nunca fica bloqueado por extração falha
+        if (url.isNullOrBlank() && videoUrl.isNullOrBlank()) {
             Toast.makeText(context, R.string.err_no_audio, Toast.LENGTH_SHORT).show()
             return
         }
         val fileName = sanitize(title) + "." + suffix
-        val intent = DownloadService.intent(requireContext(), title, url, fileName, mime)
+        val intent = DownloadService.intent(requireContext(), title, url ?: "", fileName, mime)
         if (videoUrl != null && engineFormat != null) {
             // plano A: yt-dlp embutido; a URL direta fica de plano B no intent
             intent.putExtra(DownloadService.EXTRA_VIDEO_URL, videoUrl)

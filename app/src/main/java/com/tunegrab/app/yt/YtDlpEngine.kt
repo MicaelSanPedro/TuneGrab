@@ -141,13 +141,21 @@ object YtDlpEngine {
                     // TODOS os ramos são limitados à altura pedida: o app nunca
                     // baixa MAIS do que foi escolhido. Áudio sempre m4a (AAC
                     // entra no MP4 sem drama; Opus no MP4 é aposta).
-                    // ≤1080p: h264/mp4 primeiro (compatibilidade máxima);
                     // >1080p: o YouTube não tem h264 nessas alturas (só
                     // VP9/AV1) — VP9 vem antes do AV1 por compatibilidade
                     // de decode, e o merge sai remuxado no MP4 (VP9+AAC).
+                    // Pedido >1080 num vídeo que NÃO tem nada acima de 1080
+                    // (clamp, ex.: 4K num vídeo de 1080p): a cadeia cai no
+                    // ramo h264/mp4 ≤1080 — mesma altura que um pedido 1080p,
+                    // com compatibilidade máxima. A notificação final confirma
+                    // a altura real do arquivo salvo.
                     val chain = if (h > 1080) {
-                        "bv*[vcodec^=vp9][height<=$h]+ba[ext=m4a]" +
+                        "bv*[vcodec^=vp9][height>1080][height<=$h]+ba[ext=m4a]" +
+                            "/bv*[height>1080][height<=$h]+ba[ext=m4a]" +
+                            "/bv*[ext=mp4][height<=1080]+ba[ext=m4a]" +
+                            "/bv*[vcodec^=vp9][height<=$h]+ba[ext=m4a]" +
                             "/bv*[height<=$h]+ba[ext=m4a]" +
+                            "/b[ext=mp4][height<=1080]" +
                             "/b[height<=$h]"
                     } else {
                         "bv*[ext=mp4][height<=$h]+ba[ext=m4a]" +

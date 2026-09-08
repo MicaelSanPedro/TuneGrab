@@ -44,10 +44,12 @@ sealed class DownloadRequest {
 
     data class Mp4(
         override val title: String,
-        val stream: VideoStream,
+        /** Faixa combinada usada só pelo plano B, que não sabe juntar
+         *  (limitado a 720p). Pode ser null quando a extração não devolveu
+         *  faixas progressivas — o plano A (yt-dlp) baixa só com a URL. */
+        val stream: VideoStream?,
         /** Altura escolhida no seletor (pode ser > 720p: o plano A junta
-         *  vídeo+áudio com ffmpeg). [stream] é a faixa combinada usada só
-         *  pelo plano B, que não sabe juntar (limitado a 720p). */
+         *  vídeo+áudio com ffmpeg). */
         val height: Int,
         override val videoUrl: String? = null
     ) : DownloadRequest()
@@ -150,7 +152,9 @@ class FormatPickerSheet(
             context.getString(R.string.hint_m4a_unavailable))
         addFormatChip(FormatPrefs.FORMAT_OPUS, "OPUS (original)", opusStreams.isNotEmpty(),
             context.getString(R.string.hint_opus_unavailable))
-        addFormatChip(FormatPrefs.FORMAT_MP4, "MP4", videoOptions.isNotEmpty(),
+        // MP4 sempre liberado: o plano A (yt-dlp) baixa só com a URL do vídeo,
+        // sem depender de faixas progressivas na extração
+        addFormatChip(FormatPrefs.FORMAT_MP4, "MP4", true,
             context.getString(R.string.hint_mp4_unavailable))
     }
 
@@ -187,13 +191,12 @@ class FormatPickerSheet(
             FormatPrefs.FORMAT_MP3 -> context.getString(R.string.hint_mp3)
             FormatPrefs.FORMAT_M4A -> context.getString(R.string.hint_m4a)
             FormatPrefs.FORMAT_OPUS -> context.getString(R.string.hint_opus)
-            else -> mp4Heights.maxOrNull()?.takeIf { it > 0 }
-                ?.let { context.getString(R.string.hint_mp4_max, it) }
-                ?: context.getString(R.string.hint_mp4)
+            else -> context.getString(R.string.hint_mp4)
         }
 
-        // (valor, rótulo, disponível) — MP4 usa a escada com disponibilidade
-        // real do vídeo; formatos de áudio sempre têm todas as opções
+        // (valor, rótulo, disponível) — desde v0.8.1 TODOS os valores são
+        // habilitados sempre (o motor adapta ao máximo do vídeo); o booleano
+        // segue na estrutura por compatibilidade com os formatos de áudio
         val qualities: List<Triple<String, String, Boolean>> = when (format) {
             FormatPrefs.FORMAT_MP3 -> listOf("320", "256", "192", "128").map {
                 Triple(it, context.getString(R.string.q_kbps, it), true)
@@ -221,32 +224,23 @@ class FormatPickerSheet(
             else -> mp4Entries()
         }
 
+        // TODAS as opções ficam habilitadas sempre: se o vídeo não tiver a
+        // resolução pedida, o motor baixa na maior disponível (≤ a escolhida)
+        // e a notificação final confirma a resolução real do arquivo salvo.
         val availableValues = qualities.filter { it.third }.map { it.first }
         val remembered = if (rememberInitialQuality) {
             FormatPrefs.lastQuality(context, format)
         } else null
-        // última escolha só vale se ainda existir nesta lista (ex.: 4K
-        // lembrado de outro vídeo não pode vir pré-selecionado aqui)
         val preferred = remembered?.takeIf { it in availableValues }
             ?: defaultQualityFor(format, availableValues)
 
-        qualities.forEach { (value, label, available) ->
+        qualities.forEach { (value, label, _) ->
             val chip = newChip(binding.sheetQualityGroup, label)
             chip.tag = value
             chip.isChecked = value == preferred
-            chip.isEnabled = available
-            if (available) {
-                chip.setOnCheckedChangeListener { _, checked ->
-                    if (checked) binding.sheetQualityGroup.tag = value
-                }
-            } else {
-                // guarda o motivo para mostrar quando o usuário tocar no chip
-                val why = context.getString(
-                    R.string.hint_mp4_height_unavailable,
-                    mp4Heights.maxOrNull() ?: 0
-                )
-                chip.contentDescription = why
-                chip.setOnClickListener { binding.sheetFormatHint.text = why }
+            chip.isEnabled = true
+            chip.setOnCheckedChangeListener { _, checked ->
+                if (checked) binding.sheetQualityGroup.tag = value
             }
             binding.sheetQualityGroup.addView(chip)
         }
@@ -255,25 +249,18 @@ class FormatPickerSheet(
     }
 
     /**
-     * Escada padrão de MP4 (720p/1080p/4K...): cada degrau SÓ fica
-     * habilitado se a extração mostra que o vídeo realmente tem essa
-     * resolução — a certeza começa na escolha. Degraus acima do máximo do
-     * vídeo continuam visíveis, mas desabilitados (com o motivo no toque).
-     * Alturas não-padrão do vídeo (ex.: 1072p) entram como degraus extras.
+     * Escada padrão de MP4 (360p → 4K): TODOS os degraus ficam habilitados
+     * sempre — escolheu 4K num vídeo de 1080p? O motor baixa em 1080p (o
+     * máximo que o vídeo tem) e a notificação confirma a resolução real.
+     * Alturas não-padrão detectadas na extração (ex.: 1072p) entram como
+     * degraus extras; a detecção nunca bloqueia nada.
      */
     private fun mp4Entries(): List<Triple<String, String, Boolean>> {
-        val max = mp4Heights.maxOrNull() ?: return emptyList()
         val standard = listOf(2160, 1440, 1080, 720, 480, 360)
-        val rungs = (standard + mp4Heights.filter { it > 0 && it !in standard && it <= max })
+        val rungs = (standard + mp4Heights.filter { it > 0 && it !in standard })
             .distinct()
             .sortedDescending()
-        return rungs.mapNotNull { h ->
-            when {
-                h <= max -> Triple("$h", mp4Label(h), true)
-                h in standard && h <= 2160 -> Triple("$h", mp4Label(h), false)
-                else -> null
-            }
-        }
+        return rungs.map { Triple("$it", mp4Label(it), true) }
     }
 
     private fun mp4Label(h: Int): String = when (h) {
@@ -337,10 +324,11 @@ class FormatPickerSheet(
                 // Plano B (URL direta) só sabe baixar faixa COM áudio: usa a
                 // combinada mais próxima abaixo da altura escolhida; o plano A
                 // (yt-dlp) é quem baixa a altura real (bv+ba, merge ffmpeg).
+                // stream pode ficar null (extração sem faixas progressivas):
+                // o plano A funciona só com a URL, então MP4 NUNCA é bloqueado.
                 val stream = videoOptions.filter { it.height <= chosen }
                     .maxByOrNull { it.height }
                     ?: videoOptions.minByOrNull { it.height }
-                    ?: return
                 DownloadRequest.Mp4(info.name, stream, chosen, videoUrl)
             }
         }
