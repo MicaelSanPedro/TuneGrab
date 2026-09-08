@@ -85,4 +85,42 @@
     <string name="q_smallest">Menor arquivo</string>
 
     <string name="tos_note">Use apenas com conteúdo próprio, Creative Commons ou quando permitido. Respeite os Termos de Serviço do YouTube e os direitos autorais.</string>
+
+    <!-- Navegação inferior -->
+    <string name="nav_home">Início</string>
+    <string name="nav_downloads">Downloads</string>
+    <string name="nav_library">Músicas</string>
+    <string name="nav_settings">Config.</string>
+
+    <!-- Central de downloads -->
+    <string name="dl_title">Central de downloads</string>
+    <string name="dl_empty">Nenhum download aqui ainda.\nCole um link no Início e baixe sua primeira música 🎵</string>
+    <string name="dl_clear">Limpar finalizados</string>
+    <string name="dl_preparing">preparando…</string>
+    <string name="dl_running_pct">%1$d%%</string>
+    <string name="dl_state_done">Concluído ✓</string>
+    <string name="dl_state_failed">Falhou</string>
+    <string name="dl_state_failed_reason">Falhou — %1$s</string>
+
+    <!-- Músicas baixadas -->
+    <string name="lib_title">Músicas baixadas</string>
+    <string name="lib_empty">Nada baixado ainda.\nOs arquivos que você baixar aparecem aqui.</string>
+    <string name="lib_folder_default">Salvando em: Downloads/TuneGrab</string>
+    <string name="lib_folder_custom">Salvando em: %1$s</string>
+    <string name="lib_folder_unknown">pasta escolhida</string>
+    <string name="lib_meta_line">%1$s · %2$s</string>
+    <string name="lib_err_open">Não foi possível abrir este arquivo.</string>
+    <string name="lib_err_delete">Não foi possível apagar este arquivo.</string>
+    <string name="lib_deleted">Apagado ✓</string>
+    <string name="cd_refresh">Atualizar</string>
+    <string name="cd_share">Compartilhar</string>
+    <string name="cd_delete">Apagar</string>
+
+    <!-- Pasta de download -->
+    <string name="settings_folder">Pasta de download</string>
+    <string name="settings_folder_default">Padrão: Downloads/TuneGrab</string>
+    <string name="settings_folder_custom">Personalizada: %1$s</string>
+    <string name="settings_choose_folder">Escolher pasta…</string>
+    <string name="settings_reset_folder">Voltar ao padrão</string>
+    <string name="settings_folder_hint">Os arquivos serão salvos na pasta que você escolher. Se ela ficar indisponível, o app volta para o padrão automaticamente.</string>
 </resources>

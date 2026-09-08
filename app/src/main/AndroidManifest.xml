@@ -70,8 +70,29 @@
             android:theme="@style/Theme.TuneGrab" />
 
         <activity
+            android:name=".DownloadsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TuneGrab" />
+
+        <activity
+            android:name=".LibraryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TuneGrab" />
+
+        <activity
             android:name=".CrashReportActivity"
             android:exported="false"
             android:theme="@style/Theme.TuneGrab" />
+
+        <!-- Abrir/compartilhar arquivos baixados no Android 7–9 (file:// é proibido) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

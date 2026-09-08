@@ -9,4 +9,6 @@
     <color name="on_surface_variant">#9AA0B2</color>
     <color name="icon_bg_start">#6D28D9</color>
     <color name="icon_bg_end">#C026D3</color>
+    <color name="state_done">#4ADE80</color>
+    <color name="state_failed">#F87171</color>
 </resources>

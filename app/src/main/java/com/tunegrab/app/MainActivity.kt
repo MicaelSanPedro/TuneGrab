@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.tunegrab.app.databinding.ActivityMainBinding
 import com.tunegrab.app.download.DownloadService
+import com.tunegrab.app.ui.BottomNav
 import com.tunegrab.app.yt.YtExtractor
 import com.tunegrab.app.yt.potoken.PoTokenManager
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +53,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnDownload.setOnClickListener { onDownloadClicked() }
         binding.btnSettings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+        BottomNav.setup(binding.navBar.bottomNav, this, R.id.navHome)
         binding.tilUrl.setEndIconOnClickListener { pasteFromClipboard() }
         binding.inputUrl.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {

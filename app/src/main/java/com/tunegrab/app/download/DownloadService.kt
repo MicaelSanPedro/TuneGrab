@@ -17,6 +17,7 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.documentfile.provider.DocumentFile
 import com.tunegrab.app.CrashReportActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.audio.Mp3Converter
@@ -80,6 +81,8 @@ class DownloadService : Service() {
 
         createChannel()
         startForeground(NOTIF_ID, notificationProgress(fileName, 0, indeterminate = true))
+        // espelho para a Central de Downloads (não afeta o download)
+        DownloadBus.start(title, fileName)
 
         scope.launch {
             var tmpSource: File? = null
@@ -329,7 +332,7 @@ class DownloadService : Service() {
     /** HTTP 4xx na URL do stream: bloqueio do YouTube, não falha de rede. */
     private class BlockedStreamException(message: String) : IOException(message)
 
-    /** Publica o arquivo final em Downloads/TuneGrab (MediaStore API 29+ / File API 24–28). */
+    /** Publica o arquivo final: na pasta escolhida (se houver) ou em Downloads/TuneGrab. */
     private fun publish(
         input: InputStream,
         total: Long,
@@ -337,11 +340,53 @@ class DownloadService : Service() {
         mime: String,
         onProgress: (Long) -> Unit = {}
     ): Uri {
+        // pasta escolhida pelo usuário (Configurações → Pasta de download);
+        // se ela estiver indisponível, cai de volta no padrão automaticamente
+        val tree = SaveLocation.customTree(applicationContext)
+        if (tree != null) {
+            try {
+                return saveToTree(input, tree, fileName, mime, onProgress)
+            } catch (e: Exception) {
+                Log.w(TAG, "Falha ao salvar na pasta escolhida; usando o padrão", e)
+            }
+        }
         return if (Build.VERSION.SDK_INT >= 29) {
             saveViaMediaStore(input, fileName, mime, onProgress)
         } else {
             saveLegacy(input, fileName, onProgress)
         }
+    }
+
+    /** Salva na pasta escolhida via SAF (funciona do Android 7 ao mais novo). */
+    private fun saveToTree(
+        input: InputStream,
+        tree: Uri,
+        fileName: String,
+        mime: String,
+        onProgress: (Long) -> Unit
+    ): Uri {
+        val dir = DocumentFile.fromTreeUri(applicationContext, tree)
+            ?: throw IOException("pasta escolhida indisponível")
+        // nome único dentro da pasta (mesma regra do MediaStore: "arquivo (1).ext")
+        var name = fileName
+        var i = 1
+        while (dir.findFile(name) != null) {
+            val base = fileName.substringBeforeLast('.')
+            val ext = fileName.substringAfterLast('.', "")
+            name = if (ext.isBlank()) "$base ($i)" else "$base ($i).$ext"
+            i++
+        }
+        val doc = dir.createDocument(mime, name)
+            ?: throw IOException("não foi possível criar o arquivo na pasta escolhida")
+        try {
+            applicationContext.contentResolver.openOutputStream(doc.uri)?.use { out ->
+                copy(input, out, onProgress)
+            } ?: throw IOException("stream de saída indisponível")
+        } catch (e: Exception) {
+            doc.delete()
+            throw e
+        }
+        return doc.uri
     }
 
     private fun saveViaMediaStore(
@@ -450,13 +495,17 @@ class DownloadService : Service() {
             .build()
 
     private fun showPhase(name: String, phase: String, percent: Int, indeterminate: Boolean = false) {
-        val n = baseBuilder(getString(R.string.notif_downloading, name), "$phase · $percent%")
-            .setProgress(100, percent.coerceIn(0, 100), indeterminate)
+        val p = percent.coerceIn(0, 100)
+        val n = baseBuilder(getString(R.string.notif_downloading, name), "$phase · $p%")
+            .setProgress(100, p, indeterminate)
             .build()
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, n)
+        // espelho para a Central de Downloads (não afeta o download)
+        DownloadBus.progress(name, phase, p, indeterminate)
     }
 
     private fun notifyFinished(title: String, fileName: String, uri: Uri) {
+        DownloadBus.finished(fileName)
         val b = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.notif_done))
@@ -473,6 +522,7 @@ class DownloadService : Service() {
      */
     private fun notifyFailed(fileName: String, e: Exception) {
         val userMsg = friendlyFailure(e)
+        DownloadBus.failed(fileName, userMsg)
         val tech = buildString {
             appendLine(fileName)
             appendLine()
