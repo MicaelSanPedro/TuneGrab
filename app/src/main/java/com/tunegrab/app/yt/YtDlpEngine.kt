@@ -199,20 +199,60 @@ object YtDlpEngine {
         // O processId é o gancho de pausa/cancelamento do service.
         val processId = UUID.randomUUID().toString()
         onProcessId(processId)
-        YoutubeDL.execute(req, processId, { progress, eta, line ->
-            try {
-                onProgress(progress, eta, line)
-            } catch (ignored: Throwable) {
-                // callback de notificação nunca pode derrubar o download
-            }
-        })
 
-        val produced = outDir.listFiles()
-            ?.filter { it.isFile && it.length() > MIN_BYTES }
-            ?.maxByOrNull { it.lastModified() }
-            ?: throw IOException("yt-dlp terminou sem produzir arquivo")
-        return produced
+        var attempt = 0
+        while (true) {
+            try {
+                YoutubeDL.execute(req, processId, { progress, eta, line ->
+                    try {
+                        onProgress(progress, eta, line)
+                    } catch (ignored: Throwable) {
+                        // callback de notificação nunca pode derrubar o download
+                    }
+                })
+                return outDir.listFiles()
+                    ?.filter { it.isFile && it.length() > MIN_BYTES }
+                    ?.maxByOrNull { it.lastModified() }
+                    ?: throw IOException("yt-dlp terminou sem produzir arquivo")
+            } catch (e: YoutubeDL.CanceledException) {
+                throw e // pausa/cancelamento pedidos pelo usuário: NUNCA re-tentar
+            } catch (e: Exception) {
+                attempt++
+                val msg = (e.message ?: "").lowercase()
+                if (attempt <= BOT_CHECK_RETRIES && BOT_CHECK_MARKERS.any { it in msg }) {
+                    // O bot-check do YouTube ("Sign in to confirm you're not a
+                    // bot") é intermitente e depende da reputação do IP: um
+                    // processo NOVO refaz a extração (outros clients do innertube,
+                    // novo desafio) e costuma passar — mesma política já usada
+                    // com sucesso na extração da Home. Recomeça do zero: o
+                    // progresso reinicia (a barra volta ao início, normal).
+                    Log.w(
+                        TAG,
+                        "bot-check do YouTube (tentativa $attempt/${BOT_CHECK_RETRIES + 1}); re-tentando com processo novo",
+                        e
+                    )
+                    Thread.sleep(1500L * attempt)
+                } else {
+                    throw e
+                }
+            }
+        }
     }
+
+    /**
+     * Re-tentativas extras quando o yt-dlp cai no bot-check do YouTube.
+     * Marcadores minúsculos contra a MENSAGEM do erro (o yt-dlp devolve
+     * "Sign in to confirm you're not a bot" e variações; 429 é o rate-limit
+     * que antecede o desafio). Pausa/cancelamento nunca passam por aqui.
+     */
+    private const val BOT_CHECK_RETRIES = 2
+    private val BOT_CHECK_MARKERS = listOf(
+        "not a bot",
+        "sign in to confirm",
+        "confirm you're not",
+        "too many requests",
+        "http error 429"
+    )
 
     /** Resposta menor que isso é página de erro, não mídia. */
     private const val MIN_BYTES = 16L * 1024L
