@@ -176,38 +176,8 @@
                     android:textSize="14sp" />
             </RadioGroup>
 
-            <!-- MP4 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_mp4"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <RadioGroup
-                android:id="@+id/rgMp4"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp">
-
-                <RadioButton
-                    android:id="@+id/rbMp4Best"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_best"
-                    android:textSize="14sp" />
-
-                <RadioButton
-                    android:id="@+id/rbMp4Small"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_smallest"
-                    android:textSize="14sp" />
-            </RadioGroup>
+            <!-- Vídeo: padrão fixo em 1080p no seletor (v0.10.1) — sem opção aqui.
+                 O rótulo "1080p (padrão)" aparece no próprio seletor de qualidade. -->
 
             <TextView
                 android:layout_width="match_parent"

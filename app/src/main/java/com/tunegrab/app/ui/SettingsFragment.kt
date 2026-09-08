@@ -18,9 +18,10 @@ import com.tunegrab.app.download.SaveLocation
 /**
  * Configurações: qualidade padrão de cada formato (configuradas separadamente)
  * e a pasta onde os arquivos são salvos.
- *  - MP3: bitrate padrão da conversão (320/256/192/128 kbps)
+ *  - MP3: bitrate padrão da conversão (320/256/192/128 kbps) — o "320 kbps
+ *    (padrão)" do seletor
  *  - M4A: melhor disponível ou menor arquivo
- *  - MP4: melhor disponível ou menor arquivo
+ *  - Vídeo: padrão FIXO em 1080p no seletor (v0.10.1) — sem configuração aqui
  *  - Pasta: Downloads/TuneGrab (padrão) ou pasta escolhida pelo usuário (SAF)
  */
 class SettingsFragment : Fragment() {
@@ -63,7 +64,6 @@ class SettingsFragment : Fragment() {
         loadCurrent()
         bindMp3()
         bindM4a()
-        bindMp4()
         refreshFolderUi()
     }
 
@@ -82,8 +82,6 @@ class SettingsFragment : Fragment() {
         }
         binding.rbM4aBest.isChecked = FormatPrefs.m4aPick(ctx) == FormatPrefs.PICK_BEST
         binding.rbM4aSmall.isChecked = FormatPrefs.m4aPick(ctx) == FormatPrefs.PICK_SMALL
-        binding.rbMp4Best.isChecked = FormatPrefs.mp4Pick(ctx) == FormatPrefs.PICK_BEST
-        binding.rbMp4Small.isChecked = FormatPrefs.mp4Pick(ctx) == FormatPrefs.PICK_SMALL
     }
 
     private fun bindMp3() {
@@ -102,13 +100,6 @@ class SettingsFragment : Fragment() {
         binding.rgM4a.setOnCheckedChangeListener { _: RadioGroup, checkedId: Int ->
             val pick = if (checkedId == R.id.rbM4aSmall) FormatPrefs.PICK_SMALL else FormatPrefs.PICK_BEST
             FormatPrefs.setM4aPick(requireContext(), pick)
-        }
-    }
-
-    private fun bindMp4() {
-        binding.rgMp4.setOnCheckedChangeListener { _: RadioGroup, checkedId: Int ->
-            val pick = if (checkedId == R.id.rbMp4Small) FormatPrefs.PICK_SMALL else FormatPrefs.PICK_BEST
-            FormatPrefs.setMp4Pick(requireContext(), pick)
         }
     }
 

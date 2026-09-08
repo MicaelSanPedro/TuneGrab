@@ -32,6 +32,7 @@
     <string name="hint_opus_unavailable">Sem faixa Opus/WebM neste vídeo</string>
     <string name="hint_mp4_unavailable">Sem vídeo disponível neste vídeo</string>
     <string name="q_kbps">%1$s kbps</string>
+    <string name="q_default">%1$s (padrão)</string>
 
     <string name="meta_line">%1$s · %2$s</string>
 
@@ -84,7 +85,6 @@
     <string name="settings_mp3">MP3 · qualidade da conversão</string>
     <string name="settings_mp3_hint">A fonte do YouTube tem até ~160 kbps; bitrates maiores preservam a qualidade sem adicioná-la.</string>
     <string name="settings_m4a">M4A · áudio original</string>
-    <string name="settings_mp4">Vídeo (MP4/MKV) · com áudio</string>
     <string name="settings_mp4_hint">Até 1080p sai em MP4/H.264; 1440p e 4K saem em MKV (contêiner nativo do YouTube nessas resoluções — VP9/AV1 em MP4 ficaria ilegível). Vídeo e áudio são baixados separados e juntos com o ffmpeg embutido, sem perder qualidade. Se cair para o motor reserva, o limite é 720p.</string>
     <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>
@@ -98,12 +98,16 @@
     <!-- Navegação inferior -->
     <string name="nav_home">Início</string>
     <string name="nav_downloads">Downloads</string>
-    <string name="nav_library">Músicas</string>
+    <string name="nav_library">Biblioteca</string>
     <string name="nav_settings">Config.</string>
 
     <!-- Central de downloads -->
     <string name="dl_title">Central de downloads</string>
     <string name="dl_empty">Nenhum download aqui ainda.\nCole um link no Início e baixe sua primeira música 🎵</string>
+    <string name="dl_empty_filter">Nada neste filtro.</string>
+    <string name="dl_filter_all">Tudo</string>
+    <string name="dl_filter_audio">Músicas</string>
+    <string name="dl_filter_video">Vídeos</string>
     <string name="dl_clear">Limpar finalizados</string>
     <string name="dl_preparing">preparando…</string>
     <string name="dl_running_pct">%1$d%%</string>
@@ -116,9 +120,13 @@
     <string name="dl_queued">Na fila</string>
     <string name="dl_resuming">Retomando…</string>
 
-    <!-- Músicas baixadas -->
-    <string name="lib_title">Músicas baixadas</string>
-    <string name="lib_empty">Nada baixado ainda.\nOs arquivos que você baixar aparecem aqui.</string>
+    <!-- Biblioteca (músicas e vídeos separados) -->
+    <string name="lib_title">Biblioteca</string>
+    <string name="lib_filter_audio">Músicas</string>
+    <string name="lib_filter_video">Vídeos</string>
+    <string name="lib_chip_count">%1$s · %2$d</string>
+    <string name="lib_empty_audio">Nenhuma música baixada ainda.\nOs arquivos que você baixar aparecem aqui.</string>
+    <string name="lib_empty_video">Nenhum vídeo baixado ainda.\nOs vídeos que você baixar aparecem aqui.</string>
     <string name="lib_folder_default">Salvando em: Downloads/TuneGrab</string>
     <string name="lib_folder_custom">Salvando em: %1$s</string>
     <string name="lib_folder_unknown">pasta escolhida</string>
@@ -148,5 +156,5 @@
     <string name="player_exit_fullscreen">Sair da tela cheia</string>
     <string name="notif_channel_playback">Reprodução</string>
     <string name="notif_channel_playback_desc">Controles da música que está tocando em segundo plano</string>
-    <string name="dl_not_found">Arquivo não encontrado para compartilhar — confira na aba Músicas.</string>
+    <string name="dl_not_found">Arquivo não encontrado para compartilhar — confira na aba Biblioteca.</string>
 </resources>

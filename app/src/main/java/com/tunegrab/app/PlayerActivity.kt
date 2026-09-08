@@ -31,10 +31,12 @@ import java.util.Locale
  *    app vai para o fundo ou a tela apaga. Esta activity só é a interface.
  *  - VÍDEO (MP4/MKV): VideoView com controles do sistema + botão de TELA
  *    CHEIA que GIRA O APP (activity) para paisagem, com barras ocultas. O
- *    VideoView (MediaPlayer) lê Matroska/VP9 nativamente — 4K baixado toca
- *    aqui igual toca no Google Fotos.
+ *    vídeo é exibido por FitVideoView, que mantém o aspect ratio real em
+ *    qualquer tela (o VideoView padrão esmaga o vídeo na tela cheia). O
+ *    MediaPlayer lê Matroska/VP9 nativamente — 4K baixado toca aqui igual
+ *    toca no Google Fotos.
  *
- * O arquivo é o mesmo que está na aba Músicas — o player não move nem apaga nada.
+ * O arquivo é o mesmo que está na aba Biblioteca — o player não move nem apaga nada.
  */
 class PlayerActivity : AppCompatActivity() {
 

@@ -26,8 +26,9 @@ sem servidor, sem depender de nada instalado no aparelho.
 ## ✨ Funcionalidades
 
 - **Cole o link e toque em "Baixar"** — funciona de primeira, sem configurar nada
-- **Player embutido** — toque no ▶ na aba Músicas para ouvir (com barra de
-  progresso e play/pause) ou assistir ao vídeo dentro do próprio app
+- **Player embutido** — toque no ▶ na aba Biblioteca para ouvir (com barra de
+  progresso e play/pause) ou assistir ao vídeo dentro do próprio app, em tela
+  cheia **sem deformar** (proporção real preservada em qualquer tela)
 - **Música em segundo plano** — a música continua tocando com o app fechado
   ou a tela apagada, com **notificação de mídia** (play/pause/fechar) e botão
   nas configurações de som do aparelho
@@ -37,15 +38,17 @@ sem servidor, sem depender de nada instalado no aparelho.
 - **Downloads rodam em segundo plano** — serviço em primeiro plano com
   notificação de progresso: pode fechar o app e deixar baixando
 - **Compartilhar em 1 toque** — botão de compartilhar na Central de Downloads
-  (concluídos) e na aba Músicas
+  (concluídos) e na aba Biblioteca
 - **Menu de navegação inferior com 4 abas** (troca instantânea, sem recarregar):
   - **Início** — cole o link e baixe
   - **Downloads** — central em tempo real (fase, % e **velocidade**), com **pausar,
-    continuar e cancelar** no meio do download — na notificação também
-  - **Músicas** — tudo que você já baixou, com abrir / compartilhar / apagar.
-    Sobrevive a atualizar e até a desinstalar/reinstalar: pastas TuneGrab são
-    reencontradas pelo MediaStore, e o banner de permissão traz TODAS as
-    músicas do aparelho (mesmo as de pasta personalizada)
+    continuar e cancelar** no meio do download — na notificação também. Músicas
+    e vídeos separados por filtro (Tudo / Músicas / Vídeos)
+  - **Biblioteca** — músicas (áudio) e VÍDEOS em abas separadas, com contagem,
+    abrir / compartilhar / apagar. Sobrevive a atualizar e até a
+    desinstalar/reinstalar: pastas TuneGrab são reencontradas pelo MediaStore,
+    e o banner de permissão traz TODAS as músicas do aparelho (mesmo as de
+    pasta personalizada)
   - **Config.** — qualidades e pasta de download
 - **Escolha onde salvar** — qualquer pasta do aparelho em ⚙️ Configurações → Pasta
   de download (padrão: `Downloads/TuneGrab`, com fallback automático)
@@ -242,6 +245,7 @@ clients anônimos com iOS à frente.
 - [x] **4K/1440p em MKV (arquivos que abrem de verdade) + teto 4K** (v0.9.1)
 - [x] **Pausar/continuar/cancelar download + velocidade na notificação e na Central + fila** (v0.10.0)
 - [x] **Biblioteca reencontra músicas baixadas após atualizar ou reinstalar o app** (v0.10.0)
+- [x] **Biblioteca separa Músicas e Vídeos (com contagem) + padrões 1080p/320 kbps no seletor + tela cheia sem deformar o vídeo** (v0.10.1)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

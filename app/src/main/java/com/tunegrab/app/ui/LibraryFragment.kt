@@ -30,17 +30,23 @@ import kotlinx.coroutines.withContext
 import androidx.documentfile.provider.DocumentFile
 
 /**
- * Músicas baixadas: lista os arquivos que o TuneGrab salvou (na pasta padrão
+ * Biblioteca: lista os arquivos que o TuneGrab salvou (na pasta padrão
  * Downloads/TuneGrab, na pasta escolhida ou em QUALQUER pasta do aparelho —
  * o banner pede a permissão de áudio para achar músicas antigas mesmo depois
- * de atualizar/reinstalar o app), com reproduzir no app / abrir / compartilhar
- * / apagar.
+ * de atualizar/reinstalar o app). MÚSICAS (áudio) e VÍDEOS ficam separados
+ * em chips próprios — nada misturado. Ações: reproduzir no app / abrir /
+ * compartilhar / apagar.
  */
 class LibraryFragment : Fragment() {
 
     private var _binding: FragmentLibraryBinding? = null
     private val binding get() = _binding!!
     private val adapter = LibraryAdapter()
+
+    private var all: List<LibraryEntry> = emptyList()
+
+    /** Filtro do separador: false = Músicas (padrão), true = Vídeos. */
+    private var showVideos = false
 
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -84,6 +90,18 @@ class LibraryFragment : Fragment() {
         adapter.onOpen = { e -> open(e) }
         adapter.onShare = { e -> LibraryFiles.share(requireContext(), e) }
         adapter.onDelete = { e -> delete(e) }
+        binding.chipFilterAudio.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                showVideos = false
+                render()
+            }
+        }
+        binding.chipFilterVideo.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                showVideos = true
+                render()
+            }
+        }
     }
 
     override fun onResume() {
@@ -107,10 +125,32 @@ class LibraryFragment : Fragment() {
         lifecycleScope.launch {
             val (entries, folderLabel) = withContext(Dispatchers.IO) { LibraryFiles.listAll(ctx) }
             val b = _binding ?: return@launch
-            adapter.submit(entries)
-            b.tvEmpty.isVisible = entries.isEmpty()
+            all = entries
             b.tvFolder.text = folderLabel
+            render()
         }
+    }
+
+    /** Aplica o filtro do chip (Músicas/Vídeos) sobre a lista completa. */
+    private fun render() {
+        val b = _binding ?: return
+        val shown = all.filter { it.isVideoKind == showVideos }
+        adapter.submit(shown)
+        b.tvEmpty.isVisible = shown.isEmpty()
+        b.tvEmpty.text = getString(
+            if (showVideos) R.string.lib_empty_video else R.string.lib_empty_audio
+        )
+        // contagem em cada chip: dá pra ver o que tem no outro filtro sem sair daqui
+        b.chipFilterAudio.text = getString(
+            R.string.lib_chip_count,
+            getString(R.string.lib_filter_audio),
+            all.count { !it.isVideoKind }
+        )
+        b.chipFilterVideo.text = getString(
+            R.string.lib_chip_count,
+            getString(R.string.lib_filter_video),
+            all.count { it.isVideoKind }
+        )
     }
 
     // ---------- ações ----------

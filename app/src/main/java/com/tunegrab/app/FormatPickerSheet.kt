@@ -55,14 +55,12 @@ sealed class DownloadRequest {
     ) : DownloadRequest()
 }
 
-/** Preferências de formato/qualidade (última escolha + padrões das Configurações). */
+/** Preferências de formato (último TIPO escolhido) + padrões das Configurações. */
 object FormatPrefs {
     private const val NAME = "tunegrab_settings"
     private const val KEY_LAST_FORMAT = "last_format"
-    private const val KEY_LAST_Q = "last_quality_"
     private const val KEY_MP3_BITRATE = "mp3_bitrate"
     private const val KEY_M4A_PICK = "m4a_pick"
-    private const val KEY_MP4_PICK = "mp4_pick"
 
     const val FORMAT_MP3 = "mp3"
     const val FORMAT_M4A = "m4a"
@@ -76,28 +74,24 @@ object FormatPrefs {
     fun lastFormat(ctx: Context): String =
         prefs(ctx).getString(KEY_LAST_FORMAT, FORMAT_MP3) ?: FORMAT_MP3
 
-    fun lastQuality(ctx: Context, format: String): String? =
-        prefs(ctx).getString(KEY_LAST_Q + format, null)
-
-    fun remember(ctx: Context, format: String, quality: String) {
-        prefs(ctx).edit()
-            .putString(KEY_LAST_FORMAT, format)
-            .putString(KEY_LAST_Q + format, quality)
-            .apply()
+    /** Lembra só o TIPO (Áudio • MP3 / M4A / Opus / Vídeo) — a QUALIDADE
+     *  pré-selecionada é sempre a padrão do formato (v0.10.1). */
+    fun remember(ctx: Context, format: String) {
+        prefs(ctx).edit().putString(KEY_LAST_FORMAT, format).apply()
     }
 
     fun mp3DefaultBitrate(ctx: Context): Int = prefs(ctx).getInt(KEY_MP3_BITRATE, 320)
     fun setMp3DefaultBitrate(ctx: Context, kbps: Int) = prefs(ctx).edit().putInt(KEY_MP3_BITRATE, kbps).apply()
     fun m4aPick(ctx: Context): String = prefs(ctx).getString(KEY_M4A_PICK, PICK_BEST) ?: PICK_BEST
     fun setM4aPick(ctx: Context, pick: String) = prefs(ctx).edit().putString(KEY_M4A_PICK, pick).apply()
-    fun mp4Pick(ctx: Context): String = prefs(ctx).getString(KEY_MP4_PICK, PICK_BEST) ?: PICK_BEST
-    fun setMp4Pick(ctx: Context, pick: String) = prefs(ctx).edit().putString(KEY_MP4_PICK, pick).apply()
 }
 
 /**
- * Seletor de formato (MP3 / M4A / MP4) e qualidade, exibido como bottom sheet
- * logo depois da busca. Cada formato tem suas próprias qualidades, e a
- * pré-seleção vem das Configurações (padrão por formato) ou da última escolha.
+ * Seletor de formato e qualidade, exibido como bottom sheet logo depois da
+ * busca. Os tipos ficam claros ("Áudio • MP3", "Vídeo"…) e cada um tem suas
+ * próprias qualidades. A pré-seleção é SEMPRE a qualidade padrão do tipo
+ * (vídeo: 1080p; áudio: 320 kbps no MP3), marcada com "(padrão)" — a última
+ * escolha não é mais lembrada (v0.10.1).
  */
 class FormatPickerSheet(
     private val context: Context,
@@ -133,7 +127,7 @@ class FormatPickerSheet(
         }
 
         buildFormatChips()
-        selectFormat(currentFormat, rememberInitialQuality = true)
+        selectFormat(currentFormat)
 
         binding.sheetCancel.setOnClickListener { dialog.dismiss() }
         binding.sheetDownload.setOnClickListener { confirm() }
@@ -146,11 +140,11 @@ class FormatPickerSheet(
 
     private fun buildFormatChips() {
         binding.sheetFormatGroup.removeAllViews()
-        addFormatChip(FormatPrefs.FORMAT_MP3, "MP3", mp3Source != null,
+        addFormatChip(FormatPrefs.FORMAT_MP3, "Áudio • MP3", mp3Source != null,
             context.getString(R.string.hint_mp3_unavailable))
-        addFormatChip(FormatPrefs.FORMAT_M4A, "M4A", m4aStreams.isNotEmpty(),
+        addFormatChip(FormatPrefs.FORMAT_M4A, "Áudio • M4A", m4aStreams.isNotEmpty(),
             context.getString(R.string.hint_m4a_unavailable))
-        addFormatChip(FormatPrefs.FORMAT_OPUS, "OPUS (original)", opusStreams.isNotEmpty(),
+        addFormatChip(FormatPrefs.FORMAT_OPUS, "Áudio • Opus", opusStreams.isNotEmpty(),
             context.getString(R.string.hint_opus_unavailable))
         // Vídeo sempre liberado: o plano A (yt-dlp) baixa só com a URL do
         // vídeo, sem depender de faixas progressivas na extração. Até 1080p
@@ -166,7 +160,7 @@ class FormatPickerSheet(
         chip.isChecked = format == currentFormat
         chip.isEnabled = available
         chip.setOnCheckedChangeListener { _, checked ->
-            if (checked) selectFormat(format, rememberInitialQuality = false)
+            if (checked) selectFormat(format)
         }
         if (!available) {
             // guarda o motivo para mostrar quando o usuário tocar no chip desabilitado
@@ -176,18 +170,18 @@ class FormatPickerSheet(
         binding.sheetFormatGroup.addView(chip)
     }
 
-    private fun selectFormat(format: String, rememberInitialQuality: Boolean) {
+    private fun selectFormat(format: String) {
         currentFormat = format
         for (i in 0 until binding.sheetFormatGroup.childCount) {
             val c = binding.sheetFormatGroup.getChildAt(i) as? Chip ?: continue
             if (c.tag == format) c.isChecked = true
         }
-        buildQualityChips(format, rememberInitialQuality)
+        buildQualityChips(format)
     }
 
     // ---------- chips de qualidade ----------
 
-    private fun buildQualityChips(format: String, rememberInitialQuality: Boolean) {
+    private fun buildQualityChips(format: String) {
         binding.sheetQualityGroup.removeAllViews()
         binding.sheetFormatHint.text = when (format) {
             FormatPrefs.FORMAT_MP3 -> context.getString(R.string.hint_mp3)
@@ -229,16 +223,17 @@ class FormatPickerSheet(
         // TODAS as opções ficam habilitadas sempre: se o vídeo não tiver a
         // resolução pedida, o motor baixa na maior disponível (≤ a escolhida)
         // e a notificação final confirma a resolução real do arquivo salvo.
+        // Pré-seleção: sempre a qualidade PADRÃO do tipo (v0.10.1) — a opção
+        // padrão ganha o rótulo "(padrão)" para o usuário enxergar de onde parte.
         val availableValues = qualities.filter { it.third }.map { it.first }
-        val remembered = if (rememberInitialQuality) {
-            FormatPrefs.lastQuality(context, format)
-        } else null
-        val preferred = remembered?.takeIf { it in availableValues }
-            ?: defaultQualityFor(format, availableValues)
+        val preferred = defaultQualityFor(format, availableValues)
 
         qualities.forEach { (value, label, _) ->
             val chip = newChip(binding.sheetQualityGroup, label)
             chip.tag = value
+            if (value == preferred) {
+                chip.text = context.getString(R.string.q_default, label)
+            }
             chip.isChecked = value == preferred
             chip.isEnabled = true
             chip.setOnCheckedChangeListener { _, checked ->
@@ -271,6 +266,10 @@ class FormatPickerSheet(
         else -> "${h}p"
     }
 
+    /** Qualidade padrão de cada tipo — a que já vem pré-selecionada ao abrir
+     *  o seletor. Vídeo: 1080p FIXO (v0.10.1); MP3: o bitrate padrão das
+     *  Configurações (320 kbps de fábrica); M4A: melhor disponível (ou menor
+     *  arquivo, se escolhido nas Configurações); Opus: melhor disponível. */
     private fun defaultQualityFor(format: String, values: List<String>): String {
         if (values.isEmpty()) return ""
         return when (format) {
@@ -287,11 +286,8 @@ class FormatPickerSheet(
                 values.first()
             }
             FormatPrefs.FORMAT_OPUS -> values.first()
-            else -> if (FormatPrefs.mp4Pick(context) == FormatPrefs.PICK_SMALL) {
-                values.last()
-            } else {
-                values.first()
-            }
+            // vídeo: 1080p sempre — a escada padrão tem este degrau garantido
+            else -> if (values.contains("1080")) "1080" else values.first()
         }
     }
 
@@ -302,7 +298,7 @@ class FormatPickerSheet(
 
     private fun confirm() {
         val quality = selectedQuality() ?: return
-        FormatPrefs.remember(context, currentFormat, quality)
+        FormatPrefs.remember(context, currentFormat)
         val videoUrl = info.originalUrl ?: info.url
         val request: DownloadRequest = when (currentFormat) {
             FormatPrefs.FORMAT_MP3 -> {

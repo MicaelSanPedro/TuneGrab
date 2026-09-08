@@ -42,6 +42,9 @@ class DownloadsFragment : Fragment() {
     private val binding get() = _binding!!
     private val adapter = DownloadsAdapter()
 
+    // Filtro do separador Músicas/Vídeos (Tudo é o padrão)
+    private var filterKind = KIND_ALL
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -66,6 +69,24 @@ class DownloadsFragment : Fragment() {
                 DownloadService.controlIntent(requireContext(), DownloadService.ACTION_CANCEL, item.fileName)
             )
         }
+        binding.chipAll.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                filterKind = KIND_ALL
+                render(DownloadBus.items.value)
+            }
+        }
+        binding.chipAudio.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                filterKind = KIND_AUDIO
+                render(DownloadBus.items.value)
+            }
+        }
+        binding.chipVideo.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                filterKind = KIND_VIDEO
+                render(DownloadBus.items.value)
+            }
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -89,11 +110,33 @@ class DownloadsFragment : Fragment() {
     }
 
     private fun render(items: List<DownloadBus.Item>) {
-        adapter.submit(items)
-        binding.tvEmpty.isVisible = items.isEmpty()
+        val shown = items.filter { matchesFilter(it) }
+        adapter.submit(shown)
+        binding.tvEmpty.isVisible = shown.isEmpty()
+        binding.tvEmpty.text = if (items.isEmpty()) {
+            getString(R.string.dl_empty)
+        } else {
+            getString(R.string.dl_empty_filter)
+        }
         binding.btnClear.isVisible = items.any {
             it.state != DownloadBus.State.RUNNING && it.state != DownloadBus.State.PAUSED
         }
+    }
+
+    /** Tipo do conteúdo pelo EXTENSÃO do arquivo publicado (o nome já nasce
+     *  com sufixo — inclusive na fila). Vídeo = MP4/MKV (v0.10.1). */
+    private fun kindOf(item: DownloadBus.Item): Int =
+        when (item.fileName.substringAfterLast('.', "").lowercase()) {
+            "mp4", "mkv" -> KIND_VIDEO
+            "mp3", "m4a", "opus", "ogg", "webm" -> KIND_AUDIO
+            else -> KIND_UNKNOWN
+        }
+
+    /** Desconhecido aparece em TODOS os filtros — nada some sem explicação. */
+    private fun matchesFilter(item: DownloadBus.Item): Boolean = when (filterKind) {
+        KIND_AUDIO -> kindOf(item) != KIND_VIDEO
+        KIND_VIDEO -> kindOf(item) != KIND_AUDIO
+        else -> true
     }
 
     /** Compartilhar um download concluído: acha o arquivo pelo nome publicado. */
@@ -139,6 +182,13 @@ class DownloadsFragment : Fragment() {
                 Toast.makeText(ctx, R.string.player_err, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    companion object {
+        private const val KIND_ALL = 0
+        private const val KIND_AUDIO = 1
+        private const val KIND_VIDEO = 2
+        private const val KIND_UNKNOWN = 3
     }
 }
 
