@@ -2,6 +2,7 @@ package com.tunegrab.app.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -20,15 +21,18 @@ import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentDownloadsBinding
 import com.tunegrab.app.databinding.ItemDownloadBinding
 import com.tunegrab.app.download.DownloadBus
+import com.tunegrab.app.download.DownloadService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Central de Downloads: o que está baixando agora + o que terminou ou falhou.
+ * Central de Downloads: o que está baixando agora + o que terminou, falhou,
+ * pausou ou foi cancelado.
  *
- * É só um ESPELHO do estado que o DownloadService já publica nas notificações
- * (via DownloadBus) — nada aqui interfere na mecânica de download.
+ * É um ESPELHO do estado que o DownloadService já publica nas notificações
+ * (via DownloadBus) — a única coisa que interfere é os BOTÕES (pausar,
+ * continuar, cancelar), que mandam intents de controle para o service.
  * Itens concluídos ganham botão de compartilhar (procura o arquivo nas
  * fontes de listagem — pasta escolhida, MediaStore ou pasta legada).
  */
@@ -55,6 +59,13 @@ class DownloadsFragment : Fragment() {
         // LIGAÇÃO dos botões dos itens concluídos (o clique era morto sem isto)
         adapter.onShare = { item -> shareFinished(item) }
         adapter.onPlay = { item -> playFinished(item) }
+        adapter.onPause = { sendControl(DownloadService.controlIntent(requireContext(), DownloadService.ACTION_PAUSE)) }
+        adapter.onResumeClick = { sendControl(DownloadService.resumeIntent(requireContext())) }
+        adapter.onCancel = { item ->
+            sendControl(
+                DownloadService.controlIntent(requireContext(), DownloadService.ACTION_CANCEL, item.fileName)
+            )
+        }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -68,10 +79,21 @@ class DownloadsFragment : Fragment() {
         _binding = null
     }
 
+    private fun sendControl(intent: Intent) {
+        val ctx = requireContext()
+        if (Build.VERSION.SDK_INT >= 26) {
+            ContextCompat.startForegroundService(ctx, intent)
+        } else {
+            ctx.startService(intent)
+        }
+    }
+
     private fun render(items: List<DownloadBus.Item>) {
         adapter.submit(items)
         binding.tvEmpty.isVisible = items.isEmpty()
-        binding.btnClear.isVisible = items.any { it.state != DownloadBus.State.RUNNING }
+        binding.btnClear.isVisible = items.any {
+            it.state != DownloadBus.State.RUNNING && it.state != DownloadBus.State.PAUSED
+        }
     }
 
     /** Compartilhar um download concluído: acha o arquivo pelo nome publicado. */
@@ -125,6 +147,9 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
     private var items: List<DownloadBus.Item> = emptyList()
     var onShare: ((DownloadBus.Item) -> Unit)? = null
     var onPlay: ((DownloadBus.Item) -> Unit)? = null
+    var onPause: (() -> Unit)? = null
+    var onResumeClick: (() -> Unit)? = null
+    var onCancel: ((DownloadBus.Item) -> Unit)? = null
 
     fun submit(list: List<DownloadBus.Item>) {
         items = list
@@ -147,14 +172,43 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
             DownloadBus.State.RUNNING -> {
                 b.icon.setImageResource(R.drawable.ic_download)
                 b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.primary))
-                b.tvPhase.text = item.phase.ifBlank { ctx.getString(R.string.dl_preparing) }
+                val isQueued = item.fileName != DownloadBus.activeFileName
+                b.tvPhase.text = when {
+                    item.phase.isNotBlank() -> item.phase
+                    isQueued -> ctx.getString(R.string.dl_queued)
+                    else -> ctx.getString(R.string.dl_preparing)
+                }
                 b.tvPercent.isVisible = true
-                b.tvPercent.text = ctx.getString(R.string.dl_running_pct, item.percent)
+                b.tvPercent.text = if (item.speed != null) {
+                    ctx.getString(R.string.dl_running_pct_speed, item.percent, item.speed)
+                } else {
+                    ctx.getString(R.string.dl_running_pct, item.percent)
+                }
                 b.progress.isVisible = true
                 b.progress.isIndeterminate = item.indeterminate
                 b.progress.progress = item.percent
+                // só o download ATIVO pausa; o que está na fila só cancela
+                b.btnPause.isVisible = !isQueued
+                b.btnPause.setOnClickListener { onPause?.invoke() }
                 b.btnPlay.isVisible = false
                 b.btnShare.isVisible = false
+                b.btnCancel.isVisible = true
+                b.btnCancel.setOnClickListener { onCancel?.invoke(item) }
+            }
+            DownloadBus.State.PAUSED -> {
+                b.icon.setImageResource(R.drawable.ic_pause)
+                b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.on_surface_variant))
+                b.tvPhase.text = ctx.getString(R.string.dl_state_paused)
+                b.tvPercent.isVisible = true
+                b.tvPercent.text = ctx.getString(R.string.dl_running_pct, item.percent)
+                b.progress.isVisible = false
+                // continuar (mesma faixa, de onde parou) ou desistir
+                b.btnPause.isVisible = false
+                b.btnPlay.isVisible = true
+                b.btnPlay.setOnClickListener { onResumeClick?.invoke() }
+                b.btnShare.isVisible = false
+                b.btnCancel.isVisible = true
+                b.btnCancel.setOnClickListener { onCancel?.invoke(item) }
             }
             DownloadBus.State.DONE -> {
                 b.icon.setImageResource(R.drawable.ic_check)
@@ -163,10 +217,12 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 b.tvPercent.isVisible = false
                 b.progress.isVisible = false
                 // download concluído → reproduzir e compartilhar direto daqui
+                b.btnPause.isVisible = false
                 b.btnPlay.isVisible = true
                 b.btnPlay.setOnClickListener { onPlay?.invoke(item) }
                 b.btnShare.isVisible = true
                 b.btnShare.setOnClickListener { onShare?.invoke(item) }
+                b.btnCancel.isVisible = false
             }
             DownloadBus.State.FAILED -> {
                 b.icon.setImageResource(R.drawable.ic_error)
@@ -178,8 +234,21 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 }
                 b.tvPercent.isVisible = false
                 b.progress.isVisible = false
+                b.btnPause.isVisible = false
                 b.btnPlay.isVisible = false
                 b.btnShare.isVisible = false
+                b.btnCancel.isVisible = false
+            }
+            DownloadBus.State.CANCELLED -> {
+                b.icon.setImageResource(R.drawable.ic_close)
+                b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.on_surface_variant))
+                b.tvPhase.text = ctx.getString(R.string.dl_state_cancelled)
+                b.tvPercent.isVisible = false
+                b.progress.isVisible = false
+                b.btnPause.isVisible = false
+                b.btnPlay.isVisible = false
+                b.btnShare.isVisible = false
+                b.btnCancel.isVisible = false
             }
         }
     }

@@ -1,13 +1,16 @@
 package com.tunegrab.app.ui
 
+import android.Manifest
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.text.format.Formatter
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.documentfile.provider.DocumentFile
 import com.tunegrab.app.R
@@ -38,21 +41,71 @@ object LibraryFiles {
 
     private const val TAG = "TuneGrab"
 
-    /** Lista tudo e devolve também o rótulo da pasta atual. */
+    // ---------- permissão de leitura de mídia ----------
+    // Sem ela, o MediaStore só devolve arquivos do PRÓPRIO app. Com ela, a
+    // aba Músicas enxerga as músicas antigas em QUALQUER pasta — inclusive
+    // depois de atualizar ou desinstalar e instalar de novo (o app novo
+    // perde as preferências, mas as músicas continuam no aparelho).
+
+    fun mediaReadPermission(): String =
+        if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
+        else Manifest.permission.READ_EXTERNAL_STORAGE
+
+    fun hasMediaReadPermission(ctx: Context): Boolean =
+        ContextCompat.checkSelfPermission(ctx, mediaReadPermission()) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Lista TUDO que o app reconhece como biblioteca, UNINDO as fontes:
+     *  1. a pasta escolhida (SAF), se houver;
+     *  2. qualquer pasta ".../TuneGrab/..." indexada no MediaStore — a busca é
+     *     por CAMINHO (não por preferências), então sobrevive a atualização e
+     *     a desinstalar/reinstalar;
+     *  3. com a permissão de áudio concedida: TODAS as músicas do aparelho —
+     *     cobre pasta personalizada sem "TuneGrab" no nome após reinstalar.
+     * A mesma faixa pode surgir em 2 fontes: dedupe por (nome, tamanho).
+     */
     fun listAll(ctx: Context): Pair<List<LibraryEntry>, String> {
-        val tree = SaveLocation.customTree(ctx)
-        return when {
-            tree != null -> {
-                val entries = listTree(ctx, tree)
-                val label = ctx.getString(
-                    R.string.lib_folder_custom,
-                    SaveLocation.label(ctx) ?: ctx.getString(R.string.lib_folder_unknown)
-                )
-                entries to label
-            }
-            Build.VERSION.SDK_INT >= 29 -> listMediaStore(ctx) to ctx.getString(R.string.lib_folder_default)
-            else -> listLegacy() to ctx.getString(R.string.lib_folder_default)
+        val merged = LinkedHashMap<String, LibraryEntry>()
+        fun put(e: LibraryEntry) {
+            merged.putIfAbsent("${e.name.lowercase()}|${e.size}", e)
         }
+
+        val tree = SaveLocation.customTree(ctx)
+        if (tree != null) listTree(ctx, tree).forEach { put(it) }
+
+        if (Build.VERSION.SDK_INT >= 29) {
+            // vídeos + áudios do TuneGrab em Download/TuneGrab (e derivadas)
+            queryMediaStore(ctx, MediaStore.Downloads.EXTERNAL_CONTENT_URI, "%TuneGrab%")
+                ?.forEach { put(it) }
+            // áudios do TuneGrab fora do Download (ex.: Music/TuneGrab)
+            queryMediaStore(ctx, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, "%TuneGrab%")
+                ?.forEach { put(it) }
+            // com permissão: todas as músicas do aparelho
+            if (hasMediaReadPermission(ctx)) {
+                queryAllAudio(ctx)?.forEach { put(it) }
+            }
+        } else {
+            listLegacy().forEach { put(it) }
+            if (hasMediaReadPermission(ctx)) {
+                @Suppress("DEPRECATION")
+                val music = File(
+                    android.os.Environment.getExternalStoragePublicDirectory(
+                        android.os.Environment.DIRECTORY_MUSIC
+                    ),
+                    "TuneGrab"
+                )
+                legacyDir(music).forEach { put(it) }
+            }
+        }
+
+        val label = when {
+            tree != null -> ctx.getString(
+                R.string.lib_folder_custom,
+                SaveLocation.label(ctx) ?: ctx.getString(R.string.lib_folder_unknown)
+            )
+            else -> ctx.getString(R.string.lib_folder_default)
+        }
+        return merged.values.sortedByDescending { it.modifiedMs } to label
     }
 
     /** Acha um arquivo pelo nome exato (o mesmo nome que o DownloadService publicou). */
@@ -81,7 +134,13 @@ object LibraryFiles {
             .sortedByDescending { it.modifiedMs }
     }
 
-    private fun listMediaStore(ctx: Context): List<LibraryEntry> {
+    /**
+     * Busca no MediaStore por caminho (LIKE): acha os arquivos do TuneGrab
+     * MESMO depois de reinstalar o app — o caminho é coluna do MediaProvider,
+     * não preferência do app. Sem permissão, devolve só o que é do app; com
+     * ela, devolve tudo que casa com o padrão.
+     */
+    private fun queryMediaStore(ctx: Context, collection: Uri, pathLike: String): List<LibraryEntry>? {
         val proj = arrayOf(
             MediaStore.MediaColumns._ID,
             MediaStore.MediaColumns.DISPLAY_NAME,
@@ -94,11 +153,57 @@ object LibraryFiles {
             // LIKE (não =): o MediaProvider armazena RELATIVE_PATH com barra
             // final ("Download/TuneGrab/"), então a igualdade exata sem barra
             // devolvia 0 linhas — e a aba Músicas ficava vazia.
+            val sel = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND " +
+                "(${MediaStore.MediaColumns.MIME_TYPE} LIKE 'audio/%' OR " +
+                "${MediaStore.MediaColumns.MIME_TYPE} LIKE 'video/%')"
             ctx.contentResolver.query(
-                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                collection,
                 proj,
-                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
-                arrayOf("Download/TuneGrab%"),
+                sel,
+                arrayOf(pathLike),
+                "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
+            )?.use { c ->
+                val idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                val nameCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+                val sizeCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                val dateCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
+                val mimeCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
+                while (c.moveToNext()) {
+                    val name = c.getString(nameCol) ?: continue
+                    val mime = c.getString(mimeCol) ?: mimeOf(name)
+                    out += LibraryEntry(
+                        name = name,
+                        size = c.getLong(sizeCol),
+                        modifiedMs = c.getLong(dateCol) * 1000L,
+                        mime = mime,
+                        isVideo = mime.startsWith("video"),
+                        mediaUri = ContentUris.withAppendedId(collection, c.getLong(idCol))
+                    )
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "MediaStore falhou", t)
+            return null
+        }
+        return out
+    }
+
+    /** Todas as músicas do aparelho (precisa da permissão de áudio). */
+    private fun queryAllAudio(ctx: Context): List<LibraryEntry>? {
+        val proj = arrayOf(
+            MediaStore.MediaColumns._ID,
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.SIZE,
+            MediaStore.MediaColumns.DATE_MODIFIED,
+            MediaStore.MediaColumns.MIME_TYPE
+        )
+        val out = mutableListOf<LibraryEntry>()
+        try {
+            ctx.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                proj,
+                null,
+                null,
                 "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
             )?.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
@@ -116,23 +221,32 @@ object LibraryFiles {
                         mime = mime,
                         isVideo = mime.startsWith("video"),
                         mediaUri = ContentUris.withAppendedId(
-                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, c.getLong(idCol)
+                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, c.getLong(idCol)
                         )
                     )
                 }
             }
         } catch (t: Throwable) {
-            Log.w(TAG, "MediaStore falhou", t)
+            Log.w(TAG, "MediaStore (todas as músicas) falhou", t)
+            return null
         }
         return out
     }
 
     private fun listLegacy(): List<LibraryEntry> {
         @Suppress("DEPRECATION")
-        val dir = File(
-            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+        val downloads = File(
+            android.os.Environment.getExternalStoragePublicDirectory(
+                android.os.Environment.DIRECTORY_DOWNLOADS
+            ),
             "TuneGrab"
         )
+        return legacyDir(downloads)
+    }
+
+    /** Lista um diretório via java.io.File (Android 7–9). null/sem permissão → vazio. */
+    private fun legacyDir(dir: File): List<LibraryEntry> {
+        if (!dir.isDirectory) return emptyList()
         return dir.listFiles()
             ?.filter { it.isFile && !it.name.startsWith(".") }
             ?.map {

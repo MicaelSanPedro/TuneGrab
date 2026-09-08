@@ -15,6 +15,7 @@ import android.os.Environment
 import android.os.IBinder
 import android.os.SystemClock
 import android.provider.MediaStore
+import android.text.format.Formatter
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.documentfile.provider.DocumentFile
@@ -30,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -40,12 +42,20 @@ import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 
 /**
- * Serviço em primeiro plano que baixa a faixa selecionada e salva em
- * Downloads/TuneGrab, com notificação de progresso em fases.
+ * Serviço em primeiro plano que baixa a faixa selecionada e salva na pasta
+ * configurada (Downloads/TuneGrab ou a escolhida), com notificação de
+ * progresso em fases, VELOCIDADE e ações de PAUSAR/CANCELAR (continuar
+ * depois é um clique — os parciais ficam guardados).
+ *
+ * Um download de cada vez: novos pedidos entram numa FILA interna (a Central
+ * mostra a ordem); pausa/cancelamento agem no download ATIVO na hora.
  *
  * PLANO A — motor yt-dlp EMBUTIDO (quando o intent tem EXTRA_VIDEO_URL):
  * yt-dlp faz extração + download + conversão sozinho (é a engine mantida
- * semanalmente contra as mudanças do YouTube). Progresso 0–100 direto dele.
+ * semanalmente contra as mudanças do YouTube). Progresso 0–100 direto dele;
+ * a velocidade vem da linha do próprio yt-dlp ("at 2.35MiB/s"). Pausar mata
+ * o processo via processId e a retomada reencontra os parciais no diretório
+ * estável (o --continue do yt-dlp é o padrão).
  *
  * PLANO B — URL direta (NewPipe + PoToken), se o plano A falhar:
  *  - MODO_DIRETO (M4A/MP4): download → arquivo final (0–100%)
@@ -64,139 +74,362 @@ class DownloadService : Service() {
         .followRedirects(true)
         .build()
 
+    // ---------- pausa / cancelamento / fila ----------
+
+    private val stateLock = Any()
+    private val pending = ArrayDeque<JobSpec>()
+    private var busy = false
+
+    @Volatile private var pauseRequested = false
+    @Volatile private var cancelRequested = false
+    @Volatile private var activeFile: String? = null
+    @Volatile private var ytDlpProcessId: String? = null
+    @Volatile private var currentCall: Call? = null
+
+    /** Pausa durante a fase de DOWNLOAD: mantém parciais (.part/.src) para retomar. */
+    @Volatile private var keepPartials = false
+
+    /** Última notificação de progresso — reexibida em starts de controle. */
+    @Volatile private var lastProgressNotif: Notification? = null
+
+    // velocidade do plano B (janela móvel); a do plano A vem da linha do yt-dlp
+    private var speedBps = 0L
+    private var speedMarkMs = 0L
+    private var speedMarkDone = 0L
+
+    /** Download enfileirado: o intent original + o startId que o trouxe. */
+    private class JobSpec(val startId: Int, val intent: Intent, val isResume: Boolean)
+
+    /** Sinais internos de parada — nunca são "falha" nem disparam retentativa. */
+    private class DownloadPaused : Exception()
+    private class DownloadCancelled : Exception()
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val url = intent?.getStringExtra(EXTRA_URL)
-        val fileName = intent?.getStringExtra(EXTRA_FILE) ?: "audio.m4a"
-        val title = intent?.getStringExtra(EXTRA_TITLE) ?: fileName
-        val mime = intent?.getStringExtra(EXTRA_MIME) ?: "audio/mp4"
-        val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_DIRECT
-        val bitrate = intent?.getIntExtra(EXTRA_BITRATE, 320) ?: 320
-        val videoUrl = intent?.getStringExtra(EXTRA_VIDEO_URL)
-        val engineFormat = intent?.getStringExtra(EXTRA_FORMAT)
-        val maxHeight = intent?.getIntExtra(EXTRA_MAX_HEIGHT, 0) ?: 0
-        if (url.isNullOrBlank() && videoUrl.isNullOrBlank()) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-
         createChannel()
-        startForeground(NOTIF_ID, notificationProgress(fileName, 0, indeterminate = true))
-        // espelho para a Central de Downloads (não afeta o download)
-        DownloadBus.start(title, fileName)
+        // cada startForegroundService EXIGE startForeground imediato (contrato do
+        // Android) — em ação de controle sem trabalho, é notificação neutra + stop
+        startForeground(NOTIF_ID, lastProgressNotif ?: idleNotification())
 
-        scope.launch {
-            var tmpSource: File? = null
-            var tmpOut: File? = null
-            var tmpPart: File? = null
-            try {
-                // ---------- PLANO A: yt-dlp embutido ----------
-                if (!videoUrl.isNullOrBlank() && !engineFormat.isNullOrBlank()) {
-                    try {
-                        val (savedUri, qualityNote) =
-                            runYtDlp(videoUrl, engineFormat, bitrate, maxHeight, fileName, title)
-                        notifyFinished(title, fileName, savedUri, qualityNote)
-                        return@launch
-                    } catch (e: Exception) {
-                        if (url.isNullOrBlank()) throw e
-                        Log.w(TAG, "yt-dlp falhou; tentando o plano B (URL direta)", e)
-                        // honestidade: se era vídeo >720p, o plano B (faixa combinada)
-                        // não alcança a altura pedida — avisar na notificação
-                        val phaseMsg = if (engineFormat == "mp4" && maxHeight > 720) {
-                            getString(R.string.notif_phase_fallback_720p)
-                        } else {
-                            getString(R.string.notif_phase_fallback)
-                        }
-                        showPhase(fileName, phaseMsg, 0, indeterminate = true)
-                    }
-                }
-
-                // ---------- PLANO B: URL direta (NewPipe + PoToken) ----------
-                // (chegou aqui ⇒ url é não-nula: ou não havia plano A, ou o plano A
-                // falhou e rethrow teria acontecido se url fosse nula)
-                val legacyUrl = url ?: throw IOException("sem URL direta para o plano B")
-                val savedUri: Uri = if (mode == MODE_MP3) {
-                    val cache = File(applicationContext.cacheDir, "convert").apply { mkdirs() }
-                    // hash da URL no nome do .part: garante que a retomada só
-                    // aconteça com a MESMA faixa (qualidade) escolhida antes
-                    val src = File(cache, "$fileName.${legacyUrl.hashCode().toString(36)}.src")
-                        .also { tmpSource = it }
-                    val mp3 = File(cache, fileName).also { tmpOut = it }
-
-                    downloadWithRetries(src, legacyUrl, fileName) { done, total ->
-                        // download = 0–60% do total
-                        val now = System.currentTimeMillis()
-                        if (now - lastNotify > 400) {
-                            lastNotify = now
-                            showPhase(
-                                fileName,
-                                getString(R.string.notif_phase_download),
-                                if (total > 0) (done * 60 / total).toInt().coerceIn(0, 60) else 0,
-                                indeterminate = total <= 0
-                            )
-                        }
-                    }
-
-                    // conversão = 60–99%
-                    showPhase(fileName, getString(R.string.notif_phase_convert), 60)
-                    Mp3Converter.convert(src, mp3, bitrate, title) { p ->
-                        showPhase(
-                            fileName,
-                            getString(R.string.notif_phase_convert),
-                            60 + (p * 39).toInt().coerceAtMost(39)
-                        )
-                    }
-
-                    // guarda de bitrate: garante que o MP3 final está no bitrate
-                    // pedido (leitura do arquivo; re-encode só se vier abaixo)
-                    AudioQuality.ensureMp3Bitrate(mp3, bitrate, title) { p ->
-                        showPhase(
-                            fileName,
-                            getString(R.string.notif_phase_convert),
-                            60 + (p * 39).toInt().coerceAtMost(39)
-                        )
-                    }
-
-                    showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
-                    publish(mp3.inputStream().buffered(), mp3.length(), fileName, "audio/mpeg")
+        when (intent?.action) {
+            ACTION_PAUSE -> {
+                if (activeFile != null) {
+                    pauseRequested = true
+                    killActive()
                 } else {
-                    val parts = File(applicationContext.cacheDir, "parts").apply { mkdirs() }
-                    val part = File(parts, "$fileName.${legacyUrl.hashCode().toString(36)}.part")
-                        .also { tmpPart = it }
-
-                    downloadWithRetries(part, legacyUrl, fileName) { done, total ->
-                        val now = System.currentTimeMillis()
-                        if (now - lastNotify > 400) {
-                            lastNotify = now
-                            showPhase(
-                                fileName,
-                                getString(R.string.notif_phase_download),
-                                pct(done, total),
-                                indeterminate = total <= 0
-                            )
-                        }
-                    }
-
-                    showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
-                    publish(part.inputStream().buffered(), part.length(), fileName, mime)
+                    idleNow(startId)
                 }
-                notifyFinished(title, fileName, savedUri)
-            } catch (e: Exception) {
-                Log.e(TAG, "Download falhou: $fileName", e)
-                notifyFailed(fileName, e)
-            } finally {
-                tmpSource?.delete()
-                tmpOut?.delete()
-                tmpPart?.delete()
-                // IMPORTANTE: remove a notificação de progresso da barra.
-                // Antes usávamos STOP_FOREGROUND_DETACH, que mantinha a notificação
-                // de progresso presa (ex.: “99%”) mesmo depois do download terminar.
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf(startId)
+            }
+            ACTION_CANCEL -> if (intent != null) {
+                handleCancelIntent(intent, startId)
+            } else {
+                idleNow(startId)
+            }
+            ACTION_RESUME -> {
+                val paused = DownloadRegistry.paused
+                if (paused == null) {
+                    idleNow(startId)
+                } else {
+                    enqueue(JobSpec(startId, resumeJobIntent(paused), isResume = true))
+                }
+            }
+            else -> {
+                val i = intent ?: run {
+                    idleNow(startId)
+                    return START_NOT_STICKY
+                }
+                val fileName = i.getStringExtra(EXTRA_FILE)
+                if (fileName.isNullOrBlank() ||
+                    (i.getStringExtra(EXTRA_URL).isNullOrBlank() &&
+                        i.getStringExtra(EXTRA_VIDEO_URL).isNullOrBlank())
+                ) {
+                    idleNow(startId)
+                    return START_NOT_STICKY
+                }
+                val title = i.getStringExtra(EXTRA_TITLE) ?: fileName
+                // espelho para a Central de Downloads (não afeta o download)
+                DownloadBus.start(title, fileName)
+                if (busy) DownloadBus.progress(fileName, getString(R.string.dl_queued), 0, true)
+                enqueue(JobSpec(startId, i, isResume = false))
             }
         }
         return START_NOT_STICKY
+    }
+
+    // ---------- fila (um download de cada vez; a Central mostra a ordem) ----------
+
+    private fun enqueue(spec: JobSpec) {
+        synchronized(stateLock) { pending.addLast(spec) }
+        pump()
+    }
+
+    private fun pump() {
+        val spec = synchronized(stateLock) {
+            if (busy) return
+            if (pending.isEmpty()) return
+            busy = true
+            pending.removeFirst()
+        }
+        scope.launch {
+            try {
+                runDownload(spec)
+            } finally {
+                val drained = synchronized(stateLock) {
+                    busy = false
+                    pending.isEmpty()
+                }
+                if (drained) {
+                    // fila vazia: remove o foreground (fim/falha/pausa já saiu em NOTIF_ID+1)
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf(spec.startId)
+                } else {
+                    pump()
+                }
+            }
+        }
+    }
+
+    private fun handleCancelIntent(intent: Intent, startId: Int) {
+        val target = intent.getStringExtra(EXTRA_FILE)
+        val current = activeFile
+        when {
+            current != null && (target == null || target == current) -> {
+                // cancela o download EM EXECUÇÃO (o fluxo reage no próximo ponto)
+                cancelRequested = true
+                killActive()
+            }
+            target != null && removeFromQueue(target) -> {
+                // cancela um item que ainda está NA FILA (nem começou)
+                DownloadRegistry.clearIf(target)
+                DownloadBus.cancelled(target)
+                idleNow(startId)
+            }
+            else -> {
+                DownloadRegistry.clearIf(target)
+                idleNow(startId)
+            }
+        }
+    }
+
+    private fun removeFromQueue(fileName: String): Boolean = synchronized(stateLock) {
+        val it = pending.iterator()
+        var removed = false
+        while (it.hasNext()) {
+            if (it.next().intent.getStringExtra(EXTRA_FILE) == fileName) {
+                it.remove()
+                removed = true
+            }
+        }
+        removed
+    }
+
+    /** Nada para fazer agora → encerra o foreground (nunca derruba trabalho alheio). */
+    private fun idleNow(startId: Int) {
+        val nothing = synchronized(stateLock) { !busy && pending.isEmpty() }
+        if (nothing) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf(startId)
+        }
+    }
+
+    /** Interrompe o trabalho ATIVO de verdade: mata o python do yt-dlp e o stream OkHttp. */
+    private fun killActive() {
+        ytDlpProcessId?.let { id ->
+            runCatching { YoutubeDL.destroyProcessById(id) }
+        }
+        currentCall?.cancel()
+    }
+
+    /** Lança Pausado/Cancelado se o usuário pediu — nos pontos de checagem do fluxo. */
+    private fun checkStop() {
+        if (cancelRequested) throw DownloadCancelled()
+        if (pauseRequested) throw DownloadPaused()
+    }
+
+    private fun resumeJobIntent(p: DownloadRegistry.PausedDownload): Intent =
+        Intent(this, DownloadService::class.java).apply {
+            putExtra(EXTRA_URL, p.url)
+            putExtra(EXTRA_FILE, p.fileName)
+            putExtra(EXTRA_TITLE, p.title)
+            putExtra(EXTRA_MIME, p.mime)
+            putExtra(EXTRA_MODE, p.mode)
+            putExtra(EXTRA_BITRATE, p.bitrate)
+            p.videoUrl?.let { putExtra(EXTRA_VIDEO_URL, it) }
+            p.engineFormat?.let { putExtra(EXTRA_FORMAT, it) }
+            if (p.maxHeight > 0) putExtra(EXTRA_MAX_HEIGHT, p.maxHeight)
+        }
+
+    // ---------- o download em si (um JobSpec por vez) ----------
+
+    private fun runDownload(spec: JobSpec) {
+        val intent = spec.intent
+        val url = intent.getStringExtra(EXTRA_URL)
+        val fileName = intent.getStringExtra(EXTRA_FILE) ?: "audio.m4a"
+        val title = intent.getStringExtra(EXTRA_TITLE) ?: fileName
+        val mime = intent.getStringExtra(EXTRA_MIME) ?: "audio/mp4"
+        val mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_DIRECT
+        val bitrate = intent.getIntExtra(EXTRA_BITRATE, 320)
+        val videoUrl = intent.getStringExtra(EXTRA_VIDEO_URL)
+        val engineFormat = intent.getStringExtra(EXTRA_FORMAT)
+        val maxHeight = intent.getIntExtra(EXTRA_MAX_HEIGHT, 0)
+
+        activeFile = fileName
+        DownloadBus.setActive(fileName)
+        DownloadRegistry.clearIf(fileName)
+        DownloadBus.start(title, fileName)
+        DownloadBus.progress(
+            fileName,
+            if (spec.isResume) getString(R.string.dl_resuming) else getString(R.string.dl_preparing),
+            0,
+            true
+        )
+        notificationProgress(fileName, 0, indeterminate = true).let { n ->
+            lastProgressNotif = n
+            startForeground(NOTIF_ID, n)
+        }
+
+        var tmpSource: File? = null
+        var tmpOut: File? = null
+        var tmpPart: File? = null
+        try {
+            checkStop()
+
+            // ---------- PLANO A: yt-dlp embutido ----------
+            if (!videoUrl.isNullOrBlank() && !engineFormat.isNullOrBlank()) {
+                try {
+                    val (savedUri, qualityNote) = runYtDlp(
+                        videoUrl, engineFormat, bitrate, maxHeight,
+                        fileName, title, spec.isResume
+                    )
+                    notifyFinished(title, fileName, savedUri, qualityNote)
+                    return
+                } catch (e: Exception) {
+                    if (e is DownloadPaused || e is DownloadCancelled) throw e
+                    // pausa/cancelamento mataram o yt-dlp no meio: NÃO cair no plano B
+                    if (pauseRequested) throw DownloadPaused()
+                    if (cancelRequested) throw DownloadCancelled()
+                    if (url.isNullOrBlank()) throw e
+                    Log.w(TAG, "yt-dlp falhou; tentando o plano B (URL direta)", e)
+                    // honestidade: se era vídeo >720p, o plano B (faixa combinada)
+                    // não alcança a altura pedida — avisar na notificação
+                    val phaseMsg = if (engineFormat == "mp4" && maxHeight > 720) {
+                        getString(R.string.notif_phase_fallback_720p)
+                    } else {
+                        getString(R.string.notif_phase_fallback)
+                    }
+                    showPhase(fileName, phaseMsg, 0, indeterminate = true)
+                }
+            }
+
+            // ---------- PLANO B: URL direta (NewPipe + PoToken) ----------
+            // (chegou aqui ⇒ url é não-nula: ou não havia plano A, ou o plano A
+            // falhou e rethrow teria acontecido se url fosse nula)
+            val legacyUrl = url ?: throw IOException("sem URL direta para o plano B")
+            resetSpeed()
+            val savedUri: Uri = if (mode == MODE_MP3) {
+                val cache = File(applicationContext.cacheDir, "convert").apply { mkdirs() }
+                // hash da URL no nome do .part: garante que a retomada só
+                // aconteça com a MESMA faixa (qualidade) escolhida antes
+                val src = File(cache, "$fileName.${legacyUrl.hashCode().toString(36)}.src")
+                    .also { tmpSource = it }
+                val mp3 = File(cache, fileName).also { tmpOut = it }
+
+                downloadWithRetries(src, legacyUrl, fileName) { done, total ->
+                    // download = 0–60% do total
+                    val now = System.currentTimeMillis()
+                    if (now - lastNotify > 400) {
+                        lastNotify = now
+                        trackSpeed(done)
+                        showPhase(
+                            fileName,
+                            getString(R.string.notif_phase_download),
+                            if (total > 0) (done * 60 / total).toInt().coerceIn(0, 60) else 0,
+                            indeterminate = total <= 0,
+                            speed = speedText()
+                        )
+                    }
+                }
+                checkStop()
+
+                // conversão = 60–99%
+                showPhase(fileName, getString(R.string.notif_phase_convert), 60)
+                Mp3Converter.convert(src, mp3, bitrate, title) { p ->
+                    showPhase(
+                        fileName,
+                        getString(R.string.notif_phase_convert),
+                        60 + (p * 39).toInt().coerceAtMost(39)
+                    )
+                }
+                checkStop()
+
+                // guarda de bitrate: garante que o MP3 final está no bitrate
+                // pedido (leitura do arquivo; re-encode só se vier abaixo)
+                AudioQuality.ensureMp3Bitrate(mp3, bitrate, title) { p ->
+                    showPhase(
+                        fileName,
+                        getString(R.string.notif_phase_convert),
+                        60 + (p * 39).toInt().coerceAtMost(39)
+                    )
+                }
+                checkStop()
+
+                showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
+                publish(mp3.inputStream().buffered(), mp3.length(), fileName, "audio/mpeg")
+            } else {
+                val parts = File(applicationContext.cacheDir, "parts").apply { mkdirs() }
+                val part = File(parts, "$fileName.${legacyUrl.hashCode().toString(36)}.part")
+                    .also { tmpPart = it }
+
+                downloadWithRetries(part, legacyUrl, fileName) { done, total ->
+                    val now = System.currentTimeMillis()
+                    if (now - lastNotify > 400) {
+                        lastNotify = now
+                        trackSpeed(done)
+                        showPhase(
+                            fileName,
+                            getString(R.string.notif_phase_download),
+                            pct(done, total),
+                            indeterminate = total <= 0,
+                            speed = speedText()
+                        )
+                    }
+                }
+                checkStop()
+
+                showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
+                publish(part.inputStream().buffered(), part.length(), fileName, mime)
+            }
+            notifyFinished(title, fileName, savedUri)
+        } catch (e: DownloadPaused) {
+            // parciais preservados (plano A: dir estável; plano B: .part/.src)
+            keepPartials = true
+            DownloadRegistry.paused = DownloadRegistry.PausedDownload(
+                fileName, title, url, mime, mode, bitrate, videoUrl, engineFormat, maxHeight
+            )
+            DownloadBus.paused(fileName)
+            notifyPaused(fileName)
+        } catch (e: DownloadCancelled) {
+            DownloadBus.cancelled(fileName)
+            notifyCancelled(fileName)
+        } catch (e: Exception) {
+            Log.e(TAG, "Download falhou: $fileName", e)
+            notifyFailed(fileName, e)
+        } finally {
+            if (!keepPartials) {
+                tmpSource?.delete()
+                tmpOut?.delete()
+                tmpPart?.delete()
+            }
+            pauseRequested = false
+            cancelRequested = false
+            keepPartials = false
+            ytDlpProcessId = null
+            currentCall = null
+            lastProgressNotif = null
+            activeFile = null
+            DownloadBus.setActive(null)
+        }
     }
 
     /**
@@ -210,12 +443,19 @@ class DownloadService : Service() {
         bitrate: Int,
         maxHeight: Int,
         fileName: String,
-        title: String
+        title: String,
+        isResume: Boolean
     ): Pair<Uri, String?> {
         YtDlpEngine.ensureReady(applicationContext) { statusMsg ->
             showPhase(fileName, statusMsg, 0, indeterminate = true)
         }
-        val outDir = File(applicationContext.cacheDir, "ytdlp/${System.currentTimeMillis()}")
+        checkStop()
+        // diretório ESTÁVEL por pedido (não por timestamp): a retomada reencontra
+        // os parciais do yt-dlp (.part/.ytdl) e continua de onde parou
+        val outDir = File(
+            applicationContext.cacheDir,
+            "ytdlp/${Integer.toHexString("$videoUrl|$format|$maxHeight|$bitrate".hashCode())}"
+        )
         try {
             val preset = when (format) {
                 "mp3" -> YtDlpEngine.Preset.Mp3(bitrate)
@@ -223,7 +463,13 @@ class DownloadService : Service() {
                 "opus" -> YtDlpEngine.Preset.Opus(preferBitrate = bitrate.takeIf { it in 1..512 })
                 else -> YtDlpEngine.Preset.Mp4(maxHeight = if (maxHeight > 0) maxHeight else 1080)
             }
-            val produced0 = YtDlpEngine.download(videoUrl, preset, outDir) { progress, _ ->
+            val produced0 = YtDlpEngine.download(
+                videoUrl,
+                preset,
+                outDir,
+                clean = !isResume,
+                onProcessId = { ytDlpProcessId = it }
+            ) { progress, _, line ->
                 val now = System.currentTimeMillis()
                 if (now - lastNotify > 400) {
                     lastNotify = now
@@ -235,11 +481,14 @@ class DownloadService : Service() {
                             fileName,
                             getString(R.string.notif_phase_download),
                             progress.toInt().coerceIn(0, 99),
-                            indeterminate = false
+                            indeterminate = false,
+                            speed = speedFromLine(line)
                         )
                     }
                 }
             }
+            ytDlpProcessId = null
+            checkStop()
 
             // GUARDAS DE QUALIDADE: mede o ARQUIVO produzido e garante que a
             // qualidade pedida está nele — MP3: bitrate real (re-encode se veio
@@ -275,6 +524,7 @@ class DownloadService : Service() {
             }
 
             showPhase(fileName, getString(R.string.notif_phase_save), 99, indeterminate = true)
+            checkStop()
             val finalName = sanitizeFileName(produced.name)
             val finalMime = when (produced.extension.lowercase()) {
                 "mp3" -> "audio/mpeg"
@@ -289,7 +539,9 @@ class DownloadService : Service() {
             val saved = publish(produced.inputStream().buffered(), produced.length(), finalName, finalMime)
             return saved to qualityNote
         } finally {
-            outDir.deleteRecursively()
+            // pausa preserva os parciais no dir estável para a retomada continuar;
+            // término, falha e cancelamento limpam
+            if (!pauseRequested) outDir.deleteRecursively()
         }
     }
 
@@ -298,6 +550,9 @@ class DownloadService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
+        // serviço destruído com download rodando (ex.: app forçado a parar):
+        // mata o python/OkHttp para não deixar processo órfão comendo rede
+        killActive()
         super.onDestroy()
     }
 
@@ -317,6 +572,7 @@ class DownloadService : Service() {
         onProgress: (Long, Long) -> Unit
     ) {
         var attempt = 1
+        resetSpeed()
         while (true) {
             try {
                 downloadOnce(target, url, onProgress)
@@ -324,7 +580,15 @@ class DownloadService : Service() {
             } catch (e: BlockedStreamException) {
                 // 403/4xx: a URL nasceu bloqueada — repetir não resolve
                 throw e
+            } catch (e: DownloadPaused) {
+                throw e
+            } catch (e: DownloadCancelled) {
+                throw e
             } catch (e: Exception) {
+                // o kill da pausa/cancelamento chega como IOException genérica:
+                // traduz para o sinal certo em vez de "retomar"
+                if (cancelRequested) throw DownloadCancelled()
+                if (pauseRequested) throw DownloadPaused()
                 if (attempt >= MAX_ATTEMPTS) throw e
                 Log.w(TAG, "download caiu na tentativa $attempt (${e.message}); retomando")
                 showPhase(
@@ -350,35 +614,44 @@ class DownloadService : Service() {
             .header("User-Agent", DownloaderImpl.USER_AGENT)
         if (resumeFrom > 0) rb.header("Range", "bytes=$resumeFrom-")
 
-        client.newCall(rb.build()).execute().use { resp ->
-            val append: Boolean = when {
-                resp.code == 206 -> true // retomada aceita pelo servidor
-                resp.code == 200 -> {    // servidor ignorou o Range: recomeça
-                    target.delete()
-                    false
-                }
-                resp.code == 416 && resumeFrom > 0 -> { // intervalo inválido: parte corrompida
-                    target.delete()
-                    throw IOException("arquivo local rejeitado pelo servidor (HTTP 416); recomeçando")
-                }
-                else -> throw BlockedStreamException("HTTP ${resp.code}")
-            }
-            val body = resp.body ?: throw IOException("resposta sem corpo")
-            val total = resumeFrom + body.contentLength().coerceAtLeast(0)
-            var done = if (append) resumeFrom else 0L
-            FileOutputStream(target, append).use { out ->
-                val buffer = ByteArray(64 * 1024)
-                body.byteStream().use { input ->
-                    while (true) {
-                        val n = input.read(buffer)
-                        if (n == -1) break
-                        out.write(buffer, 0, n)
-                        done += n
-                        onProgress(done, total)
+        val call = client.newCall(rb.build())
+        currentCall = call
+        try {
+            call.execute().use { resp ->
+                val append: Boolean = when {
+                    resp.code == 206 -> true // retomada aceita pelo servidor
+                    resp.code == 200 -> {    // servidor ignorou o Range: recomeça
+                        target.delete()
+                        false
                     }
-                    out.flush()
+                    resp.code == 416 && resumeFrom > 0 -> { // intervalo inválido: parte corrompida
+                        target.delete()
+                        throw IOException("arquivo local rejeitado pelo servidor (HTTP 416); recomeçando")
+                    }
+                    else -> throw BlockedStreamException("HTTP ${resp.code}")
+                }
+                val body = resp.body ?: throw IOException("resposta sem corpo")
+                val total = resumeFrom + body.contentLength().coerceAtLeast(0)
+                var done = if (append) resumeFrom else 0L
+                FileOutputStream(target, append).use { out ->
+                    val buffer = ByteArray(64 * 1024)
+                    body.byteStream().use { input ->
+                        while (true) {
+                            val n = input.read(buffer)
+                            if (n == -1) break
+                            out.write(buffer, 0, n)
+                            done += n
+                            onProgress(done, total)
+                            // reação imediata entre chunks (pausar/cancelar)
+                            if (pauseRequested) throw DownloadPaused()
+                            if (cancelRequested) throw DownloadCancelled()
+                        }
+                        out.flush()
+                    }
                 }
             }
+        } finally {
+            currentCall = null
         }
         // resposta de erro do googlevideo às vezes vem com 200 e corpo minúsculo
         if (target.length() < MIN_BYTES) {
@@ -550,16 +823,78 @@ class DownloadService : Service() {
     private fun notificationProgress(name: String, percent: Int, indeterminate: Boolean): Notification =
         baseBuilder(getString(R.string.notif_downloading, name), "$percent%")
             .setProgress(100, percent, indeterminate)
+            .addAction(
+                0,
+                getString(R.string.notif_action_pause),
+                servicePendingIntent(ACTION_PAUSE, null, RC_PAUSE)
+            )
+            .addAction(
+                0,
+                getString(R.string.notif_action_cancel),
+                servicePendingIntent(ACTION_CANCEL, name, RC_CANCEL)
+            )
             .build()
 
-    private fun showPhase(name: String, phase: String, percent: Int, indeterminate: Boolean = false) {
+    /** Notificação neutra para starts de controle sem trabalho pendente. */
+    private fun idleNotification(): Notification =
+        baseBuilder(getString(R.string.app_name), getString(R.string.dl_preparing)).build()
+
+    private fun servicePendingIntent(action: String, targetFile: String?, requestCode: Int): PendingIntent {
+        val i = Intent(this, DownloadService::class.java).setAction(action)
+        targetFile?.let { i.putExtra(EXTRA_FILE, it) }
+        val flags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        return if (Build.VERSION.SDK_INT >= 26) {
+            PendingIntent.getForegroundService(this, requestCode, i, flags)
+        } else {
+            PendingIntent.getService(this, requestCode, i, flags)
+        }
+    }
+
+    private fun showPhase(
+        name: String,
+        phase: String,
+        percent: Int,
+        indeterminate: Boolean = false,
+        speed: String? = null
+    ) {
         val p = percent.coerceIn(0, 100)
-        val n = baseBuilder(getString(R.string.notif_downloading, name), "$phase · $p%")
+        val text = buildString {
+            append(phase)
+            append(" · ").append(p).append('%')
+            if (!indeterminate && speed != null) append(" · ").append(speed)
+        }
+        val n = baseBuilder(getString(R.string.notif_downloading, name), text)
             .setProgress(100, p, indeterminate)
             .build()
+        lastProgressNotif = n
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, n)
         // espelho para a Central de Downloads (não afeta o download)
-        DownloadBus.progress(name, phase, p, indeterminate)
+        DownloadBus.progress(name, phase, p, indeterminate, speed)
+    }
+
+    private fun notifyPaused(fileName: String) {
+        lastProgressNotif = null
+        val b = baseBuilder(getString(R.string.notif_paused_title), fileName)
+            .setOngoing(false)
+            .addAction(
+                0,
+                getString(R.string.notif_action_resume),
+                servicePendingIntent(ACTION_RESUME, null, RC_RESUME)
+            )
+            .addAction(
+                0,
+                getString(R.string.notif_action_cancel),
+                servicePendingIntent(ACTION_CANCEL, fileName, RC_CANCEL)
+            )
+        getSystemService(NotificationManager::class.java).notify(NOTIF_ID + 1, b.build())
+    }
+
+    private fun notifyCancelled(fileName: String) {
+        lastProgressNotif = null
+        val b = baseBuilder(getString(R.string.notif_cancelled_title), fileName)
+            .setOngoing(false)
+            .setAutoCancel(true)
+        getSystemService(NotificationManager::class.java).notify(NOTIF_ID + 1, b.build())
     }
 
     private fun notifyFinished(title: String, fileName: String, uri: Uri, qualityNote: String? = null) {
@@ -632,6 +967,51 @@ class DownloadService : Service() {
     private fun pct(done: Long, total: Long): Int =
         if (total > 0) ((done * 100) / total).toInt().coerceIn(0, 100) else 0
 
+    // ---------- velocidade ----------
+
+    private fun resetSpeed() {
+        speedBps = 0L
+        speedMarkMs = 0L
+        speedMarkDone = 0L
+    }
+
+    /** Janela móvel simples (plano B): bytes/s desde a última marca ≥ 400 ms. */
+    private fun trackSpeed(done: Long) {
+        if (speedMarkMs == 0L) {
+            speedMarkMs = System.currentTimeMillis()
+            speedMarkDone = done
+            return
+        }
+        val now = System.currentTimeMillis()
+        val dt = now - speedMarkMs
+        if (dt < 400) return
+        val bps = (done - speedMarkDone) * 1000L / dt
+        // suavização: 75% histórico + 25% atual — sem serrilhado a cada chunk
+        speedBps = if (speedBps == 0L) bps else (speedBps * 3 + bps) / 4
+        speedMarkMs = now
+        speedMarkDone = done
+    }
+
+    private fun speedText(): String? = if (speedBps > 0) formatSpeed(speedBps) else null
+
+    /** Velocidade no texto do yt-dlp: "[download] 45.3% of 123MiB at 2.35MiB/s ETA 01:23". */
+    private fun speedFromLine(line: String?): String? {
+        if (line.isNullOrBlank()) return null
+        val m = SPEED_REGEX.find(line) ?: return null
+        val v = m.groupValues[1].toFloatOrNull() ?: return null
+        if (v <= 0f) return null
+        val mult = when (m.groupValues[2]) {
+            "K" -> 1024f
+            "M" -> 1024f * 1024f
+            "G" -> 1024f * 1024f * 1024f
+            else -> 1f
+        }
+        return formatSpeed((v * mult).toLong())
+    }
+
+    private fun formatSpeed(bps: Long): String =
+        Formatter.formatShortFileSize(applicationContext, bps) + "/s"
+
     companion object {
         private const val TAG = "TuneGrab"
         private const val CHANNEL_ID = "tunegrab_downloads"
@@ -642,6 +1022,17 @@ class DownloadService : Service() {
         private const val EXTRA_MIME = "mime"
         private const val EXTRA_MODE = "mode"
         const val EXTRA_BITRATE = "bitrate"
+
+        /** Ações de controle (notificação + Central de Downloads). */
+        const val ACTION_PAUSE = "com.tunegrab.app.action.PAUSE"
+        const val ACTION_RESUME = "com.tunegrab.app.action.RESUME"
+        const val ACTION_CANCEL = "com.tunegrab.app.action.CANCEL"
+        private const val RC_PAUSE = 11
+        private const val RC_CANCEL = 12
+        private const val RC_RESUME = 13
+
+        /** "at 2.35MiB/s" na linha de progresso do yt-dlp (velocidade do plano A). */
+        private val SPEED_REGEX = Regex("at\\s+([\\d.]+)\\s*([KMGT]?)iB/s")
 
         /** Plano A: URL do vídeo para o motor yt-dlp embutido + preset de formato. */
         const val EXTRA_VIDEO_URL = "video_url"
@@ -682,5 +1073,16 @@ class DownloadService : Service() {
                 putExtra(EXTRA_MODE, MODE_MP3)
                 putExtra(EXTRA_BITRATE, bitrateKbps)
             }
+
+        /** Pausar / cancelar: o download ATIVO (ou, no cancelamento, o item na fila). */
+        fun controlIntent(context: Context, action: String, targetFile: String? = null): Intent =
+            Intent(context, DownloadService::class.java).apply {
+                setAction(action)
+                targetFile?.let { putExtra(EXTRA_FILE, it) }
+            }
+
+        /** Retomar o download pausado (parâmetros vivem no DownloadRegistry). */
+        fun resumeIntent(context: Context): Intent =
+            Intent(context, DownloadService::class.java).setAction(ACTION_RESUME)
     }
 }

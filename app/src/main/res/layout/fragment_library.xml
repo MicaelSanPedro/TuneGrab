@@ -44,6 +44,25 @@
         android:textColor="@color/on_surface_variant"
         android:textSize="12sp" />
 
+    <!-- Banner: sem a permissão de áudio o MediaStore só mostra o que o
+         próprio app baixou — com ela, achamos músicas antigas em QUALQUER
+         pasta (sobrevive a atualizar/reinstalar). -->
+    <TextView
+        android:id="@+id/btnPermission"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="12dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="12dp"
+        android:text="@string/lib_permission_banner"
+        android:textColor="@color/primary"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/tvEmpty"
         android:layout_width="match_parent"

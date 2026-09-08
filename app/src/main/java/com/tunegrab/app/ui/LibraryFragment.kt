@@ -1,7 +1,11 @@
 package com.tunegrab.app.ui
 
+import android.app.Activity
+import android.app.RecoverableSecurityException
 import android.content.Intent
+import android.content.IntentSenderRequest
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.format.DateUtils
 import android.util.Log
@@ -9,6 +13,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -25,16 +30,34 @@ import kotlinx.coroutines.withContext
 import androidx.documentfile.provider.DocumentFile
 
 /**
- * Músicas baixadas: lista os arquivos que o TuneGrab salvou
- * (na pasta padrão Downloads/TuneGrab ou na pasta escolhida nas configurações),
- * com reproduzir no app / abrir / compartilhar / apagar.
- * Somente leitura — nada aqui mexe no download.
+ * Músicas baixadas: lista os arquivos que o TuneGrab salvou (na pasta padrão
+ * Downloads/TuneGrab, na pasta escolhida ou em QUALQUER pasta do aparelho —
+ * o banner pede a permissão de áudio para achar músicas antigas mesmo depois
+ * de atualizar/reinstalar o app), com reproduzir no app / abrir / compartilhar
+ * / apagar.
  */
 class LibraryFragment : Fragment() {
 
     private var _binding: FragmentLibraryBinding? = null
     private val binding get() = _binding!!
     private val adapter = LibraryAdapter()
+
+    private val permLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            updateBanner()
+            load()
+        }
+
+    /** Apagar faixa de OUTRO app (permissão de leitura não basta): confirmar. */
+    private val deleteLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                Toast.makeText(context, R.string.lib_deleted, Toast.LENGTH_SHORT).show()
+                load()
+            } else {
+                cant(R.string.lib_err_delete)
+            }
+        }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -50,6 +73,13 @@ class LibraryFragment : Fragment() {
         binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = adapter
         binding.btnRefresh.setOnClickListener { load() }
+        binding.btnPermission.setOnClickListener {
+            try {
+                permLauncher.launch(LibraryFiles.mediaReadPermission())
+            } catch (t: Throwable) {
+                Log.w(TAG, "pedido de permissão falhou", t)
+            }
+        }
         adapter.onPlay = { e -> play(e) }
         adapter.onOpen = { e -> open(e) }
         adapter.onShare = { e -> LibraryFiles.share(requireContext(), e) }
@@ -58,7 +88,13 @@ class LibraryFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        updateBanner()
         load()
+    }
+
+    private fun updateBanner() {
+        val ctx = context ?: return
+        binding.btnPermission.isVisible = !LibraryFiles.hasMediaReadPermission(ctx)
     }
 
     override fun onDestroyView() {
@@ -114,6 +150,7 @@ class LibraryFragment : Fragment() {
     private fun delete(e: LibraryEntry) {
         val ctx = requireContext()
         lifecycleScope.launch {
+            var recoverable: android.content.IntentSender? = null
             val ok = withContext(Dispatchers.IO) {
                 try {
                     when {
@@ -125,16 +162,26 @@ class LibraryFragment : Fragment() {
                             e.file?.delete() == true
                     }
                 } catch (t: Throwable) {
-                    Log.w(TAG, "apagar falhou: ${e.name}", t)
+                    // faixa de OUTRO app (permissão de leitura não autoriza
+                    // apagar): o sistema oferece confirmação própria
+                    if (Build.VERSION.SDK_INT >= 29 && t is RecoverableSecurityException) {
+                        recoverable = t.userAction.actionIntent.intentSender
+                    } else {
+                        Log.w(TAG, "apagar falhou: ${e.name}", t)
+                    }
                     false
                 }
             }
             if (!isAdded) return@launch
-            if (ok) {
-                Toast.makeText(ctx, R.string.lib_deleted, Toast.LENGTH_SHORT).show()
-                load()
-            } else {
-                cant(R.string.lib_err_delete)
+            val sender = recoverable
+            when {
+                sender != null ->
+                    deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                ok -> {
+                    Toast.makeText(ctx, R.string.lib_deleted, Toast.LENGTH_SHORT).show()
+                    load()
+                }
+                else -> cant(R.string.lib_err_delete)
             }
         }
     }

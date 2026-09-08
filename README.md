@@ -40,8 +40,12 @@ sem servidor, sem depender de nada instalado no aparelho.
   (concluídos) e na aba Músicas
 - **Menu de navegação inferior com 4 abas** (troca instantânea, sem recarregar):
   - **Início** — cole o link e baixe
-  - **Downloads** — central em tempo real do que está baixando (fase, % e resultado)
-  - **Músicas** — tudo que você já baixou, com abrir / compartilhar / apagar
+  - **Downloads** — central em tempo real (fase, % e **velocidade**), com **pausar,
+    continuar e cancelar** no meio do download — na notificação também
+  - **Músicas** — tudo que você já baixou, com abrir / compartilhar / apagar.
+    Sobrevive a atualizar e até a desinstalar/reinstalar: pastas TuneGrab são
+    reencontradas pelo MediaStore, e o banner de permissão traz TODAS as
+    músicas do aparelho (mesmo as de pasta personalizada)
   - **Config.** — qualidades e pasta de download
 - **Escolha onde salvar** — qualquer pasta do aparelho em ⚙️ Configurações → Pasta
   de download (padrão: `Downloads/TuneGrab`, com fallback automático)
@@ -236,7 +240,8 @@ clients anônimos com iOS à frente.
 - [x] **MP4 até 4K (2160p) com resolução verificada e confirmada no arquivo salvo** (v0.8.0)
 - [x] **Música em segundo plano (notificação de mídia) + vídeo em tela cheia girando o app** (v0.9.0)
 - [x] **4K/1440p em MKV (arquivos que abrem de verdade) + teto 4K** (v0.9.1)
-- [ ] Fila de downloads / múltiplos links
+- [x] **Pausar/continuar/cancelar download + velocidade na notificação e na Central + fila** (v0.10.0)
+- [x] **Biblioteca reencontra músicas baixadas após atualizar ou reinstalar o app** (v0.10.0)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

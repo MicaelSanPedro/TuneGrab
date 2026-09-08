@@ -70,6 +70,11 @@
     <string name="notif_quality_video_lower">Pedido %1$dp — salvo em %2$dp (máximo desse vídeo)</string>
     <string name="notif_failed">Falha no download</string>
     <string name="notif_retry">conexão caiu — retomando (tentativa %1$d de %2$d)</string>
+    <string name="notif_paused_title">Download pausado</string>
+    <string name="notif_cancelled_title">Download cancelado</string>
+    <string name="notif_action_pause">Pausar</string>
+    <string name="notif_action_resume">Continuar</string>
+    <string name="notif_action_cancel">Cancelar</string>
     <string name="notif_view_details">Ver detalhes</string>
     <string name="err_details_title">Detalhes do erro</string>
 
@@ -102,9 +107,14 @@
     <string name="dl_clear">Limpar finalizados</string>
     <string name="dl_preparing">preparando…</string>
     <string name="dl_running_pct">%1$d%%</string>
+    <string name="dl_running_pct_speed">%1$d%% · %2$s</string>
     <string name="dl_state_done">Concluído ✓</string>
     <string name="dl_state_failed">Falhou</string>
     <string name="dl_state_failed_reason">Falhou — %1$s</string>
+    <string name="dl_state_paused">Pausado</string>
+    <string name="dl_state_cancelled">Cancelado</string>
+    <string name="dl_queued">Na fila</string>
+    <string name="dl_resuming">Retomando…</string>
 
     <!-- Músicas baixadas -->
     <string name="lib_title">Músicas baixadas</string>
@@ -112,6 +122,7 @@
     <string name="lib_folder_default">Salvando em: Downloads/TuneGrab</string>
     <string name="lib_folder_custom">Salvando em: %1$s</string>
     <string name="lib_folder_unknown">pasta escolhida</string>
+    <string name="lib_permission_banner">Toque para achar TODAS as músicas do aparelho — inclusive as que estavam em pasta própria, mesmo depois de atualizar ou reinstalar o app</string>
     <string name="lib_meta_line">%1$s · %2$s</string>
     <string name="lib_err_open">Não foi possível abrir este arquivo.</string>
     <string name="lib_err_delete">Não foi possível apagar este arquivo.</string>

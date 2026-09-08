@@ -7,13 +7,14 @@ import kotlinx.coroutines.flow.StateFlow
  * Espelho em memória do estado dos downloads, para a Central de Downloads.
  *
  * IMPORTANTE: isto NÃO faz parte da mecânica de download — o DownloadService
- * continua 100% intacto e apenas AVISA aqui o que já informa nas notificações
- * (mesma fase, mesmo percentual). Se ninguém estiver olhando a Central, nada
- * muda: os dados vivem só neste objeto, sem rede, sem disco, sem lógica.
+ * continua dono da mecânica e apenas AVISA aqui o que já informa nas
+ * notificações (mesma fase, mesmo percentual, mesma velocidade). Se ninguém
+ * estiver olhando a Central, nada muda: os dados vivem só neste objeto, sem
+ * rede, sem disco, sem lógica.
  */
 object DownloadBus {
 
-    enum class State { RUNNING, DONE, FAILED }
+    enum class State { RUNNING, DONE, FAILED, PAUSED, CANCELLED }
 
     data class Item(
         val fileName: String,
@@ -23,11 +24,23 @@ object DownloadBus {
         val indeterminate: Boolean = true,
         val state: State = State.RUNNING,
         val detail: String? = null,
+        /** Velocidade atual (texto pronto, ex.: "2,3 MB/s") — só quando faz sentido. */
+        val speed: String? = null,
         val updatedAt: Long = System.currentTimeMillis()
     )
 
     private val _items = MutableStateFlow<List<Item>>(emptyList())
     val items: StateFlow<List<Item>> = _items
+
+    /** Nome do arquivo do download que está RODANDO de fato (fila: os outros esperam). */
+    @Volatile
+    var activeFileName: String? = null
+        private set
+
+    @Synchronized
+    fun setActive(fileName: String?) {
+        activeFileName = fileName
+    }
 
     @Synchronized
     fun start(title: String, fileName: String) {
@@ -35,9 +48,15 @@ object DownloadBus {
     }
 
     @Synchronized
-    fun progress(fileName: String, phase: String, percent: Int, indeterminate: Boolean) {
+    fun progress(
+        fileName: String,
+        phase: String,
+        percent: Int,
+        indeterminate: Boolean,
+        speed: String? = null
+    ) {
         mutate(fileName) {
-            it.copy(phase = phase, percent = percent, indeterminate = indeterminate)
+            it.copy(phase = phase, percent = percent, indeterminate = indeterminate, speed = speed)
         }
     }
 
@@ -49,6 +68,33 @@ object DownloadBus {
                 phase = "",
                 percent = 100,
                 indeterminate = false,
+                speed = null,
+                detail = null
+            )
+        }
+    }
+
+    @Synchronized
+    fun paused(fileName: String) {
+        mutate(fileName) {
+            it.copy(
+                state = State.PAUSED,
+                phase = "",
+                indeterminate = false,
+                speed = null,
+                detail = null
+            )
+        }
+    }
+
+    @Synchronized
+    fun cancelled(fileName: String) {
+        mutate(fileName) {
+            it.copy(
+                state = State.CANCELLED,
+                phase = "",
+                indeterminate = false,
+                speed = null,
                 detail = null
             )
         }
@@ -57,13 +103,16 @@ object DownloadBus {
     @Synchronized
     fun failed(fileName: String, message: String) {
         mutate(fileName) {
-            it.copy(state = State.FAILED, phase = "", indeterminate = false, detail = message)
+            it.copy(state = State.FAILED, phase = "", indeterminate = false, speed = null, detail = message)
         }
     }
 
     @Synchronized
     fun clearFinished() {
-        _items.value = _items.value.filter { it.state == State.RUNNING }
+        // itens vivos (rodando/pausado) ficam; só limpa o histórico
+        _items.value = _items.value.filter {
+            it.state == State.RUNNING || it.state == State.PAUSED
+        }
     }
 
     private fun upsert(item: Item) {

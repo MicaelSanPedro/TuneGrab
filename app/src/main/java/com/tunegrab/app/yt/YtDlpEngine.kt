@@ -8,6 +8,7 @@ import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 
 /**
  * Motor de download yt-dlp EMBUTIDO no app (python + yt-dlp + ffmpeg dentro do
@@ -74,16 +75,27 @@ object YtDlpEngine {
     }
 
     /**
-     * Baixa [videoUrl] com o yt-dlp para [outDir] (limpo antes) e devolve o
-     * arquivo produzido. Bloqueante — chamar de thread de IO.
+     * Baixa [videoUrl] com o yt-dlp para [outDir] e devolve o arquivo
+     * produzido. Bloqueante — chamar de thread de IO.
+     *
+     * @param clean false na RETOMADA de um download pausado: mantém os
+     *   arquivos parciais (.part/.ytdl) no diretório — o yt-dlp continua
+     *   de onde parou (comportamento padrão --continue). true limpa antes.
+     * @param onProcessId entrega o ID do processo python logo antes de
+     *   executar — é com ele que o DownloadService PAUSA/CANCELA no meio
+     *   (YoutubeDL.destroyProcessById → execute lança CanceledException).
+     * @param onProgress percentual, ETA e a LINHA BRUTA do yt-dlp (de lá
+     *   vem a velocidade "at 2.35MiB/s").
      */
     fun download(
         videoUrl: String,
         preset: Preset,
         outDir: File,
-        onProgress: (percent: Float, etaSeconds: Long) -> Unit
+        clean: Boolean = true,
+        onProcessId: (String) -> Unit = {},
+        onProgress: (percent: Float, etaSeconds: Long, line: String?) -> Unit
     ): File {
-        outDir.deleteRecursively()
+        if (clean) outDir.deleteRecursively()
         outDir.mkdirs()
 
         val req = YoutubeDLRequest(videoUrl).apply {
@@ -183,10 +195,13 @@ object YtDlpEngine {
         }
 
         // forma posicional de propósito: o execute() tem duas sobrecargas e a
-        // forma com trailing lambda pode gerar ambiguidade de resolução
-        YoutubeDL.execute(req, null, { progress, eta, _ ->
+        // forma com trailing lambda pode gerar ambiguidade de resolução.
+        // O processId é o gancho de pausa/cancelamento do service.
+        val processId = UUID.randomUUID().toString()
+        onProcessId(processId)
+        YoutubeDL.execute(req, processId, { progress, eta, line ->
             try {
-                onProgress(progress, eta)
+                onProgress(progress, eta, line)
             } catch (ignored: Throwable) {
                 // callback de notificação nunca pode derrubar o download
             }
