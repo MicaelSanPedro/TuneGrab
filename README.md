@@ -247,6 +247,7 @@ clients anônimos com iOS à frente.
 - [x] **Biblioteca reencontra músicas baixadas após atualizar ou reinstalar o app** (v0.10.0)
 - [x] **Biblioteca separa Músicas e Vídeos (com contagem) + padrões 1080p/320 kbps no seletor + tela cheia sem deformar o vídeo** (v0.10.1)
 - [x] **Identidade visual: fonte Poppins em toda a interface + ícones Material Symbols Rounded (navegação com contorno/preenchido)** (v0.10.2)
+- [x] **Fases do download visíveis na Central: barra vira verde ao processar/salvar + labels em maiúsculas** (v0.10.3)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 
