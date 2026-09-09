@@ -30,6 +30,14 @@
         <item name="textAppearanceLabelSmall">@style/TextAppearance.TuneGrab.LabelSmall</item>
     </style>
 
+    <!-- Splash (v0.15.0): fundo já no tom do app para o cold start não piscar
+         branco antes do loader aparecer -->
+    <style name="Theme.TuneGrab.Splash">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+    </style>
+
     <!-- Pílula do item ativo da navegação inferior (tom violeta, combinando com o tema) -->
     <style name="NavPillIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
         <item name="android:color">@color/nav_pill</item>

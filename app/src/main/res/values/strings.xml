@@ -4,6 +4,11 @@
     <string name="app_tagline">♪ TuneGrab</string>
     <string name="app_sub">Baixe o áudio de vídeos do YouTube</string>
 
+    <!-- Splash de boas-vindas (v0.15.0) -->
+    <string name="splash_welcome">Bem-vindo</string>
+    <string name="splash_made_by">feito por</string>
+    <string name="splash_name">micaelsan</string>
+
     <string name="hint_url">Cole o link do YouTube aqui</string>
     <string name="hint_url_playlist">Cole o link da playlist aqui</string>
     <string name="mode_video">Vídeo</string>
