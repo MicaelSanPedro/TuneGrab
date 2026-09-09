@@ -21,6 +21,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
+import com.tunegrab.app.yt.DownloaderImpl
 
 /**
  * Música em segundo plano: foreground service (tipo mediaPlayback) que é o
@@ -136,6 +137,13 @@ class PlaybackService : Service() {
         super.onDestroy()
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // usuário FECHOU o app dos recentes: PARA TUDO — sem isso o serviço
+        // sobrevivia sozinho tocando áudio fantasma (só morria na forçar-parada)
+        stopNow()
+    }
+
     /** Toca a faixa em [uri], substituindo o que estiver tocando. */
     private fun startTrack() {
         releasePlayer()
@@ -147,7 +155,14 @@ class PlaybackService : Service() {
         val p = MediaPlayer()
         player = p
         try {
-            p.setDataSource(this, u)
+            // googlevideo RECUSA User-Agent estranho (mesmo tratamento do
+            // VideoView do player): sem isso o stream remoto leva rejeição
+            // e o miniplayer morre antes de nascer
+            if (u.scheme == "http" || u.scheme == "https") {
+                p.setDataSource(this, u, mapOf("User-Agent" to DownloaderImpl.USER_AGENT))
+            } else {
+                p.setDataSource(this, u)
+            }
             p.setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -320,7 +335,10 @@ class PlaybackService : Service() {
                 .setMediaSession(ensureSession().sessionToken)
                 .setShowActionsInCompactView(0)
         )
-        .setOngoing(true)
+        // arrastável: FECHAR O CARTÃO PARA O SOM (deleteIntent abaixo) — o
+        // áudio fantasma que só morria na forçar-parada acabou
+        .setOngoing(false)
+        .setDeleteIntent(serviceIntent(4, ACTION_STOP))
         .setOnlyAlertOnce(true)
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         .build()

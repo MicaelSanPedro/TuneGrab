@@ -268,7 +268,10 @@ class HomeFragment : Fragment() {
      * DASH na hora de tocar, o player cai sozinho pro muxed (fallback).
      */
     private fun pickHdStreams(v: VerifiedStreams): Pair<String, String>? {
-        val audioUrl = v.audio.maxByOrNull { it.averageBitrate }?.url ?: return null
+        // v.audio já vem ordenado M4A primeiro (depois bitrate): firstOrNull
+        // pega o melhor M4A — AAC/M4A o MediaPlayer do miniplayer toca em
+        // QUALQUER aparelho; WEBM/Opus (maior bitrate) nem todos aceitam
+        val audioUrl = v.audio.firstOrNull()?.url ?: return null
         val candidates = v.info.videoOnlyStreams.filter { it.height in 361..720 }
         if (candidates.isEmpty()) return null
         // H.264 (MPEG_4) primeiro; a ordenação por altura é estável, então no

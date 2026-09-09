@@ -398,7 +398,13 @@ class PlayerActivity : AppCompatActivity() {
     private fun handoffToService(posMs: Int) {
         val u = handoffUri ?: return
         handoffPos = posMs
-        PlaybackService.play(this, u, binding.tvTitle.text.toString(), posMs)
+        try {
+            PlaybackService.play(this, u, binding.tvTitle.text.toString(), posMs)
+        } catch (ignored: Throwable) {
+            // início de serviço bloqueado (OEM agressivo): o vídeo só pausa —
+            // NUNCA crasha na saída do app
+            return
+        }
         // bind pra ler a posição do serviço quando o usuário voltar
         if (!bound) {
             try {
@@ -412,6 +418,35 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
         handoff = true
+    }
+
+    /**
+     * Entrega o som do vídeo pro serviço (miniplayer) se estiver tocando.
+     * Guardas embutidas: só vídeo, sem finish pendente, sem handoff repetido.
+     */
+    private fun tryVideoHandoff() {
+        if (!isVideo || isFinishing || handoff) return
+        val exo = exoPlayer
+        val playing = if (exo != null) exo.isPlaying else try {
+            binding.videoView.isPlaying
+        } catch (ignored: Throwable) {
+            false
+        }
+        if (!playing) return
+        val pos = if (exo != null) exo.currentPosition.toInt() else try {
+            binding.videoView.currentPosition
+        } catch (ignored: Throwable) {
+            0
+        }
+        handoffToService(pos)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // PRIMEIRO lugar do handoff: aqui o app AINDA é foreground — o início
+        // do serviço em background (Android 12+/OEMs) não pode ser bloqueado.
+        // O onStop fica de rede de segurança para os casos que escapam
+        tryVideoHandoff()
     }
 
     override fun onResume() {
@@ -435,24 +470,9 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        if (isVideo && !isFinishing) {
-            // saiu do app (home) sem fechar: se o vídeo estava tocando,
-            // entrega o som pro serviço (miniplayer) em vez de só pausar
-            val exo = exoPlayer
-            val playing = if (exo != null) exo.isPlaying else try {
-                binding.videoView.isPlaying
-            } catch (ignored: Throwable) {
-                false
-            }
-            if (playing) {
-                val pos = if (exo != null) exo.currentPosition.toInt() else try {
-                    binding.videoView.currentPosition
-                } catch (ignored: Throwable) {
-                    0
-                }
-                handoffToService(pos)
-            }
-        }
+        // rede de segurança do handoff (o normal é no onUserLeaveHint); o
+        // guard de dentro de tryVideoHandoff evita handoff duplicado
+        tryVideoHandoff()
         // ÁUDIO: NÃO pausa mais — o PlaybackService segue em 2º plano com a
         // notificação de mídia (é o propósito desta versão).
         // VÍDEO: pausa a tela (o som já está/estará no PlaybackService).
