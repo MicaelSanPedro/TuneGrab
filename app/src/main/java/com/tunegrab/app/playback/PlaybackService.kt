@@ -40,6 +40,10 @@ class PlaybackService : Service() {
     private var trackTitle: String = ""
     private var focusRequested = false
 
+    // posição inicial da faixa (handoff do vídeo: saiu do app com vídeo
+    // tocando e o áudio segue aqui DE ONDE parou)
+    private var pendingStartMs = 0
+
     private val audioManager by lazy {
         getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
@@ -103,6 +107,7 @@ class PlaybackService : Service() {
             ACTION_PLAY -> {
                 uri = intent.data
                 trackTitle = intent.getStringExtra(EXTRA_TITLE) ?: ""
+                pendingStartMs = intent.getIntExtra(EXTRA_START_MS, 0)
                 createChannel()
                 // foreground JÁ (contrato do startForegroundService); a
                 // notificação "carregando" é trocada quando o áudio prepara
@@ -152,6 +157,11 @@ class PlaybackService : Service() {
             p.setOnPreparedListener { mp ->
                 requestFocus()
                 try {
+                    // handoff do vídeo: retoma da posição em que estava
+                    if (pendingStartMs > 0) {
+                        mp.seekTo(pendingStartMs)
+                        pendingStartMs = 0
+                    }
                     mp.start()
                 } catch (ignored: IllegalStateException) {
                 }
@@ -280,6 +290,8 @@ class PlaybackService : Service() {
             MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, trackTitle)
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, getString(R.string.app_name))
+                // duração no cartão de mídia (Android 13+ mostra a barra)
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration().toLong())
                 .build()
         )
         // atualiza a notificação (serviço em foreground só enquanto há faixa)
@@ -353,18 +365,24 @@ class PlaybackService : Service() {
         const val ACTION_TOGGLE = "com.tunegrab.app.playback.TOGGLE"
         const val ACTION_STOP = "com.tunegrab.app.playback.STOP"
         const val EXTRA_TITLE = "title"
+        const val EXTRA_START_MS = "start_ms"
         private const val CHANNEL_ID = "tunegrab_playback"
         private const val NOTIF_ID = 200
 
         /** True entre onCreate/onDestroy — evita startForegroundService órfão. */
         private var running = false
 
-        /** Toca (ou substitui) a faixa em [uri] — áudio segue em 2º plano. */
-        fun play(ctx: Context, uri: Uri, title: String) {
+        /**
+         * Toca (ou substitui) a faixa em [uri] — áudio segue em 2º plano.
+         * [startMs] retoma no meio da faixa (miniplayer: quando o usuário sai
+         * do app com um VÍDEO tocando, o som continua aqui de onde parou).
+         */
+        fun play(ctx: Context, uri: Uri, title: String, startMs: Int = 0) {
             val i = Intent(ctx, PlaybackService::class.java)
                 .setAction(ACTION_PLAY)
                 .setData(uri)
                 .putExtra(EXTRA_TITLE, title)
+                .putExtra(EXTRA_START_MS, startMs)
             ContextCompat.startForegroundService(ctx, i)
         }
 

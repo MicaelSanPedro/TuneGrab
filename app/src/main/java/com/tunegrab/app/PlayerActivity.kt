@@ -68,14 +68,24 @@ class PlayerActivity : AppCompatActivity() {
     private var playback: PlaybackService? = null
     private var bound = false
 
-    // player HD (v0.17.1): ExoPlayer só no vídeo REMOTO (DASH video+áudio até
-    // 720p); morre junto com a activity — vídeo local e áudio seguem nos caminhos antigos
+    // MINIPLAYER (v0.18.0): vídeo REMOTO ou LOCAL continua como áudio no
+    // cartão de mídia do sistema quando o app vai pro fundo. O player HD
+    // (v0.17.1, ExoPlayer) é só o vídeo REMOTO DASH até 720p — morre junto
+    // com a activity; o som em 2º plano é sempre do PlaybackService.
     private var exoPlayer: ExoPlayer? = null
 
     // stream muxado de sempre (vídeo+áudio juntos): se as faixas DASH falharem
     // na hora de tocar (o YouTube anda bloqueando sem aviso), o player cai pra
     // cá SOZINHO em vez de morrer no erro
     private var fallbackUri: Uri? = null
+
+    // MINIPLAYER (v0.18.0): saiu do app com vídeo tocando? O som passa pro
+    // PlaybackService (foreground service) DE ONDE PAROU e vira o cartão de
+    // mídia do sistema (lá embaixo no shade/tela de bloqueio). Ao voltar, o
+    // vídeo retoma da posição em que o som do serviço estava.
+    private var handoff = false
+    private var handoffPos = 0
+    private var handoffUri: Uri? = null
 
     // vídeo em tela cheia (gira o app, não o vídeo)
     private var fullscreen = false
@@ -133,6 +143,10 @@ class PlayerActivity : AppCompatActivity() {
     private fun setupVideo(uri: Uri) {
         // não sobrepor a música em segundo plano
         PlaybackService.stopNow(this)
+
+        // miniplayer: o próprio arquivo (muxado remoto ou vídeo local) tem o
+        // áudio que o PlaybackService toca quando o app vai pro fundo
+        handoffUri = uri
 
         binding.videoView.visibility = View.VISIBLE
         binding.btnFullscreen.visibility = View.VISIBLE
@@ -198,6 +212,10 @@ class PlayerActivity : AppCompatActivity() {
     private fun setupExoVideo(videoUrl: String, audioUrl: String) {
         // não sobrepor a música em segundo plano
         PlaybackService.stopNow(this)
+
+        // miniplayer: o som em 2º plano usa a faixa de ÁUDIO separada (mesma
+        // que o ExoPlayer está tocando sincronizada com o vídeo)
+        handoffUri = Uri.parse(audioUrl)
 
         binding.playerView.visibility = View.VISIBLE
         binding.btnFullscreen.visibility = View.VISIBLE
@@ -371,11 +389,73 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * MINIPLAYER (v0.18.0): saiu do app com vídeo tocando (sem fechar) — o
+     * áudio passa pro PlaybackService na MESMA posição e continua como cartão
+     * de mídia do sistema (lá embaixo), igual à música. O vídeo fica pausado
+     * aqui; ao voltar, o onResume devolve o som pra tela.
+     */
+    private fun handoffToService(posMs: Int) {
+        val u = handoffUri ?: return
+        handoffPos = posMs
+        PlaybackService.play(this, u, binding.tvTitle.text.toString(), posMs)
+        // bind pra ler a posição do serviço quando o usuário voltar
+        if (!bound) {
+            try {
+                bindService(
+                    Intent(this, PlaybackService::class.java),
+                    serviceConn,
+                    Context.BIND_AUTO_CREATE
+                )
+                bound = true
+            } catch (ignored: Throwable) {
+            }
+        }
+        handoff = true
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!handoff) return
+        handoff = false
+        // posição mais fresca: o serviço (que continuou tocando) senão a do
+        // momento do handoff — lida ANTES de parar o serviço
+        val pos = playback?.position()?.takeIf { it > 0 } ?: handoffPos
+        PlaybackService.stopNow(this)
+        val exo = exoPlayer
+        if (exo != null) {
+            exo.seekTo(pos.toLong())
+            exo.playWhenReady = true
+        } else {
+            // caminho muxado/local (ou fallback do DASH)
+            binding.videoView.seekTo(pos)
+            binding.videoView.start()
+        }
+    }
+
     override fun onStop() {
         super.onStop()
+        if (isVideo && !isFinishing) {
+            // saiu do app (home) sem fechar: se o vídeo estava tocando,
+            // entrega o som pro serviço (miniplayer) em vez de só pausar
+            val exo = exoPlayer
+            val playing = if (exo != null) exo.isPlaying else try {
+                binding.videoView.isPlaying
+            } catch (ignored: Throwable) {
+                false
+            }
+            if (playing) {
+                val pos = if (exo != null) exo.currentPosition.toInt() else try {
+                    binding.videoView.currentPosition
+                } catch (ignored: Throwable) {
+                    0
+                }
+                handoffToService(pos)
+            }
+        }
         // ÁUDIO: NÃO pausa mais — o PlaybackService segue em 2º plano com a
         // notificação de mídia (é o propósito desta versão).
-        // VÍDEO: pausa ao sair do app (comportamento de player de vídeo).
+        // VÍDEO: pausa a tela (o som já está/estará no PlaybackService).
         binding.videoView.pause()
         exoPlayer?.pause()
     }
