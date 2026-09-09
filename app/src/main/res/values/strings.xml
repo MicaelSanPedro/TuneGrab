@@ -10,6 +10,9 @@
     <string name="splash_made_by">feito por</string>
     <string name="splash_name">micaelsan</string>
 
+    <!-- Letreiro led do Início (v0.16.0) -->
+    <string name="home_led">♪ TuneGrab ♪</string>
+
     <string name="hint_url">Cole o link do YouTube aqui</string>
     <string name="hint_url_playlist">Cole o link da playlist aqui</string>
     <string name="mode_video">Vídeo</string>

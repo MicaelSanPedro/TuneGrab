@@ -259,6 +259,7 @@ clients anônimos com iOS à frente.
 - [x] **Seletor Vídeo/Playlist no topo do Início (modo Playlist aceita watch?v&list e puxa a lista inteira) + fila da playlist à prova de bloqueio: item que falha na extração entra via yt-dlp direto (plano A) em vez de somar falha** (v0.14.0)
 - [x] **Loader de abertura: "Bem-vindo" em cursiva (Great Vibes) + assinatura "feito por micaelsan" discreta com o nome brilhando em efeito de led passando** (v0.15.0)
 - [x] **Ajuste da splash: "bem-vindo" em minúsculas (o B maiúsculo da cursiva tem um swash que parecia um "o" solto na tela) + espaço pro rabinho do "o" final não cortar** (v0.15.1)
+- [x] **"bem-vindo" na ASTON SCRIPT (fonte do autor, em TTF) com autoSize (nunca mais corta "bem vin…" em nenhuma tela/escala de fonte) + nome do app no Início virou LETREIRO DE LED ROLANTE (texto desliza e acende na faixa de luz)** (v0.16.0)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

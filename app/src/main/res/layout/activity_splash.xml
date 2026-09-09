@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Loader de abertura (v0.15.0): logo, Bem-vindo em cursiva (Great Vibes)
-     e a assinatura "feito por micaelsan" com o nome em LedTextView -->
+<!-- Loader de abertura (v0.16.0): logo, "bem-vindo" na Aston Script (fonte do
+     próprio autor do app) com autoSize — o texto encolhe sozinho pra caber em
+     qualquer tela/escala de fonte (mata o bug do corte "bem vin…") — e a
+     assinatura "feito por micaelsan" com o nome em LedTextView -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background">
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:gravity="center"
@@ -22,17 +25,21 @@
             android:contentDescription="@string/app_name"
             android:src="@mipmap/ic_launcher" />
 
+        <!-- autoSize: nunca corta nem quebra linha — o Android acha o tamanho
+             que cabe, em qualquer aparelho/escala de fonte do sistema -->
         <TextView
             android:id="@+id/txtWelcome"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:fontFamily="@font/great_vibes"
-            android:paddingEnd="10dp"
-            android:singleLine="true"
+            android:layout_marginTop="20dp"
+            android:fontFamily="@font/aston_script"
+            android:gravity="center"
             android:text="@string/splash_welcome"
             android:textColor="@color/on_background"
-            android:textSize="68sp" />
+            app:autoSizeMaxTextSize="56sp"
+            app:autoSizeMinTextSize="30sp"
+            app:autoSizeStepGranularity="1sp"
+            app:autoSizeTextType="uniform" />
 
         <LinearLayout
             android:id="@+id/madeByGroup"
