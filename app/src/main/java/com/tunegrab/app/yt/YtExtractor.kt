@@ -2,14 +2,17 @@ package com.tunegrab.app.yt
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import android.net.Uri
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.playlist.PlaylistInfo
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.VideoStream
 import com.tunegrab.app.yt.potoken.TuneGrabPoTokenProvider
 import java.util.concurrent.Callable
@@ -185,5 +188,65 @@ object YtExtractor {
         val options = audioOptions(info)
         return options.firstOrNull { it.format == MediaFormat.M4A }
             ?: options.firstOrNull()
+    }
+
+    // ---------- playlists (v0.13.0) ----------
+
+    /** Teto de segurança: playlist gigante não derruba o app nem martela o
+     *  YouTube — mostra os primeiros 100 e avisa quantos ficaram de fora. */
+    const val MAX_PLAYLIST_ITEMS = 100
+
+    /** Metadados da playlist + itens, só o que a fila precisa. */
+    class PlaylistMeta(
+        val title: String,
+        val uploader: String?,
+        val thumbnail: String?,
+        val items: List<Item>,
+        /** Quantos vídeos a playlist tem DE VERDADE (pode passar do teto). */
+        val totalFound: Int
+    ) {
+        data class Item(val url: String, val name: String, val durationSec: Long)
+    }
+
+    /** URL de playlist PURA (youtube.com/playlist?list=…). Link de vídeo com
+     *  list= no bolso (watch?v=X&list=Y) NÃO entra — continua baixando o
+     *  vídeo único de sempre, sem mudar nada no fluxo atual. */
+    fun isPlaylistUrl(raw: String): Boolean = try {
+        val u = Uri.parse(raw.trim())
+        u.path?.endsWith("/playlist") == true &&
+            !u.getQueryParameter("list").isNullOrBlank()
+    } catch (t: Throwable) {
+        false
+    }
+
+    /**
+     * Busca os metadados da playlist (título, canal, itens). Só LISTA —
+     * nada é baixado aqui. Cada vídeo entra depois na fila normal pelo
+     * mesmo caminho de sempre (extração por vídeo + DownloadService).
+     */
+    fun fetchPlaylist(raw: String): PlaylistMeta {
+        init()
+        val service = ServiceList.YouTube
+        val cleanUrl = normalize(raw)
+        try {
+            service.playlistLHFactory.fromUrl(cleanUrl)
+                ?: throw IllegalArgumentException("URL de playlist não reconhecida")
+        } catch (e: IllegalArgumentException) {
+            throw e
+        } catch (e: Exception) {
+            throw IllegalArgumentException("URL de playlist não reconhecida")
+        }
+        val info = PlaylistInfo.getInfo(service, cleanUrl)
+        val items = info.relatedItems
+            .filterIsInstance<StreamInfoItem>()
+            .filter { !it.url.isNullOrBlank() }
+            .map { PlaylistMeta.Item(it.url, it.name ?: "", it.duration) }
+        return PlaylistMeta(
+            title = info.name ?: "",
+            uploader = info.uploaderName,
+            thumbnail = info.thumbnails.maxByOrNull { it.height }?.url,
+            items = items.take(MAX_PLAYLIST_ITEMS),
+            totalFound = items.size
+        )
     }
 }

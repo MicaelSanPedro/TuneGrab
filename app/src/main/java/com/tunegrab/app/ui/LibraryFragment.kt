@@ -132,15 +132,41 @@ class LibraryFragment : Fragment() {
         }
     }
 
-    /** Aplica o filtro do chip (Músicas/Vídeos) sobre a lista completa. */
+    /** Aplica o filtro do chip (Músicas/Vídeos) e divide em SEÇÕES: primeiro
+     *  o que foi baixado PELO TuneGrab (destaque, com preferência no topo),
+     *  depois as mídias achadas no aparelho. */
     private fun render() {
         val b = _binding ?: return
         val shown = all.filter { it.isVideoKind == showVideos }
-        adapter.submit(shown)
+        val own = shown.filter { it.fromTuneGrab }
+        val others = shown.filter { !it.fromTuneGrab }
+        val rows = buildList {
+            if (own.isNotEmpty()) {
+                add(
+                    LibRow.Section(
+                        getString(R.string.lib_section_own),
+                        own.size,
+                        own = true
+                    )
+                )
+                addAll(own.map { LibRow.File(it) })
+            }
+            if (others.isNotEmpty()) {
+                add(
+                    LibRow.Section(
+                        getString(R.string.lib_section_others),
+                        others.size,
+                        own = false
+                    )
+                )
+                addAll(others.map { LibRow.File(it) })
+            }
+        }
+        adapter.submit(rows)
         b.tvEmpty.isVisible = shown.isEmpty()
-        b.tvEmpty.text = getString(
-            if (showVideos) R.string.lib_empty_video else R.string.lib_empty_audio
-        )
+        // MESMA DOENÇA do print da Central: vazio peso 1 × lista peso 99 —
+        // com a lista “visível e vazia” a mensagem ficava com 1% da tela.
+        b.list.isVisible = shown.isNotEmpty()
         // contagem em cada chip: dá pra ver o que tem no outro filtro sem sair daqui
         b.chipFilterAudio.text = getString(
             R.string.lib_chip_count,
@@ -250,48 +276,86 @@ class LibraryFragment : Fragment() {
     }
 }
 
-class LibraryAdapter : RecyclerView.Adapter<LibraryAdapter.EntryHolder>() {
+/** Linha da lista da Biblioteca: cabeçalho de seção ou arquivo. */
+sealed class LibRow {
+    data class Section(val title: String, val count: Int, val own: Boolean) : LibRow()
+    data class File(val entry: LibraryEntry) : LibRow()
+}
 
+class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    class HeaderHolder(val binding: ItemLibraryHeaderBinding) : RecyclerView.ViewHolder(binding.root)
     class EntryHolder(val binding: ItemLibraryFileBinding) : RecyclerView.ViewHolder(binding.root)
 
-    private var items: List<LibraryEntry> = emptyList()
+    private var rows: List<LibRow> = emptyList()
     var onPlay: ((LibraryEntry) -> Unit)? = null
     var onOpen: ((LibraryEntry) -> Unit)? = null
     var onShare: ((LibraryEntry) -> Unit)? = null
     var onDelete: ((LibraryEntry) -> Unit)? = null
 
-    fun submit(list: List<LibraryEntry>) {
-        items = list
+    fun submit(list: List<LibRow>) {
+        rows = list
         notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): EntryHolder =
-        EntryHolder(ItemLibraryFileBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+    override fun getItemViewType(position: Int): Int =
+        if (rows[position] is LibRow.Section) TYPE_HEADER else TYPE_FILE
 
-    override fun getItemCount(): Int = items.size
-
-    override fun onBindViewHolder(holder: EntryHolder, position: Int) {
-        val entry = items[position]
-        val b = holder.binding
-        val ctx = b.root.context
-
-        b.tvName.text = entry.name
-        val size = LibraryFiles.formatSize(ctx, entry.size)
-        val whenTxt = DateUtils.getRelativeTimeSpanString(
-            entry.modifiedMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS
-        )
-        b.tvMeta.text = ctx.getString(R.string.lib_meta_line, size, whenTxt.toString())
-        if (entry.isVideoKind) {
-            b.icon.setImageResource(R.drawable.ic_movie)
-            b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.secondary))
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder =
+        if (viewType == TYPE_HEADER) {
+            HeaderHolder(ItemLibraryHeaderBinding.inflate(LayoutInflater.from(parent.context), parent, false))
         } else {
-            b.icon.setImageResource(R.drawable.ic_music_note)
-            b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.primary))
+            EntryHolder(ItemLibraryFileBinding.inflate(LayoutInflater.from(parent.context), parent, false))
         }
 
-        b.root.setOnClickListener { onOpen?.invoke(entry) }
-        b.btnPlay.setOnClickListener { onPlay?.invoke(entry) }
-        b.btnShare.setOnClickListener { onShare?.invoke(entry) }
-        b.btnDelete.setOnClickListener { onDelete?.invoke(entry) }
+    override fun getItemCount(): Int = rows.size
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        when (val row = rows[position]) {
+            is LibRow.Section -> {
+                val b = (holder as HeaderHolder).binding
+                b.tvSectionTitle.text = "${row.title} · ${row.count}"
+                if (row.own) {
+                    b.headerIcon.setImageResource(R.drawable.ic_download)
+                    b.headerIcon.setColorFilter(
+                        ContextCompat.getColor(b.root.context, R.color.primary)
+                    )
+                } else {
+                    b.headerIcon.setImageResource(R.drawable.ic_library_music)
+                    b.headerIcon.setColorFilter(
+                        ContextCompat.getColor(b.root.context, R.color.on_surface_variant)
+                    )
+                }
+            }
+            is LibRow.File -> {
+                val entry = row.entry
+                val b = (holder as EntryHolder).binding
+                val ctx = b.root.context
+
+                b.tvName.text = entry.name
+                val size = LibraryFiles.formatSize(ctx, entry.size)
+                val whenTxt = DateUtils.getRelativeTimeSpanString(
+                    entry.modifiedMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS
+                )
+                b.tvMeta.text = ctx.getString(R.string.lib_meta_line, size, whenTxt.toString())
+                if (entry.isVideoKind) {
+                    b.icon.setImageResource(R.drawable.ic_movie)
+                    b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.secondary))
+                } else {
+                    b.icon.setImageResource(R.drawable.ic_music_note)
+                    b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.primary))
+                }
+
+                b.root.setOnClickListener { onOpen?.invoke(entry) }
+                b.btnPlay.setOnClickListener { onPlay?.invoke(entry) }
+                b.btnShare.setOnClickListener { onShare?.invoke(entry) }
+                b.btnDelete.setOnClickListener { onDelete?.invoke(entry) }
+            }
+        }
+    }
+
+    companion object {
+        private const val TYPE_HEADER = 0
+        private const val TYPE_FILE = 1
     }
 }

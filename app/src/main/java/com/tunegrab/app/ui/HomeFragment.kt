@@ -18,9 +18,12 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.tunegrab.app.DownloadRequest
 import com.tunegrab.app.FormatPickerSheet
+import com.tunegrab.app.FormatPrefs
 import com.tunegrab.app.MainActivity
+import com.tunegrab.app.PlaylistSheet
 import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
+import com.tunegrab.app.TuneGrabApp
 import com.tunegrab.app.databinding.FragmentHomeBinding
 import com.tunegrab.app.download.DownloadService
 import com.tunegrab.app.yt.YtExtractor
@@ -106,6 +109,13 @@ class HomeFragment : Fragment() {
         val url = extractUrl()
         if (url.isNullOrBlank()) {
             setStatus(getString(R.string.err_invalid_url))
+            return
+        }
+        // PLAYLIST pura (youtube.com/playlist?list=…) tem fluxo próprio:
+        // escolhe formato UMA vez, os vídeos entram na fila um a um —
+        // pelo MESMO caminho de download único (motor intocado)
+        if (YtExtractor.isPlaylistUrl(url)) {
+            startPlaylist(url)
             return
         }
         setBusy(true)
@@ -247,29 +257,60 @@ class HomeFragment : Fragment() {
     }
 
     private fun start(request: DownloadRequest) {
-        when (request) {
-            is DownloadRequest.Mp3 -> startMp3(request)
-            is DownloadRequest.M4a -> startDirect(
+        val prepared = intentFor(request) ?: return
+        launchService(prepared.first)
+        setStatus(prepared.second)
+    }
+
+    /**
+     * Monta o intent do DownloadService para um pedido — MESMOS parâmetros
+     * de sempre (o motor de download não mudou NADA). Usa contexto do APP,
+     * não da aba: a fila da playlist roda fora do ciclo de vida do fragment
+     * e continua enfileirando mesmo com a aba Início fechada. Devolve também
+     * o texto de status do fluxo único (a playlist ignora).
+     */
+    private fun intentFor(request: DownloadRequest): Pair<Intent, String>? {
+        val appCtx = context?.applicationContext ?: return null
+        return when (request) {
+            is DownloadRequest.Mp3 -> {
+                val url = request.source.url
+                if (url.isNullOrBlank()) {
+                    Toast.makeText(appCtx, R.string.err_no_audio, Toast.LENGTH_SHORT).show()
+                    return null
+                }
+                val fileName = sanitize(request.title) + ".mp3"
+                val intent = DownloadService.mp3Intent(appCtx, request.title, url, fileName, request.bitrateKbps)
+                if (request.videoUrl != null) {
+                    intent.putExtra(DownloadService.EXTRA_VIDEO_URL, request.videoUrl)
+                    intent.putExtra(DownloadService.EXTRA_FORMAT, "mp3")
+                }
+                intent to appCtx.getString(R.string.status_converting, "${request.bitrateKbps}")
+            }
+            is DownloadRequest.M4a -> directIntent(
+                appCtx,
                 request.title,
                 request.stream,
+                request.videoUrl,
                 suffix = request.stream.format?.suffix ?: "m4a",
                 mime = request.stream.format?.mimeType ?: "audio/mp4",
-                videoUrl = request.videoUrl,
                 engineFormat = "m4a",
                 engineBitrate = request.stream.averageBitrate
             )
-            is DownloadRequest.Webm -> startDirect(
+            is DownloadRequest.Webm -> directIntent(
+                appCtx,
                 request.title,
                 request.stream,
+                request.videoUrl,
                 suffix = request.stream.format?.suffix ?: "webm",
                 mime = request.stream.format?.mimeType ?: "audio/webm",
-                videoUrl = request.videoUrl,
                 engineFormat = "opus",
                 engineBitrate = request.stream.averageBitrate
             )
-            is DownloadRequest.Mp4 -> startDirect(
+            is DownloadRequest.Mp4 -> directIntent(
+                appCtx,
                 request.title,
                 request.stream,
+                request.videoUrl,
                 // contêiner acompanha o pedido: >1080p sai em MKV (VP9/AV1
                 // dentro de MP4 o Android não lê); ≤1080p sai em MP4/H.264
                 suffix = if (request.height > 1080) "mkv" else "mp4",
@@ -278,7 +319,6 @@ class HomeFragment : Fragment() {
                 } else {
                     request.stream?.format?.mimeType ?: "video/mp4"
                 },
-                videoUrl = request.videoUrl,
                 engineFormat = "mp4",
                 // altura ESCOLHIDA (pode ser 1080p via merge do yt-dlp);
                 // a faixa combinada vai só como plano B (limitado a 720p)
@@ -287,32 +327,19 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun startMp3(request: DownloadRequest.Mp3) {
-        val url = request.source.url
-        if (url.isNullOrBlank()) {
-            Toast.makeText(context, R.string.err_no_audio, Toast.LENGTH_SHORT).show()
-            return
-        }
-        val fileName = sanitize(request.title) + ".mp3"
-        val intent = DownloadService.mp3Intent(requireContext(), request.title, url, fileName, request.bitrateKbps)
-        if (request.videoUrl != null) {
-            intent.putExtra(DownloadService.EXTRA_VIDEO_URL, request.videoUrl)
-            intent.putExtra(DownloadService.EXTRA_FORMAT, "mp3")
-        }
-        launchService(intent)
-        setStatus(getString(R.string.status_converting, "${request.bitrateKbps}"))
-    }
-
-    private fun startDirect(
+    /** Faixa direta (M4a/Webm/Mp4): mesma montagem de sempre — o stream pode
+     *  ser nulo quando só o plano A (yt-dlp com a URL do vídeo) dá conta. */
+    private fun directIntent(
+        appCtx: Context,
         title: String,
         stream: Any?,
+        videoUrl: String?,
         suffix: String,
         mime: String,
-        videoUrl: String? = null,
-        engineFormat: String? = null,
-        maxHeight: Int = 0,
-        engineBitrate: Int = 0
-    ) {
+        engineFormat: String,
+        engineBitrate: Int = 0,
+        maxHeight: Int = 0
+    ): Pair<Intent, String>? {
         val url = when (stream) {
             is AudioStream -> stream.url
             is VideoStream -> stream.url
@@ -321,28 +348,157 @@ class HomeFragment : Fragment() {
         // stream/url nulos são ok quando há videoUrl: o plano A (yt-dlp) baixa
         // só com a URL do vídeo — MP4 nunca fica bloqueado por extração falha
         if (url.isNullOrBlank() && videoUrl.isNullOrBlank()) {
-            Toast.makeText(context, R.string.err_no_audio, Toast.LENGTH_SHORT).show()
-            return
+            Toast.makeText(appCtx, R.string.err_no_audio, Toast.LENGTH_SHORT).show()
+            return null
         }
         val fileName = sanitize(title) + "." + suffix
-        val intent = DownloadService.intent(requireContext(), title, url ?: "", fileName, mime)
-        if (videoUrl != null && engineFormat != null) {
+        val intent = DownloadService.intent(appCtx, title, url ?: "", fileName, mime)
+        if (videoUrl != null) {
             // plano A: yt-dlp embutido; a URL direta fica de plano B no intent
             intent.putExtra(DownloadService.EXTRA_VIDEO_URL, videoUrl)
             intent.putExtra(DownloadService.EXTRA_FORMAT, engineFormat)
             if (maxHeight > 0) intent.putExtra(DownloadService.EXTRA_MAX_HEIGHT, maxHeight)
             if (engineBitrate > 0) intent.putExtra(DownloadService.EXTRA_BITRATE, engineBitrate)
         }
-        launchService(intent)
-        setStatus(getString(R.string.status_downloading))
+        return intent to appCtx.getString(R.string.status_downloading)
     }
 
     private fun launchService(intent: Intent) {
-        val ctx = requireContext()
+        // contexto do APP: funciona até com a aba fechada (fila da playlist)
+        val ctx = context?.applicationContext ?: return
         if (Build.VERSION.SDK_INT >= 26) {
             ContextCompat.startForegroundService(ctx, intent)
         } else {
             ctx.startService(intent)
+        }
+    }
+
+    // ---------- playlist (v0.13.0) ----------
+
+    /** Fluxo da PLAYLIST: busca metadados e abre o seletor (formato/qualidade
+     *  UMA vez pra tudo). Nada é baixado até o usuário confirmar. */
+    private fun startPlaylist(url: String) {
+        if (busy) return
+        setBusy(true)
+        binding.progress.visibility = View.VISIBLE
+        setStatus(getString(R.string.pl_fetching))
+
+        lifecycleScope.launch {
+            try {
+                val pl = withContext(Dispatchers.IO) { YtExtractor.fetchPlaylist(url) }
+                if (_binding == null) return@launch
+                if (pl.items.isEmpty()) {
+                    setStatus(getString(R.string.pl_empty))
+                    return@launch
+                }
+                setStatus(getString(R.string.status_pick_format))
+                ensurePermissionsThen {
+                    val ctx = context ?: return@ensurePermissionsThen
+                    var sheet: PlaylistSheet? = null
+                    sheet = PlaylistSheet(ctx, pl) { format, quality ->
+                        sheet?.let { runPlaylist(pl, format, quality, it) }
+                    }
+                    sheet.show()
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "Falha ao buscar playlist", t)
+                setStatus(getString(R.string.err_generic, friendlyError(t)))
+            } finally {
+                _binding?.progress?.visibility = View.GONE
+                setBusy(false)
+            }
+        }
+    }
+
+    /**
+     * Prepara os vídeos UM A UM e enfileira cada um pelo MESMO intentFor do
+     * download único. Roda no escopo do APP: trocar de aba no meio não aborta
+     * (a aba é replace(); o app não morre). Respiro de 1,2s entre extrações
+     * pra não martelar o YouTube; bot-check insistente = parada limpa, e o
+     * que já entrou na fila continua baixando normalmente.
+     */
+    private fun runPlaylist(
+        pl: YtExtractor.PlaylistMeta,
+        format: String,
+        quality: String,
+        sheet: PlaylistSheet
+    ) {
+        val total = pl.items.size
+        var ok = 0
+        var fail = 0
+        TuneGrabApp.appScope.launch {
+            for ((idx, item) in pl.items.withIndex()) {
+                if (sheet.cancelled) return@launch
+                sheet.setProgress(idx, total, item.name)
+                try {
+                    val info = fetchWithRetry(item.url)
+                    val request = playlistRequest(info, format, quality)
+                    val prepared = request?.let { intentFor(it) }
+                    if (prepared == null) throw IllegalStateException("sem faixa utilizável")
+                    launchService(prepared.first)
+                    ok++
+                } catch (t: Throwable) {
+                    Log.w(TAG, "playlist: '${item.name}' falhou", t)
+                    fail++
+                    // bot-check depois dos re-tentativas: para bonito — a fila
+                    // mantém o que já entrou e o usuário tenta de novo depois
+                    if (t is SignInConfirmNotBotException) {
+                        sheet.stopped(idx + 1, total)
+                        return@launch
+                    }
+                }
+                delay(1200)
+            }
+            sheet.finished(ok, fail)
+        }
+    }
+
+    /** Pedido de download de um vídeo da playlist — MESMA semântica do
+     *  seletor único: MP3 converte do melhor áudio; M4A/Opus resolvem a
+     *  qualidade vídeo a vídeo (best = maior bitrate, small = menor); MP4
+     *  usa o plano A (URL) + melhor combinada ≤ altura como plano B. */
+    private fun playlistRequest(
+        info: StreamInfo,
+        format: String,
+        quality: String
+    ): DownloadRequest? {
+        val videoUrl = info.originalUrl ?: info.url
+        val audio = YtExtractor.audioOptions(info)
+        val video = YtExtractor.videoOptions(info)
+        return when (format) {
+            FormatPrefs.FORMAT_MP3 -> {
+                val src = audio.firstOrNull { it.format?.name == "M4A" }
+                    ?: audio.firstOrNull()
+                    ?: return null
+                DownloadRequest.Mp3(info.name, src, quality.toIntOrNull() ?: 320, videoUrl)
+            }
+            FormatPrefs.FORMAT_M4A -> {
+                val m4a = audio.filter { it.format?.name == "M4A" }
+                    .sortedByDescending { it.averageBitrate }
+                val stream = (if (quality == FormatPrefs.PICK_SMALL) {
+                    m4a.lastOrNull()
+                } else {
+                    m4a.firstOrNull()
+                }) ?: return null
+                DownloadRequest.M4a(info.name, stream, videoUrl)
+            }
+            FormatPrefs.FORMAT_OPUS -> {
+                val opus = audio.filter {
+                    it.format == org.schabi.newpipe.extractor.MediaFormat.WEBMA ||
+                        it.format == org.schabi.newpipe.extractor.MediaFormat.WEBMA_OPUS
+                }.sortedByDescending { it.averageBitrate }
+                val stream = opus.firstOrNull() ?: return null
+                DownloadRequest.Webm(info.name, stream, videoUrl)
+            }
+            else -> {
+                val chosen = quality.toIntOrNull() ?: return null
+                // Plano B (URL direta) só sabe baixar faixa COM áudio: usa a
+                // combinada mais próxima abaixo da altura escolhida
+                val stream = video.filter { it.height <= chosen }
+                    .maxByOrNull { it.height }
+                    ?: video.minByOrNull { it.height }
+                DownloadRequest.Mp4(info.name, stream, chosen, videoUrl)
+            }
         }
     }
 

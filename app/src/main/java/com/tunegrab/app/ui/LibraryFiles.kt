@@ -26,7 +26,11 @@ data class LibraryEntry(
     val isVideo: Boolean,
     val mediaUri: Uri? = null,   // MediaStore (API 29+)
     val docUri: Uri? = null,     // pasta escolhida (SAF)
-    val file: File? = null       // pasta padrão (API 24–28)
+    val file: File? = null,      // pasta padrão (API 24–28)
+    /** true = veio de fonte DO PRÓPRIO TuneGrab (pastas TuneGrab / pasta
+     *  escolhida) — ganha a seção de destaque no topo da Biblioteca. false =
+     *  achado no aparelho pela permissão de áudio (música de outro app). */
+    val fromTuneGrab: Boolean = false
 ) {
     val isVideoKind: Boolean get() = isVideo || mime.startsWith("video")
 }
@@ -70,28 +74,38 @@ object LibraryFiles {
             merged.putIfAbsent("${e.name.lowercase()}|${e.size}", e)
         }
 
+        // fontes DO PRÓPRIO app: tudo que entra aqui ganha fromTuneGrab=true
+        // (a pasta escolhida, o MediaStore por caminho ".../TuneGrab/..." e a
+        // listagem direta das pastas padrão). A ÚLTIMA fonte — todas as
+        // músicas do aparelho, via permissão — é de OUTROS apps e entra com
+        // flag false. Como ela roda POR ÚLTIMO, o dedupe garante: um arquivo
+        // do TuneGrab nunca vira "outro".
+        fun putOwn(e: LibraryEntry) {
+            merged.putIfAbsent("${e.name.lowercase()}|${e.size}", e.copy(fromTuneGrab = true))
+        }
+
         val tree = SaveLocation.customTree(ctx)
-        if (tree != null) listTree(ctx, tree).forEach { put(it) }
+        if (tree != null) listTree(ctx, tree).forEach { putOwn(it) }
 
         if (Build.VERSION.SDK_INT >= 29) {
             // vídeos + áudios do TuneGrab em Download/TuneGrab (e derivadas)
             queryMediaStore(ctx, MediaStore.Downloads.EXTERNAL_CONTENT_URI, "%TuneGrab%")
-                ?.forEach { put(it) }
+                ?.forEach { putOwn(it) }
             // áudios do TuneGrab fora do Download (ex.: Music/TuneGrab)
             queryMediaStore(ctx, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, "%TuneGrab%")
-                ?.forEach { put(it) }
+                ?.forEach { putOwn(it) }
             // PLANO B — listagem DIRETA das pastas padrão: cobre o caso de o
             // MediaStore NÃO devolver os arquivos que o próprio app criou
             // (OEMs que perdem o índice, arquivos presos em IS_PENDING,
             // mime dessincronizado). Via FUSE o app enxerga os próprios
             // arquivos por caminho SEM depender de permissão nem do MediaStore.
-            listDefaultDirs().forEach { put(it) }
-            // com permissão: todas as músicas do aparelho
+            listDefaultDirs().forEach { putOwn(it) }
+            // com permissão: todas as músicas do aparelho (OUTROS apps também)
             if (hasMediaReadPermission(ctx)) {
                 queryAllAudio(ctx)?.forEach { put(it) }
             }
         } else {
-            listLegacy().forEach { put(it) }
+            listLegacy().forEach { putOwn(it) }
             if (hasMediaReadPermission(ctx)) {
                 @Suppress("DEPRECATION")
                 val music = File(
@@ -100,7 +114,7 @@ object LibraryFiles {
                     ),
                     "TuneGrab"
                 )
-                legacyDir(music).forEach { put(it) }
+                legacyDir(music).forEach { putOwn(it) }
             }
         }
 

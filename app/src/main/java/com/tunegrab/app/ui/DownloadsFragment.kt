@@ -256,6 +256,11 @@ class DownloadsFragment : Fragment() {
         adapter.submit(shown)
         val b = _binding ?: return
         b.emptyState.isVisible = shown.isEmpty()
+        // RAIZ DO BUG DO PRINT: lista e vazio dividem a altura em peso 1:99 —
+        // com a lista VISIBLE (mesmo sem itens) o estado vazio ficava com 1%
+        // da tela: só uma barrinha violeta cortada embaixo dos chips. Escondendo
+        // a lista, o estado vazio toma a tela inteira.
+        b.list.isVisible = shown.isNotEmpty()
         if (shown.isEmpty()) {
             if (items.isEmpty()) {
                 // lista inteira vazia: convite pra baixar a primeira música

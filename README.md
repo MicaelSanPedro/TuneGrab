@@ -255,6 +255,7 @@ clients anônimos com iOS à frente.
 - [x] **Card de atualização consulta a cada abertura do app (a janela de 6h escondia releases novas; agora: gap mínimo 10 min + 1 consulta/hora por processo)** (v0.10.9)
 - [x] **Fase 2 do update automático: baixar o APK dentro do app com barra de progresso + "Instalar agora" via instalador do sistema + confirmação antes de gastar rede móvel** (v0.11.0)
 - [x] **Reproduzir sem baixar: botão ▶ ao lado do Baixar toca o vídeo do link direto no player + estado vazio da Central de downloads com cara de app** (v0.12.0)
+- [x] **Downloader de PLAYLIST (formato/qualidade 1×, vídeos entram na fila um a um) + Biblioteca em seções com destaque pro que foi baixado pelo TuneGrab + estado vazio da Central de verdade (o peso do layout engolia a mensagem)** (v0.13.0)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

@@ -6,6 +6,9 @@ import android.os.Build
 import android.util.Log
 import com.tunegrab.app.yt.YtDlpEngine
 import com.tunegrab.app.yt.potoken.PoTokenManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlin.concurrent.thread
 
 /**
@@ -63,5 +66,9 @@ class TuneGrabApp : Application() {
 
     companion object {
         private const val TAG = "TuneGrab"
+
+        /** Escopo do APP (não de tela): a preparação da playlist sobrevive a
+         *  trocar de aba (as abas são replace(), o fragment morre — o app não). */
+        val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     }
 }

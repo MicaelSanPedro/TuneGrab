@@ -47,6 +47,28 @@
     <string name="err_blocked_403">O YouTube bloqueou este stream agora. Tente baixar novamente em alguns minutos.</string>
     <string name="err_streams_blocked">O YouTube bloqueou os arquivos deste vídeo agora mesmo. O TuneGrab já renovou a sessão automaticamente — toque em Baixar de novo em alguns segundos.</string>
     <string name="err_no_stream_play">Não achei nenhuma faixa reproduzível nesse vídeo :( Tenta tocar de novo ou baixa direto.</string>
+
+    <!-- Playlist (v0.13.0) -->
+    <string name="pl_fetching">Buscando a playlist…</string>
+    <string name="pl_empty">Essa playlist não tem vídeos acessíveis :(</string>
+    <string name="pl_title_fallback">Playlist do YouTube</string>
+    <string name="pl_count">%1$d vídeos</string>
+    <string name="pl_capped">primeiros %1$d</string>
+    <string name="pl_note">Cada vídeo entra na fila da Central de downloads — dá pra pausar ou cancelar um por um.</string>
+    <string name="pl_go">Baixar tudo</string>
+    <string name="pl_stop">Parar</string>
+    <string name="pl_close">Fechar</string>
+    <string name="pl_preparing_zero">Preparando a fila…</string>
+    <string name="pl_preparing">Preparando %1$d de %2$d… %3$s</string>
+    <string name="pl_done_all">Playlist na fila! 🎉 %1$d vídeos entraram</string>
+    <string name="pl_done_partial">Fila pronta: %1$d entraram · %2$d falharam</string>
+    <string name="pl_stopped">Parou no vídeo %1$d de %2$d (verificação do YouTube). O que já entrou segue baixando — tenta de novo em 1 minutinho.</string>
+    <string name="pl_q_best">Melhor disponível</string>
+    <string name="pl_q_small">Menor arquivo</string>
+
+    <!-- Biblioteca: seções (v0.13.0) -->
+    <string name="lib_section_own">Baixados pelo TuneGrab</string>
+    <string name="lib_section_others">Outras mídias do aparelho</string>
     <string name="err_network">A conexão caiu no meio do download e o TuneGrab já tentou retomar. Verifique sua internet e tente de novo.</string>
     <string name="err_unavailable">Vídeo indisponível, privado ou com restrição de idade.</string>
     <string name="err_generic_short">Não foi possível buscar este vídeo.</string>
