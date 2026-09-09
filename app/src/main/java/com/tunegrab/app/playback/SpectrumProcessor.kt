@@ -88,7 +88,7 @@ class SpectrumProcessor : BaseAudioProcessor() {
     override fun onConfigure(
         inputAudioFormat: AudioProcessor.AudioFormat
     ): AudioProcessor.AudioFormat {
-        val enc = inputAudioFormat.pcmEncoding
+        val enc = inputAudioFormat.encoding
         if (enc != C.ENCODING_PCM_16BIT && enc != C.ENCODING_PCM_FLOAT) {
             throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
         }
@@ -98,7 +98,7 @@ class SpectrumProcessor : BaseAudioProcessor() {
         return inputAudioFormat // pass-through: o som sai exatamente como entra
     }
 
-    override fun queueInput(inputBuffer: ByteBuffer): ByteBuffer {
+    override fun queueInput(inputBuffer: ByteBuffer) {
         val remaining = inputBuffer.remaining()
         if (remaining > 0) {
             // duplicate() lê SEM mover a posição do original — o put() abaixo
@@ -106,13 +106,10 @@ class SpectrumProcessor : BaseAudioProcessor() {
             val dup = inputBuffer.duplicate()
             dup.order(ByteOrder.LITTLE_ENDIAN)
             ingest(dup)
-            val out = replaceOutputBuffer(remaining)
-            out.put(inputBuffer)
-            out.flip()
+            replaceOutputBuffer(remaining).put(inputBuffer).flip()
         } else {
-            replaceOutputBuffer(0)
+            replaceOutputBuffer(0).flip()
         }
-        return outputBuffer
     }
 
     override fun onQueueEndOfStream() {

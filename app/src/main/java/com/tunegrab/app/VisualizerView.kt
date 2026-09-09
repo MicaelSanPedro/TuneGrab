@@ -9,6 +9,7 @@ import android.graphics.Shader
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.View
+import com.tunegrab.app.playback.SpectrumBus
 import kotlin.math.pow
 
 /**
