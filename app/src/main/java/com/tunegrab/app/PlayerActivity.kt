@@ -1,5 +1,6 @@
 package com.tunegrab.app
 
+import android.app.PictureInPictureParams
 import android.media.MediaPlayer
 import android.content.ComponentName
 import android.content.Context
@@ -8,11 +9,13 @@ import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.util.Rational
 import android.view.View
 import android.widget.MediaController
 import android.widget.SeekBar
@@ -87,6 +90,24 @@ class PlayerActivity : AppCompatActivity() {
     private var handoffPos = 0
     private var handoffUri: Uri? = null
 
+    // MINIPLAYER DE VÍDEO — PiP (v0.18.2): janelinha flutuante igual YouTube
+    // Premium. inPip = está na janelinha agora; pipActive = já esteve;
+    // pipJustExited = saiu da janelinha (resolve no onResume=expandiu ou
+    // no onStop=fechou o X)
+    private var inPip = false
+    private var pipActive = false
+    private var pipJustExited = false
+
+    // dimensões reais do vídeo (caminho VideoView) — a janelinha PiP usa a
+    // proporção certa (retrato vira janelinha em pé)
+    private var lastVideoW = 0
+    private var lastVideoH = 0
+
+    // aberto pelo CARTÃO DE MÍDIA do sistema: o serviço JÁ está tocando esta
+    // faixa — a UI só conecta nele (reiniciar do zero era o bug do "vídeo
+    // recomeça da primeira tela")
+    private var fromCard = false
+
     // vídeo em tela cheia (gira o app, não o vídeo)
     private var fullscreen = false
 
@@ -116,6 +137,7 @@ class PlayerActivity : AppCompatActivity() {
         val uri: Uri = intent.data ?: run { finish(); return }
         val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
         isVideo = intent.getBooleanExtra(EXTRA_IS_VIDEO, false)
+        fromCard = intent.getBooleanExtra(EXTRA_FROM_CARD, false)
         binding.tvTitle.text = title
 
         binding.btnClose.setOnClickListener { finish() }
@@ -172,9 +194,12 @@ class PlayerActivity : AppCompatActivity() {
         binding.videoView.setOnPreparedListener { mp ->
             mp.isLooping = false
             // proporção real do arquivo (lida do MediaPlayer) → o FitVideoView
-            // usa para nunca deformar o vídeo na tela cheia
+            // usa para nunca deformar o vídeo na tela cheia (e a janelinha
+            // PiP usa a proporção certa)
             if (mp.getVideoWidth() > 0 && mp.getVideoHeight() > 0) {
-                binding.videoView.setVideoSize(mp.getVideoWidth(), mp.getVideoHeight())
+                lastVideoW = mp.getVideoWidth()
+                lastVideoH = mp.getVideoHeight()
+                binding.videoView.setVideoSize(lastVideoW, lastVideoH)
             }
             showBuffering(false)
             // pausa de rede no meio do vídeo (stream remoto) volta a girar o spinner
@@ -186,6 +211,11 @@ class PlayerActivity : AppCompatActivity() {
                 true
             }
             binding.videoView.start()
+        }
+        // fim do vídeo DENTRO da janelinha PiP: fecha a janelinha (igual
+        // YouTube — sem vídeo parado eterno flutuando na tela)
+        binding.videoView.setOnCompletionListener {
+            if (inPip) stopVideoCompletely()
         }
         binding.videoView.setOnErrorListener { _, _, _ ->
             showBuffering(false)
@@ -254,6 +284,14 @@ class PlayerActivity : AppCompatActivity() {
                     fallbackUri = null
                     setupVideo(fb)
                 }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    // vídeo acabou DENTRO da janelinha PiP: fecha a janelinha
+                    // (igual YouTube — nada de vídeo congelado flutuando)
+                    if (playbackState == Player.STATE_ENDED && inPip) {
+                        stopVideoCompletely()
+                    }
+                }
             })
             playWhenReady = true
             prepare()
@@ -314,8 +352,12 @@ class PlayerActivity : AppCompatActivity() {
         initialUri = uri
         initialTitle = title
 
-        // inicia/retoma o serviço e conecta a UI a ele
-        PlaybackService.play(this, uri, title)
+        // Aberto pelo CARTÃO DE MÍDIA (EXTRA_FROM_CARD)? O serviço JÁ está
+        // tocando esta faixa — só conecta a UI nele. Reiniciar do zero era o
+        // bug do "a faixa recomeça" ao tocar no cartão.
+        if (!fromCard) {
+            PlaybackService.play(this, uri, title)
+        }
         bindService(
             Intent(this, PlaybackService::class.java),
             serviceConn,
@@ -441,16 +483,129 @@ class PlayerActivity : AppCompatActivity() {
         handoffToService(pos)
     }
 
+    // ---------- MINIPLAYER DE VÍDEO — PiP (v0.18.2) ----------
+
+    /**
+     * MINIPLAYER IGUAL YOUTUBE PREMIUM (v0.18.2): saiu do app com o vídeo
+     * tocando? A janelinha flutuante (picture-in-picture) assume — o MESMO
+     * player continua na janelinha, na MESMA posição, com vídeo de verdade
+     * (nada de handoff, nada de recomeçar do zero). Fechar a janelinha (X)
+     * PARA o vídeo; expandir volta pro player normal. Sem PiP (Android < 8
+     * ou desligado nas configurações), o handoff de áudio (cartão de mídia)
+     * segue como rede de segurança.
+     */
+    private fun tryEnterPip(): Boolean {
+        if (Build.VERSION.SDK_INT < 26) return false
+        val exo = exoPlayer
+        val playing = if (exo != null) exo.isPlaying else try {
+            binding.videoView.isPlaying
+        } catch (ignored: Throwable) {
+            false
+        }
+        // vídeo pausado: não abre janelinha (igual YouTube)
+        if (!playing) return false
+        return try {
+            val params = PictureInPictureParams.Builder()
+                .setAspectRatio(pipAspectRatio())
+                .build()
+            enterPictureInPictureMode(params)
+        } catch (ignored: Throwable) {
+            // sem suporte/permitido no aparelho: cai pro handoff de áudio
+            false
+        }
+    }
+
+    /** Proporção REAL do vídeo (retrato vira janelinha em pé), presa nos
+     *  limites que o PiP aceita (entre 1:2.39 e 2.39:1). */
+    private fun pipAspectRatio(): Rational {
+        var w = lastVideoW
+        var h = lastVideoH
+        exoPlayer?.videoSize?.takeIf { it.height > 0 && it.width > 0 }?.let {
+            w = it.width
+            h = it.height
+        }
+        if (w <= 0 || h <= 0) return Rational(16, 9)
+        val r = Rational(w, h)
+        val f = r.toFloat()
+        return when {
+            f > 2.39f -> Rational(239, 100)
+            f < 1f / 2.39f -> Rational(100, 239)
+            else -> r
+        }
+    }
+
+    /** Dentro da janelinha: só o vídeo — o sistema dá fechar/expandir. */
+    private fun enterPipUi() {
+        binding.btnClose.visibility = View.GONE
+        binding.btnFullscreen.visibility = View.GONE
+        binding.playerView.useController = false
+        binding.playerView.hideController()
+    }
+
+    /** Voltou pra tela normal (expandiu a janelinha): controles de volta. */
+    private fun exitPipUi() {
+        binding.btnClose.visibility = View.VISIBLE
+        if (isVideo) {
+            binding.btnFullscreen.visibility = View.VISIBLE
+            binding.playerView.useController = true
+        }
+    }
+
+    /** Para o vídeo DE VERDADE (janelinha fechada / fim do vídeo no PiP) —
+     *  sem áudio fantasma: solta os players e mata qualquer som remanescente. */
+    private fun stopVideoCompletely() {
+        try {
+            binding.videoView.stopPlayback()
+        } catch (ignored: Throwable) {
+        }
+        exoPlayer?.release()
+        exoPlayer = null
+        binding.playerView.player = null
+        try {
+            PlaybackService.stopNow(this)
+        } catch (ignored: Throwable) {
+        }
+        finish()
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        inPip = isInPictureInPictureMode
+        if (isInPictureInPictureMode) {
+            pipActive = true
+            enterPipUi()
+        } else if (pipActive) {
+            // saiu da janelinha: ou EXPANDIU (resolve no onResume) ou FECHOU
+            // (resolve no onStop — para tudo)
+            pipJustExited = true
+        }
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        // PRIMEIRO lugar do handoff: aqui o app AINDA é foreground — o início
-        // do serviço em background (Android 12+/OEMs) não pode ser bloqueado.
-        // O onStop fica de rede de segurança para os casos que escapam
+        if (!isVideo) return // música já vive no PlaybackService
+        // MINIPLAYER DE VÍDEO (v0.18.2): janelinha flutuante (PiP) primeiro —
+        // o mesmo player segue nela, na posição exata. Aqui o app AINDA é
+        // foreground, o melhor momento de transição. Se não der PiP (Android
+        // < 8 ou desligado nas configurações), cai pro handoff de áudio
+        // (cartão de mídia) — e o onStop segue como rede de segurança para
+        // os casos em que o onUserLeaveHint nem é chamado.
+        if (tryEnterPip()) return
         tryVideoHandoff()
     }
 
     override fun onResume() {
         super.onResume()
+        if (pipJustExited) {
+            // EXPANDIU a janelinha PiP: volta pra tela normal — o handoff
+            // NUNCA aconteceu (o player seguiu tocando na janelinha), não
+            // mexe em posição nem no serviço
+            pipJustExited = false
+            exitPipUi()
+        }
         if (!handoff) return
         handoff = false
         // posição mais fresca: o serviço (que continuou tocando) senão a do
@@ -470,6 +625,16 @@ class PlayerActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
+        if (pipJustExited || inPip) {
+            // Saiu da janelinha e NÃO voltou pra tela = usuário FECHOU o PiP
+            // (X ou arrastou pra fora): PARA TUDO, igual YouTube Premium —
+            // sem áudio fantasma. (pipJustExited: o mode-changed(false)
+            // chegou antes do onStop; inPip ainda true: fechou sem o
+            // callback, ou apagou a tela com a janelinha ativa.)
+            pipJustExited = false
+            stopVideoCompletely()
+            return
+        }
         // rede de segurança do handoff (o normal é no onUserLeaveHint); o
         // guard de dentro de tryVideoHandoff evita handoff duplicado
         tryVideoHandoff()
@@ -503,6 +668,10 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_VIDEO_URL = "video_url"
         const val EXTRA_AUDIO_URL = "audio_url"
         const val EXTRA_FALLBACK_URL = "fallback_url"
+
+        /** Aberto pelo cartão de mídia do sistema: o serviço já está tocando
+         *  esta faixa — a activity só conecta a UI (NÃO reinicia do zero). */
+        const val EXTRA_FROM_CARD = "from_card"
 
         /** Abre o player tocando um VÍDEO direto da rede (sem baixar nada). */
         fun remoteVideo(ctx: Context, url: String, title: String): Intent =

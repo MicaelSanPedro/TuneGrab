@@ -91,10 +91,13 @@
 
         <!-- Player embutido (áudio com controles próprios / vídeo em tela).
              configChanges: girar para tela cheia NÃO recria a activity — o
-             vídeo continua tocando na rotação. -->
+             vídeo continua tocando na rotação. supportsPictureInPicture:
+             MINIPLAYER DE VÍDEO (v0.18.2) — saiu do app com vídeo tocando, o
+             vídeo segue na janelinha flutuante igual YouTube Premium. -->
         <activity
             android:name=".PlayerActivity"
             android:exported="false"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.TuneGrab" />
 

@@ -360,7 +360,12 @@ class PlaybackService : Service() {
         Intent(this, PlayerActivity::class.java)
             .setData(uri)
             .putExtra(PlayerActivity.EXTRA_TITLE, trackTitle)
-            .putExtra(PlayerActivity.EXTRA_IS_VIDEO, false),
+            .putExtra(PlayerActivity.EXTRA_IS_VIDEO, false)
+            // tocou no cartão: se a PlayerActivity ainda existe, só traz à
+            // frente; se não, abre em modo áudio CONECTADA ao serviço que já
+            // está tocando (EXTRA_FROM_CARD) — NUNCA reinicia do zero
+            .putExtra(PlayerActivity.EXTRA_FROM_CARD, true)
+            .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
