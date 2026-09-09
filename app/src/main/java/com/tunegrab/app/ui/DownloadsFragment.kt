@@ -53,6 +53,7 @@ class DownloadsFragment : Fragment() {
     private var filterKind = KIND_ALL
 
     // Estado do card de atualização (Fase 2): baixando? % atual?
+    private var updateInfo: UpdateChecker.UpdateInfo? = null
     private var updateDownloading = false
     private var updatePercent = 0
 
@@ -123,6 +124,7 @@ class DownloadsFragment : Fragment() {
     /** Card "nova versão disponível": changelog + baixar/instalar + link. */
     private fun showUpdateCard(info: UpdateChecker.UpdateInfo) {
         val b = _binding ?: return
+        updateInfo = info
         b.cardUpdate.isVisible = true
         b.tvUpdateTitle.text = getString(R.string.upd_available, info.version)
         b.tvUpdateNotes.text = info.notes.ifBlank { getString(R.string.upd_no_notes) }
@@ -132,6 +134,10 @@ class DownloadsFragment : Fragment() {
             } catch (t: Throwable) {
                 // sem navegador no aparelho — card continua lá, nada quebra
             }
+        }
+        b.btnCloseUpdate.setOnClickListener {
+            b.cardUpdate.isVisible = false
+            UpdateChecker.dismiss(requireContext(), info.version)
         }
         b.btnUpdateAction.setOnClickListener { onUpdateAction(info) }
         refreshUpdateAction()
