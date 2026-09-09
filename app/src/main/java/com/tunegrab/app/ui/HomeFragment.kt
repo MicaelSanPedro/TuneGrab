@@ -19,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import com.tunegrab.app.DownloadRequest
 import com.tunegrab.app.FormatPickerSheet
 import com.tunegrab.app.MainActivity
+import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentHomeBinding
 import com.tunegrab.app.download.DownloadService
