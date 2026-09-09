@@ -152,6 +152,18 @@
     <string name="cookie_import_invalid">Esse arquivo não parece um cookies.txt do youtube.com.</string>
     <string name="cookie_import_failed">Não consegui ler o arquivo.</string>
     <string name="cookie_removed">Cookies removidos — o app voltou ao acesso anônimo.</string>
+
+    <!-- Barrinhas de DJ / visualizador de áudio (v0.18.7) -->
+    <string name="settings_player">Player</string>
+    <string name="settings_visualizer">Barrinhas de áudio no player</string>
+    <string name="settings_visualizer_hint">Espectro REAL do som que está tocando (graves à esquerda, agudos à direita) — não é animação. O Android exige a permissão de áudio para o app ler o espectro da saída: o TuneGrab NÃO grava som nem usa o microfone.</string>
+    <string name="visualizer_permission_title">Ativar as barrinhas de áudio?</string>
+    <string name="visualizer_permission_msg">O Android só deixa um app ler o espectro do som que está tocando com a permissão de áudio (a mesma do microfone). O TuneGrab usa ela APENAS para desenhar as barrinhas: nada é gravado, nada é enviado, e as barras morrem quando a música para. Você pode desligar nas Configurações quando quiser.</string>
+    <string name="visualizer_enable">Ativar</string>
+    <string name="visualizer_not_now">Agora não</string>
+    <string name="visualizer_on_ok">Barrinhas ligadas! Toque play e veja o som dançar.</string>
+    <string name="visualizer_denied">Sem a permissão as barrinhas não sobem — dá pra ativar de novo aqui quando quiser.</string>
+
     <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>
     <string name="q_mp3_192">192 kbps</string>

@@ -62,6 +62,7 @@ object FormatPrefs {
     private const val KEY_MP3_BITRATE = "mp3_bitrate"
     private const val KEY_M4A_PICK = "m4a_pick"
     private const val KEY_INPUT_MODE = "input_mode"
+    private const val KEY_VISUALIZER = "visualizer"
 
     const val FORMAT_MP3 = "mp3"
     const val FORMAT_M4A = "m4a"
@@ -95,6 +96,13 @@ object FormatPrefs {
         prefs(ctx).getString(KEY_INPUT_MODE, MODE_VIDEO) ?: MODE_VIDEO
     fun rememberMode(ctx: Context, mode: String) {
         prefs(ctx).edit().putString(KEY_INPUT_MODE, mode).apply()
+    }
+
+    /** Barrinhas de DJ (v0.18.7): visualizador de espectro no player de
+     *  áudio. Padrão LIGADO — a primeira exibição pede a permissão. */
+    fun visualizerOn(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_VISUALIZER, true)
+    fun setVisualizerOn(ctx: Context, on: Boolean) {
+        prefs(ctx).edit().putBoolean(KEY_VISUALIZER, on).apply()
     }
 }
 

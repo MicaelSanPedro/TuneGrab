@@ -69,6 +69,16 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
+        <!-- Barrinhas de DJ (v0.18.7): espectro REAL do áudio que está tocando
+             (Visualizer do Android no mix de saída). Aparece só no modo ÁUDIO
+             com o toggle ligado e a permissão concedida — nunca animação falsa -->
+        <com.tunegrab.app.VisualizerView
+            android:id="@+id/visualizer"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="16dp"
+            android:visibility="gone" />
+
         <SeekBar
             android:id="@+id/seekBar"
             android:layout_width="match_parent"

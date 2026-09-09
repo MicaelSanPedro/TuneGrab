@@ -6,6 +6,10 @@
          do sistema (a confirmação final é sempre do usuário, no instalador) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Barrinhas de DJ (v0.18.7): o Visualizer do Android exige ESTA permissão
+         para ler o espectro do mix de SAÍDA (o som que o próprio app toca).
+         Não é microfone — nada é gravado; sem ela as barras nem aparecem -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />

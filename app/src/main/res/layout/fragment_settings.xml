@@ -247,6 +247,35 @@
                 android:text="@string/settings_cookies_hint"
                 android:textColor="@color/on_surface_variant"
                 android:textSize="11sp" />
+
+            <!-- Player: barrinhas de DJ (v0.18.7) — espectro REAL do áudio -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/settings_player"
+                android:textColor="@color/primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swVisualizer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:minHeight="44dp"
+                android:text="@string/settings_visualizer"
+                android:textColor="@color/on_background"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/settings_visualizer_hint"
+                android:textColor="@color/on_surface_variant"
+                android:textSize="11sp" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
