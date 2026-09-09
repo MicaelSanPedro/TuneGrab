@@ -251,6 +251,7 @@ clients anônimos com iOS à frente.
 - [x] **Anti-bot-check de verdade: yt-dlp atualiza pelo canal NIGHTLY (correções diárias) + rotação de client android_vr nas re-tentativas + --sleep-requests + botão de copiar detalhes do erro na Central** (v0.10.5)
 - [x] **Barra da Central vira VERDE ao processar/salvar + labels de fase em maiúsculas (Baixando/Processando arquivo/Salvando arquivo)** (v0.10.6)
 - [x] **Fase 1 do update automático: card "nova versão disponível" na Central com changelog + link da release (consulta o GitHub, throttle 6h, falha silenciosa)** (v0.10.7)
+- [x] **Biblioteca enxerga a pasta do PRÓPRIO app mesmo quando o MediaStore falha (listagem direta Download/Music/TuneGrab) + verificação dupla ao apagar arquivo** (v0.10.8)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

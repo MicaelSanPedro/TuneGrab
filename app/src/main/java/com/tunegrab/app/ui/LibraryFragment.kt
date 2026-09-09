@@ -20,6 +20,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentLibraryBinding
@@ -187,7 +188,21 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    /** VERIFICAÇÃO DUPLA: o toque no botão de lixo NUNCA apaga direto —
+     *  primeiro um diálogo do app; para faixa de OUTRO app o sistema ainda
+     *  mostra a confirmação própria dele (RecoverableSecurityException).
+     *  O toque errado não pode custar uma música. */
     private fun delete(e: LibraryEntry) {
+        val ctx = context ?: return
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.lib_delete_title)
+            .setMessage(ctx.getString(R.string.lib_delete_msg, e.name))
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.lib_delete_yes) { _, _ -> deleteNow(e) }
+            .show()
+    }
+
+    private fun deleteNow(e: LibraryEntry) {
         val ctx = requireContext()
         lifecycleScope.launch {
             var recoverable: android.content.IntentSender? = null

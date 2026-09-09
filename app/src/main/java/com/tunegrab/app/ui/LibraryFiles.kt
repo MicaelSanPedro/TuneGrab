@@ -80,6 +80,12 @@ object LibraryFiles {
             // áudios do TuneGrab fora do Download (ex.: Music/TuneGrab)
             queryMediaStore(ctx, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, "%TuneGrab%")
                 ?.forEach { put(it) }
+            // PLANO B — listagem DIRETA das pastas padrão: cobre o caso de o
+            // MediaStore NÃO devolver os arquivos que o próprio app criou
+            // (OEMs que perdem o índice, arquivos presos em IS_PENDING,
+            // mime dessincronizado). Via FUSE o app enxerga os próprios
+            // arquivos por caminho SEM depender de permissão nem do MediaStore.
+            listDefaultDirs().forEach { put(it) }
             // com permissão: todas as músicas do aparelho
             if (hasMediaReadPermission(ctx)) {
                 queryAllAudio(ctx)?.forEach { put(it) }
@@ -231,6 +237,36 @@ object LibraryFiles {
             return null
         }
         return out
+    }
+
+    /**
+     * Listagem DIRETA (java.io.File) das pastas padrão do TuneGrab —
+     * Download/TuneGrab e Music/TuneGrab. Plano B da aba Músicas: o app
+     * enxerga os PRÓPRIOS arquivos por caminho mesmo quando o MediaStore
+     * não os devolve (sem permissão de áudio, índice dessincronizado no
+     * OEM, arquivo presos em IS_PENDING). Só entra na lista o que tem
+     * extensão de áudio/vídeo conhecida — lixo/temporário fica de fora.
+     * O dedupe por (nome, tamanho) da listAll cuida dos duplicados.
+     */
+    private fun listDefaultDirs(): List<LibraryEntry> {
+        @Suppress("DEPRECATION")
+        val dirs = listOf(
+            File(
+                android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS
+                ),
+                "TuneGrab"
+            ),
+            File(
+                android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_MUSIC
+                ),
+                "TuneGrab"
+            )
+        )
+        return dirs.flatMap { legacyDir(it) }
+            .filter { it.mime != "application/octet-stream" }
+            .sortedByDescending { it.modifiedMs }
     }
 
     private fun listLegacy(): List<LibraryEntry> {

@@ -137,6 +137,11 @@
     <string name="lib_err_open">Não foi possível abrir este arquivo.</string>
     <string name="lib_err_delete">Não foi possível apagar este arquivo.</string>
     <string name="lib_deleted">Apagado ✓</string>
+
+    <!-- Verificação dupla antes de apagar (v0.10.8) -->
+    <string name="lib_delete_title">Apagar arquivo?</string>
+    <string name="lib_delete_msg">“%1$s” será apagado definitivamente. Essa ação não pode ser desfeita.</string>
+    <string name="lib_delete_yes">Apagar</string>
     <string name="cd_refresh">Atualizar</string>
     <string name="cd_share">Compartilhar</string>
     <string name="cd_delete">Apagar</string>
