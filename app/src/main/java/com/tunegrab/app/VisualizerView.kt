@@ -6,42 +6,36 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
-import android.media.audiofx.Visualizer
+import android.os.SystemClock
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
-import kotlin.math.exp
-import kotlin.math.ln
 import kotlin.math.pow
-import kotlin.math.sqrt
 
 /**
- * VISUALIZADOR DE ÁUDIO REAL (v0.18.7) — as "barrinhas de DJ" do player.
+ * AS "BARRINHAS DE DJ" do player (v0.18.8) — espectro REAL, sem permissão.
  *
- * NÃO é simulação: usa o android.media.audiofx.Visualizer ligado ao MIX DE
- * SAÍDA global (audio session 0) — o MESMO som que sai no alto-falante, seja
- * do PlaybackService (música), do ExoPlayer (vídeo DASH) ou do VideoView.
- * O Android entrega o FFT (espectro de frequências, de verdade) e esta view
- * agrupa as frequências em bandas logarítmicas (graves à esquerda, agudos à
- * direita, como no mixer), com ataque instantâneo, decaimento suave e o
- * "pico" caindo de volta — a dança é do próprio áudio que está tocando.
+ * Diferente da v0.18.7 (que dependia do android.media.audiofx.Visualizer +
+ * RECORD_AUDIO e em muitos aparelhos voltava vazio), aqui a fonte é o
+ * SpectrumProcessor injetado no ExoPlayer do PlaybackService: ele ESPIA o
+ * PCM que o próprio app está tocando (antes de sair no alto-falante) e
+ * publica as 28 bandas de frequência no SpectrumBus. Esta view SÓ desenha:
+ *  - ataque INSTANTÂNEO (a barra sobe na pancada do grave) e decaimento
+ *    constante — o combo clássico dos visualizers;
+ *  - pontinho de PICO com gravidade acumulada, caindo de volta (mesa de DJ);
+ *  - bandas LOGARÍTMICAS (graves à esquerda, agudos à direita — log é a cara
+ *    de mixer; linear deixa o espectro torto);
+ *  - curva perceptual (^0.75) pra agudos fracos aparecerem.
  *
- * Quando a faixa PAUSA, o mix silencia, o FFT zera e as barras caem sozinhas
- * em ~1 segundo — nenhum estado de player precisa ser consultado (e nenhum
- * player é acoplado aqui).
- *
- * Requer a permissão RECORD_AUDIO — exigência do ANDROID para qualquer leitura
- * de espectro de saída; o app não grava som nem usa microfone. Sem permissão
- * ou sem suporte no aparelho: attach() devolve false (a activity esconde a
- * view) — NUNCA uma animação falsa no lugar.
+ * Sem dado novo (música pausada, player fechado), os alvos viram zero após
+ * um instante e as barras CAEM SOZINHAS — nenhum estado de player é
+ * consultado, e NUNCA entra animação falsa no lugar do espectro real.
+ * Sem permissão nenhuma: o som é lido por dentro do app, não do microfone.
  */
 class VisualizerView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
-
-    private var viz: Visualizer? = null
 
     /** Nível suavizado de cada banda (0..1) — o que o desenho mostra. */
     private val display = FloatArray(BARS)
@@ -64,115 +58,49 @@ class VisualizerView @JvmOverloads constructor(
     private var gradientW = 0
     private var gradientH = 0
 
-    /** Callback de captura do FFT — roda na thread da view (looper da main). */
-    private val captureListener = object : Visualizer.OnDataCaptureListener {
-        override fun onWaveFormDataCapture(
-            visualizer: Visualizer?,
-            waveform: ByteArray?,
-            samplingRate: Int
-        ) {
-            // só FFT interessa aqui
-        }
-
-        override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, samplingRate: Int) {
-            if (fft != null && fft.size >= 8) ingestFft(fft)
-            postInvalidateOnAnimation()
-        }
-    }
+    /** Loop de frames ligado entre attach() e detach()/setHostPaused(true). */
+    private var running = false
 
     /**
-     * Liga a captura no mix de saída (session 0). Devolve false se o aparelho
-     * negar (sem permissão, engine sem slots, OEM exótico) — a activity esconde
-     * as barras nesse caso. Chamar só com RECORD_AUDIO concedida.
+     * Liga o desenho (as barras dançam com o SpectrumBus que o
+     * PlaybackService alimenta). NÃO precisa de permissão — sempre dá certo.
      */
     fun attach(): Boolean {
-        if (viz != null) return true
-        available = try {
-            val v = Visualizer(0) // 0 = output mix global: pega o SOM REAL
-            val range = Visualizer.getCaptureSizeRange() // STATIC da classe
-            if (range != null && range.size >= 2) {
-                // maior janela = mais resolução de frequência (1024 → 512 bins)
-                v.captureSize = range[1].coerceAtMost(2048)
-            }
-            v.setDataCaptureListener(
-                captureListener,
-                Visualizer.getMaxCaptureRate(), // ~20 capturas/s — DJ de verdade
-                false, // waveform off
-                true   // FFT on
-            )
-            v.enabled = true
-            viz = v
-            true
-        } catch (t: Throwable) {
-            Log.w(TAG, "Visualizador indisponível neste aparelho", t)
-            false
-        }
+        running = true
         invalidate()
-        return available
+        return true
     }
 
-    /** Solta o Visualizer (recurso escasso do engine — release é obrigatório). */
+    /** Para o loop de frames (a view sai da tela / activity morre). */
     fun detach() {
-        val v = viz
-        viz = null
-        available = false
-        if (v != null) {
-            try {
-                v.enabled = false
-            } catch (ignored: Throwable) {
-            }
-            try {
-                v.release()
-            } catch (ignored: Throwable) {
-            }
-        }
+        running = false
     }
 
     /**
-     * App foi pro fundo (onStop): desliga o effect e economiza bateria —
-     * a view nem está visível. Voltou (onResume): religa se já estava ligada.
+     * App foi pro fundo (onStop): para o loop (bateria); voltou (onResume):
+     * religa. O SOM não é afetado — só o desenho.
      */
     fun setHostPaused(paused: Boolean) {
-        val v = viz ?: return
-        try {
-            v.enabled = !paused
-        } catch (ignored: Throwable) {
-        }
+        running = !paused
+        if (running) invalidate()
     }
 
-    /** True depois de um attach() bem-sucedido (ainda sem detach). */
-    var available = false
-        private set
-
-    // ---------- FFT → bandas ----------
-
     /**
-     * Converte o FFT cru do Android em níveis por banda:
-     *  - bins agrupados em escala LOGARÍTMICA (86 Hz → ~14 kHz): graves
-     *    dominam em escala linear e o espectro fica torto — log é a cara de DJ;
-     *  - magnitude = sqrt(re² + im²) normalizada, curva perceptual (^0.75)
-     *    pra agudos fracos aparecerem;
-     *  - ataque INSTANTÂNEO (barra sobe na pancada do grave) e decaimento
-     *    constante (cai suave) — o combo clássico dos visualizers;
-     *  - pico com gravidade acumulada: sobe junto e volta caindo devagar.
+     * Consome o SpectrumBus: alvo de cada banda = nível bruto publicado pelo
+     * SpectrumProcessor com curva perceptual. Dado "velho" (> STALE_MS sem
+     * publicação nova — faixa pausada/encerrada) = alvo zero → as barras
+     * caem sozinhas pelo decay.
      */
-    private fun ingestFft(fft: ByteArray) {
-        val bins = fft.size / 2 // k = 1..bins-1 vira (re, im) em fft[2k], fft[2k+1]
-        if (bins < MIN_BIN + 2) return
-        var bandStart = MIN_BIN
+    private fun ingest() {
+        val bus = SpectrumBus.bands
+        val fresh = bus != null &&
+            (SystemClock.elapsedRealtime() - SpectrumBus.stampMs) < STALE_MS
         for (i in 0 until BARS) {
-            val bandEnd = bandEdge(i, bins)
-            var max = 0f
-            var k = bandStart
-            while (k < bandEnd && k < bins) {
-                val re = fft[2 * k].toInt()
-                val im = fft[2 * k + 1].toInt()
-                val mag = sqrt((re * re + im * im).toFloat()) / 128f
-                if (mag > max) max = mag
-                k++
+            val target = if (fresh && i < bus!!.size) {
+                (bus[i] * GAIN).pow(0.75f).coerceIn(0f, 1f)
+            } else {
+                0f
             }
-            bandStart = bandEnd
-            val target = (max * GAIN).pow(0.75f).coerceIn(0f, 1f)
             val d = display[i]
             display[i] = if (target > d) target else (d - DECAY).coerceAtLeast(0f)
             if (target >= peaks[i]) {
@@ -183,15 +111,6 @@ class VisualizerView @JvmOverloads constructor(
                 peaks[i] = (peaks[i] - peakVel[i]).coerceAtLeast(0f)
             }
         }
-    }
-
-    /** Borda (exclusiva) da banda i em bins — log do MIN_BIN até o último bin. */
-    private fun bandEdge(i: Int, bins: Int): Int {
-        val lo = ln(MIN_BIN.toFloat())
-        val hi = ln((bins - 1).toFloat())
-        val edge = exp(lo + (hi - lo) * (i + 1) / BARS).toInt()
-        // nunca menor que a banda anterior +1 (bandas vivas mesmo no agudo fino)
-        return edge.coerceAtLeast(MIN_BIN + i + 1).coerceAtMost(bins - 1)
     }
 
     // ---------- desenho ----------
@@ -214,6 +133,8 @@ class VisualizerView @JvmOverloads constructor(
             gradientW = w
             gradientH = h
         }
+
+        ingest()
 
         val density = resources.displayMetrics.density
         val gap = GAP_DP * density
@@ -240,22 +161,25 @@ class VisualizerView @JvmOverloads constructor(
                 canvas.drawRoundRect(barRect, peakH / 2f, peakH / 2f, peakPaint)
             }
         }
+
+        // loop de frames: enquanto a view está "attachada" e visível, ela
+        // mesma se redesenha (~60 fps — suave e barato: 28 rects por frame)
+        if (running) postInvalidateOnAnimation()
     }
 
     override fun onDetachedFromWindow() {
-        // rede de segurança: o Visualizer não pode sobreviver à janela
-        detach()
+        // rede de segurança: nada de loop de desenho sobrevivendo à janela
+        running = false
         super.onDetachedFromWindow()
     }
 
     companion object {
-        private const val TAG = "VisualizerView"
-        private const val BARS = 28          // bandas de frequência
-        private const val MIN_BIN = 2        // começa fora do DC (~86 Hz)
+        private const val BARS = 28          // bandas de frequência (igual ao processador)
         private const val GAIN = 1.6f        // ganho pré-curva (música a volume normal)
-        private const val DECAY = 0.06f      // queda por captura (~20/s → ~0,8s)
-        private const val GRAVITY = 0.006f   // aceleração do pontinho de pico
-        private const val MAX_FALL = 0.05f   // velocidade terminal do pico
+        private const val DECAY = 0.02f      // queda por frame @60fps (~0,8s de cauda)
+        private const val GRAVITY = 0.002f   // aceleração do pontinho de pico
+        private const val MAX_FALL = 0.016f  // velocidade terminal do pico
+        private const val STALE_MS = 150L    // sem publicação nova = silêncio
         private const val GAP_DP = 2.5f      // respiro entre barras
         private const val MIN_BAR_DP = 2f    // altura da pista
         private const val PEAK_DP = 2f       // altura do pontinho de pico

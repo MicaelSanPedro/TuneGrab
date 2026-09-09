@@ -5,8 +5,13 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -18,6 +23,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.tunegrab.app.DlpMetadata
 import com.tunegrab.app.DlpPickerSheet
+import com.tunegrab.app.BuildConfig
 import com.tunegrab.app.DownloadRequest
 import com.tunegrab.app.FormatPickerSheet
 import com.tunegrab.app.FormatPrefs
@@ -91,8 +97,34 @@ class HomeFragment : Fragment() {
             }
         }
         setStatus(getString(R.string.status_idle))
+        bindFooter()
         // link compartilhado que chegou antes desta aba existir
         (activity as? MainActivity)?.consumePendingSharedUrl()?.let { handleSharedUrl(it) }
+    }
+
+    /**
+     * Rodapé do Início (v0.18.8, pedido do autor): "v{versão} · feito por
+     * micaelsan" — a versão vem do BuildConfig da build (nunca desatualiza)
+     * e o nome ganha a cor de destaque do app, do lado do número.
+     */
+    private fun bindFooter() {
+        val ctx = context ?: return
+        val text = SpannableStringBuilder("v")
+            .append(BuildConfig.VERSION_NAME)
+            .append("  ·  ")
+            .append(getString(R.string.splash_made_by))
+            .append(" ")
+        val nameStart = text.length
+        text.append(getString(R.string.splash_name))
+        text.setSpan(
+            ForegroundColorSpan(ContextCompat.getColor(ctx, R.color.primary)),
+            nameStart, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        text.setSpan(
+            StyleSpan(Typeface.BOLD),
+            nameStart, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        binding.tvFooter.text = text
     }
 
     override fun onDestroyView() {

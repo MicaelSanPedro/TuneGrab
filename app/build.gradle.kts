@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 45
-        versionName = "0.18.7"
+        versionCode = 46
+        versionName = "0.18.8"
 
         // ABIs do motor yt-dlp embutido (python + ffmpeg são nativos).
         // x86/x86_64 ficam de fora para o APK não dobrar de tamanho —
@@ -50,6 +50,9 @@ android {
 
     buildFeatures {
         viewBinding = true
+        // BuildConfig.VERSION_NAME na tela de boas-vindas e no rodapé do
+        // Início (v0.18.8) — a versão mostrada nunca desatualiza
+        buildConfig = true
     }
 
     packaging {

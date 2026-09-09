@@ -8,8 +8,10 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
 /**
- * Loader de abertura: logo + "Bem-vindo" em cursiva (Great Vibes) +
- * "feito por micaelsan" discreto com o nome em efeito de led passando.
+ * Loader de abertura: logo + "Bem-vindo" em cursiva e, NO RODAPÉ, a versão
+ * da build (v0.18.8, pedido do autor — "a partir de agora o nome da versão
+ * deve ficar embaixo, na tela de bem-vindo"). A assinatura "feito por
+ * micaelsan" agora mora no rodapé do Início, ao lado do número da versão.
  * Puramente visual — nada de rede aqui. Depois de ~2,6s abre a MainActivity
  * e sai da pilha (voltar no splash fecha o app, como se espera).
  *
@@ -24,10 +26,13 @@ class SplashActivity : AppCompatActivity() {
 
         val logo = findViewById<View>(R.id.imgLogo)
         val welcome = findViewById<TextView>(R.id.txtWelcome)
-        val madeBy = findViewById<View>(R.id.madeByGroup)
+        val version = findViewById<TextView>(R.id.txtVersion)
+
+        // versão SEMPRE atual (vem do BuildConfig da build — nunca desatualiza)
+        version.text = "v" + BuildConfig.VERSION_NAME
 
         // entrada suave: logo surge, o "Bem-vindo" cresce e assenta,
-        // a assinatura aparece por último — o led já começa sozinho
+        // a versão aparece por último no rodapé
         logo.alpha = 0f
         logo.animate().alpha(1f).setDuration(500).start()
 
@@ -40,8 +45,7 @@ class SplashActivity : AppCompatActivity() {
             .setInterpolator(DecelerateInterpolator(1.6f))
             .start()
 
-        madeBy.alpha = 0f
-        madeBy.animate().alpha(1f)
+        version.animate().alpha(1f)
             .setStartDelay(650).setDuration(600)
             .start()
 

@@ -27,7 +27,10 @@
         app:show_buffering="always"
         app:use_controller="true" />
 
-    <!-- Controles de ÁUDIO -->
+    <!-- Controles de ÁUDIO — estilo minimalista da referência (v0.18.8):
+         cartão de arte grande com cantos bem redondos, waveform fina do som
+         REAL, progresso fino, botão de play circular CHEIO e slider de
+         volume — tudo na paleta violeta/fúcsia do app -->
     <LinearLayout
         android:id="@+id/audioControls"
         android:layout_width="match_parent"
@@ -39,8 +42,8 @@
         android:visibility="gone">
 
         <FrameLayout
-            android:layout_width="200dp"
-            android:layout_height="200dp">
+            android:layout_width="220dp"
+            android:layout_height="220dp">
 
             <ImageView
                 android:layout_width="match_parent"
@@ -49,8 +52,8 @@
                 android:contentDescription="@null" />
 
             <ImageView
-                android:layout_width="72dp"
-                android:layout_height="72dp"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
                 android:layout_gravity="center"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_music_note"
@@ -61,7 +64,7 @@
             android:id="@+id/tvTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="22dp"
             android:ellipsize="end"
             android:gravity="center"
             android:maxLines="2"
@@ -69,21 +72,21 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
-        <!-- Barrinhas de DJ (v0.18.7): espectro REAL do áudio que está tocando
-             (Visualizer do Android no mix de saída). Aparece só no modo ÁUDIO
-             com o toggle ligado e a permissão concedida — nunca animação falsa -->
+        <!-- Barrinhas de DJ (v0.18.8): espectro REAL do áudio que está
+             tocando — o SpectrumProcessor espia o PCM dentro do próprio
+             player (SEM permissão nenhuma). Faixa fina, igual à referência -->
         <com.tunegrab.app.VisualizerView
             android:id="@+id/visualizer"
             android:layout_width="match_parent"
-            android:layout_height="64dp"
-            android:layout_marginTop="16dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="18dp"
             android:visibility="gone" />
 
         <SeekBar
             android:id="@+id/seekBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="14dp"
             android:progressBackgroundTint="@color/stroke"
             android:progressTint="@color/primary"
             android:thumbTint="@color/primary" />
@@ -91,7 +94,6 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
             android:orientation="horizontal">
 
             <TextView
@@ -102,15 +104,6 @@
                 android:textColor="@color/on_surface_variant"
                 android:textSize="12sp" />
 
-            <ImageButton
-                android:id="@+id/btnPlay"
-                android:layout_width="68dp"
-                android:layout_height="68dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/player_play"
-                android:src="@drawable/ic_play"
-                app:tint="@color/primary" />
-
             <TextView
                 android:id="@+id/tvDuration"
                 android:layout_width="0dp"
@@ -119,6 +112,58 @@
                 android:gravity="end"
                 android:textColor="@color/on_surface_variant"
                 android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Play/PAUSE: disco circular cheio (estilo da referência), ícone
+             escuro por cima do violeta -->
+        <ImageButton
+            android:id="@+id/btnPlay"
+            android:layout_width="76dp"
+            android:layout_height="76dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/bg_play_circle"
+            android:contentDescription="@string/player_play"
+            android:padding="21dp"
+            android:src="@drawable/ic_play"
+            app:tint="@color/background" />
+
+        <!-- Volume: alto-falante — slider — alto-falante grande (v0.18.8,
+             controle REAL do STREAM_MUSIC) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@string/player_volume"
+                android:src="@drawable/ic_volume_low"
+                app:tint="@color/on_surface_variant" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/sliderVolume"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_marginEnd="10dp"
+                android:layout_weight="1"
+                android:stepSize="1"
+                android:valueFrom="0"
+                android:valueTo="15"
+                app:labelBehavior="gone"
+                app:thumbColor="@color/primary"
+                app:trackColorActive="@color/primary"
+                app:trackColorInactive="@color/stroke" />
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_volume_high"
+                app:tint="@color/on_surface_variant" />
         </LinearLayout>
     </LinearLayout>
 

@@ -4,14 +4,13 @@ import android.app.PictureInPictureParams
 import android.app.PendingIntent
 import android.app.RemoteAction
 import android.graphics.drawable.Icon
-import android.Manifest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
@@ -26,10 +25,7 @@ import android.widget.MediaController
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -126,24 +122,6 @@ class PlayerActivity : AppCompatActivity() {
             tickHandler.postDelayed(this, 500)
         }
     }
-
-    /** Barrinhas de DJ (v0.18.7): resposta do pedido de permissão do
-     *  visualizador. Concedeu: pref LIGADA, barras aparecem e o espectro REAL
-     *  começa a rodar. Negou: pref DESLIGADA e barras ficam de fora — o player
-     *  segue normal (o som NUNCA dependeu delas). */
-    private val askVisPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted: Boolean ->
-            if (granted) {
-                FormatPrefs.setVisualizerOn(this, true)
-                binding.visualizer.visibility = View.VISIBLE
-                if (!binding.visualizer.attach()) {
-                    binding.visualizer.visibility = View.GONE
-                }
-            } else {
-                FormatPrefs.setVisualizerOn(this, false)
-                binding.visualizer.visibility = View.GONE
-            }
-        }
 
     private val serviceConn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -432,49 +410,41 @@ class PlayerActivity : AppCompatActivity() {
 
         tickHandler.post(tick)
         setupVisualizer()
+        setupVolume()
     }
 
     /**
-     * Barrinhas de DJ (v0.18.7): espectro REAL do mix de saída (Visualizer
-     * session 0 — pega a música do PlaybackService SEM acoplar nele). Mostra
-     * só com o toggle ligado; sem permissão na primeira vez, explica por quê
-     * (a exigência é do Android para ler espectro — nada é gravado) e pede.
-     * Pausou a música? O mix silencia, o FFT zera e as barras caem sozinhas.
+     * Barrinhas de DJ (v0.18.8): espectro REAL SEM PERMISSÃO NENHUMA — o
+     * SpectrumProcessor dentro do ExoPlayer do PlaybackService espia o PCM
+     * que o próprio app toca e publica no SpectrumBus; a view só desenha.
+     * Pref desligada? Player fica sem barras, como sempre. Pausou? O PCM
+     * para de fluir e as barras caem sozinhas.
      */
     private fun setupVisualizer() {
         if (!FormatPrefs.visualizerOn(this)) {
             binding.visualizer.visibility = View.GONE
             return
         }
-        val granted = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
-        if (!granted) {
-            binding.visualizer.visibility = View.GONE
-            askVisualizerPermission()
-            return
-        }
         binding.visualizer.visibility = View.VISIBLE
-        // aparelho sem slots/suporte para o effect: barras ficam de fora
-        // (nunca uma simulação no lugar do espectro de verdade)
-        if (!binding.visualizer.attach()) {
-            binding.visualizer.visibility = View.GONE
-        }
+        binding.visualizer.attach()
     }
 
-    /** Diálogo educativo antes do diálogo do sistema (a permissão de áudio
-     *  assusta à primeira vista — o texto mata o medo na hora). */
-    private fun askVisualizerPermission() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.visualizer_permission_title)
-            .setMessage(R.string.visualizer_permission_msg)
-            .setPositiveButton(R.string.visualizer_enable) { _, _ ->
-                askVisPermission.launch(Manifest.permission.RECORD_AUDIO)
+    /** Slider de volume (v0.18.8): controle REAL do STREAM_MUSIC — o mesmo
+     *  volume que os botões físicos mexem, com os limites do aparelho. */
+    private fun setupVolume() {
+        val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        binding.sliderVolume.valueFrom = 0f
+        binding.sliderVolume.valueTo = max.toFloat()
+        binding.sliderVolume.value = audio
+            .getStreamVolume(AudioManager.STREAM_MUSIC)
+            .coerceIn(0, max)
+            .toFloat()
+        binding.sliderVolume.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                audio.setStreamVolume(AudioManager.STREAM_MUSIC, value.toInt(), 0)
             }
-            .setNegativeButton(R.string.visualizer_not_now) { _, _ ->
-                FormatPrefs.setVisualizerOn(this, false)
-            }
-            .show()
+        }
     }
 
     private fun updatePosition() {
@@ -792,7 +762,7 @@ class PlayerActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         tickHandler.removeCallbacks(tick)
-        // visualizador solto (recurso escasso do engine de efeitos)
+        // loop de desenho das barrinhas para com a activity
         binding.visualizer.detach()
         // botão do PiP desliga com a activity (receiver vira no-op)
         pipToggleHook = null

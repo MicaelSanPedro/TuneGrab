@@ -1,8 +1,6 @@
 package com.tunegrab.app.ui
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -11,8 +9,6 @@ import android.view.ViewGroup
 import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
-import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import com.tunegrab.app.CookieLoginActivity
@@ -75,24 +71,6 @@ class SettingsFragment : Fragment() {
             refreshCookieUi()
         }
 
-    /** Barrinhas de DJ (v0.18.7): resposta do pedido de permissão do
-     *  visualizador. Deu certo: pref LIGADA + toast comemorando. Negou: pref
-     *  DESLIGADA (as barras nunca ficam "ligadas" sem poder existir) e o
-     *  switch volta — dá pra tentar de novo aqui quando quiser. */
-    private val askVisPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted: Boolean ->
-            val ctx = context ?: return@registerForActivityResult
-            if (granted) {
-                FormatPrefs.setVisualizerOn(ctx, true)
-                binding.swVisualizer.isChecked = true
-                Toast.makeText(ctx, R.string.visualizer_on_ok, Toast.LENGTH_SHORT).show()
-            } else {
-                FormatPrefs.setVisualizerOn(ctx, false)
-                binding.swVisualizer.isChecked = false
-                Toast.makeText(ctx, R.string.visualizer_denied, Toast.LENGTH_LONG).show()
-            }
-        }
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -126,39 +104,15 @@ class SettingsFragment : Fragment() {
         bindVisualizer()
     }
 
-    /** Barrinhas de DJ (v0.18.7): o toggle liga o visualizador REAL do
-     *  player. Sem permissão de áudio, explica POR QUÊ (leitura do espectro
-     *  da saída — não é microfone gravando) e pede; negou, volta pra off. */
+    /** Barrinhas de DJ (v0.18.8): o toggle liga o visualizador REAL do
+     *  player — SEM permissão nenhuma agora (o espectro é lido por dentro
+     *  do próprio player, não da saída de áudio do sistema). */
     private fun bindVisualizer() {
-        binding.swVisualizer.isChecked =
-            FormatPrefs.visualizerOn(requireContext()) && hasAudioPermission()
+        binding.swVisualizer.isChecked = FormatPrefs.visualizerOn(requireContext())
         binding.swVisualizer.setOnCheckedChangeListener { _, checked ->
-            val ctx = requireContext()
-            if (!checked) {
-                FormatPrefs.setVisualizerOn(ctx, false)
-                return@setOnCheckedChangeListener
-            }
-            if (hasAudioPermission()) {
-                FormatPrefs.setVisualizerOn(ctx, true)
-            } else {
-                // pref só vira true SE a permissão vier (o callback decide)
-                binding.swVisualizer.isChecked = false
-                AlertDialog.Builder(ctx)
-                    .setTitle(R.string.visualizer_permission_title)
-                    .setMessage(R.string.visualizer_permission_msg)
-                    .setPositiveButton(R.string.visualizer_enable) { _, _ ->
-                        askVisPermission.launch(Manifest.permission.RECORD_AUDIO)
-                    }
-                    .setNegativeButton(R.string.visualizer_not_now, null)
-                    .show()
-            }
+            FormatPrefs.setVisualizerOn(requireContext(), checked)
         }
     }
-
-    private fun hasAudioPermission(): Boolean =
-        ContextCompat.checkSelfPermission(
-            requireContext(), Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
 
     override fun onDestroyView() {
         super.onDestroyView()

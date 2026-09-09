@@ -6,9 +6,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
-import android.media.AudioManager
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Binder
 import android.os.Build
@@ -19,34 +16,113 @@ import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.RenderersFactory
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.yt.DownloaderImpl
 
 /**
  * Música em segundo plano: foreground service (tipo mediaPlayback) que é o
- * DONO do MediaPlayer. A PlayerActivity só é a "cara" — binding para ler
+ * DONO do player. A PlayerActivity só é a "cara" — binding para ler
  * posição/duração e mandar play/pause/seek. Quando a activity fecha (ou o
  * app vai para o fundo), o áudio CONTINUA, com notificação de mídia
  * (MediaStyle) com botões reproduzir/pausar e fechar.
  *
  * Uma faixa por vez: abrir outra música substitui a atual; abrir um VÍDEO
  * chama stopNow() para não sobrepor sons.
+ *
+ * v0.18.8: o motor interno agora é o ExoPlayer (Media3) em vez do
+ * MediaPlayer — MESMA API pública do serviço, MESMA notificação, MESMA
+ * MediaSession, foco de áudio agora nativo do ExoPlayer. O motivo da troca:
+ * as barrinhas de DJ de verdade — o ExoPlayer deixa o SpectrumProcessor
+ * ESPIAR o PCM que está saindo pelo alto-falante (dentro do próprio app),
+ * o que dá o espectro real do som SEM permissão nenhuma.
  */
 class PlaybackService : Service() {
 
-    private var player: MediaPlayer? = null
+    private var player: ExoPlayer? = null
     private var session: MediaSessionCompat? = null
     private var uri: Uri? = null
     private var trackTitle: String = ""
-    private var focusRequested = false
 
     // posição inicial da faixa (handoff do vídeo: saiu do app com vídeo
     // tocando e o áudio segue aqui DE ONDE parou)
     private var pendingStartMs = 0
 
-    private val audioManager by lazy {
-        getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    /** Espectro REAL (v0.18.8): espia o PCM na saída do player — as
+     *  barrinhas do player de música leem daqui (SpectrumBus), sem
+     *  permissão nenhuma. Uma instância por serviço, reusada a cada faixa. */
+    private val spectrum = SpectrumProcessor()
+
+    /**
+     * Renderers de fábrica com o AudioSink padrão + o SpectrumProcessor
+     * injetado: o MESMO pipeline que leva o som ao alto-falante entrega o
+     * PCM pras barrinhas. As flags de float/playback-params são repassadas
+     * como no sink de fábrica (o processador entende 16-bit e float).
+     */
+    private val renderersFactory: RenderersFactory =
+        object : DefaultRenderersFactory(this) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean
+            ): AudioSink =
+                DefaultAudioSink.Builder(this@PlaybackService)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .setAudioProcessors(arrayOf(spectrum))
+                    .build()
+        }
+
+    /**
+     * Fontes: http(s) com o User-Agent da extração (googlevideo RECUSA UA
+     * estranho — mesmo tratamento que o player de vídeo SEMPRE teve);
+     * esquemas locais (content://, file://) o DefaultDataSource resolve.
+     */
+    private val mediaSourceFactory by lazy {
+        val http = DefaultHttpDataSource.Factory()
+            .setUserAgent(DownloaderImpl.USER_AGENT)
+            .setAllowCrossProtocolRedirects(true) // googlevideo redireciona http<->https
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(15_000)
+        DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http))
+    }
+
+    // ExoPlayer cuida do foco de áudio (pausa na perda; em perda transitória
+    // retoma sozinho quando o som de fora libera)
+    private val mediaAudioAttributes = AudioAttributes.Builder()
+        .setUsage(C.USAGE_MEDIA)
+        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+        .build()
+
+    private val playerListener = object : Player.Listener {
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            // fim da faixa: para em "pausado no fim" — play volta do zero
+            if (playbackState == Player.STATE_ENDED) refreshMediaState()
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            // cobre pausa por foco/buffering: a notificação acompanha o
+            // estado REAL do som
+            refreshMediaState()
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            Log.w(TAG, "falha na reprodução", error)
+            stopNow()
+        }
     }
 
     inner class LocalBinder : Binder() {
@@ -66,13 +142,14 @@ class PlaybackService : Service() {
     }
 
     fun position(): Int = try {
-        player?.currentPosition ?: 0
+        player?.currentPosition?.toInt() ?: 0
     } catch (ignored: IllegalStateException) {
         0
     }
 
     fun duration(): Int = try {
-        player?.duration ?: 0
+        val d = player?.duration ?: 0L
+        if (d == C.TIME_UNSET) 0 else d.toInt().coerceAtLeast(0)
     } catch (ignored: IllegalStateException) {
         0
     }
@@ -95,7 +172,7 @@ class PlaybackService : Service() {
 
     fun seekTo(ms: Int) {
         try {
-            player?.seekTo(ms)
+            player?.seekTo(ms.toLong())
         } catch (ignored: IllegalStateException) {
         }
         refreshMediaState()
@@ -127,7 +204,6 @@ class PlaybackService : Service() {
 
     override fun onDestroy() {
         releasePlayer()
-        abandonFocus()
         try {
             session?.release()
         } catch (ignored: Throwable) {
@@ -152,45 +228,30 @@ class PlaybackService : Service() {
             stopNow()
             return
         }
-        val p = MediaPlayer()
+        val p = ExoPlayer.Builder(this, renderersFactory)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build()
         player = p
         try {
-            // googlevideo RECUSA User-Agent estranho (mesmo tratamento do
-            // VideoView do player): sem isso o stream remoto leva rejeição
-            // e o miniplayer morre antes de nascer
-            if (u.scheme == "http" || u.scheme == "https") {
-                p.setDataSource(this, u, mapOf("User-Agent" to DownloaderImpl.USER_AGENT))
+            // o serviço toca SÓ o áudio (o handoff do vídeo passa arquivo
+            // muxado): sem faixa de vídeo selecionada, decoder de vídeo nem
+            // acorda — bateria poupada
+            p.trackSelectionParameters = p.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, true)
+                .build()
+            p.setAudioAttributes(mediaAudioAttributes, /* handleAudioFocus= */ true)
+            p.addListener(playerListener)
+            val item = MediaItem.fromUri(u)
+            // handoff do vídeo: retoma da posição em que estava
+            if (pendingStartMs > 0) {
+                p.setMediaItem(item, pendingStartMs.toLong())
+                pendingStartMs = 0
             } else {
-                p.setDataSource(this, u)
+                p.setMediaItem(item)
             }
-            p.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
-            p.setOnPreparedListener { mp ->
-                requestFocus()
-                try {
-                    // handoff do vídeo: retoma da posição em que estava
-                    if (pendingStartMs > 0) {
-                        mp.seekTo(pendingStartMs)
-                        pendingStartMs = 0
-                    }
-                    mp.start()
-                } catch (ignored: IllegalStateException) {
-                }
-                refreshMediaState()
-            }
-            p.setOnCompletionListener {
-                // fim da faixa: para em "pausado no fim" — play volta do zero
-                refreshMediaState()
-            }
-            p.setOnErrorListener { _, _, _ ->
-                stopNow()
-                true
-            }
-            p.prepareAsync()
+            p.playWhenReady = true
+            p.prepare()
         } catch (t: Throwable) {
             Log.w(TAG, "falha ao preparar faixa", t)
             stopNow()
@@ -199,7 +260,7 @@ class PlaybackService : Service() {
 
     private fun pause() {
         try {
-            player?.takeIf { it.isPlaying }?.pause()
+            player?.pause()
         } catch (ignored: IllegalStateException) {
         }
         refreshMediaState()
@@ -208,9 +269,13 @@ class PlaybackService : Service() {
     private fun resume() {
         val p = player ?: return
         try {
-            if (!p.isPlaying) {
-                requestFocus()
-                p.start()
+            if (p.playbackState == Player.STATE_ENDED) {
+                // "pausado no fim": play volta do zero (mesmo comportamento
+                // de antes da migração)
+                p.seekTo(0)
+                p.play()
+            } else if (!p.isPlaying) {
+                p.play()
             }
         } catch (ignored: IllegalStateException) {
         }
@@ -221,7 +286,6 @@ class PlaybackService : Service() {
      *  ninguém mais estiver bound. */
     private fun stopNow() {
         releasePlayer()
-        abandonFocus()
         try {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } catch (ignored: Throwable) {
@@ -235,35 +299,13 @@ class PlaybackService : Service() {
     }
 
     private fun releasePlayer() {
+        // sem dado novo, as barrinhas caem sozinhas na view
+        SpectrumBus.clear()
         try {
             player?.release()
         } catch (ignored: Throwable) {
         }
         player = null
-    }
-
-    // ---------- foco de áudio ----------
-
-    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
-        when (change) {
-            AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> pause()
-        }
-    }
-
-    private fun requestFocus() {
-        if (focusRequested) return
-        focusRequested = audioManager.requestAudioFocus(
-            focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN
-        ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-    }
-
-    private fun abandonFocus() {
-        if (focusRequested) {
-            audioManager.abandonAudioFocus(focusListener)
-            focusRequested = false
-        }
     }
 
     // ---------- MediaSession + notificação ----------

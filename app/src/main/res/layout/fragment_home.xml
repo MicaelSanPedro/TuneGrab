@@ -171,5 +171,17 @@
             android:text="@string/tos_note"
             android:textColor="@color/on_surface_variant"
             android:textSize="11sp" />
+
+        <!-- Rodapé do Início (v0.18.8, pedido do autor): número da versão
+             com o "feito por micaelsan" AO LADO — preenchido no HomeFragment
+             com o BuildConfig da build (nunca desatualiza) -->
+        <TextView
+            android:id="@+id/tvFooter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:gravity="center"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp" />
     </LinearLayout>
 </ScrollView>
