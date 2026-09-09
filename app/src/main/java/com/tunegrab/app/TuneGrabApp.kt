@@ -23,6 +23,9 @@ class TuneGrabApp : Application() {
         super.onCreate()
         // contexto do gerador de PoTokens (BotGuard via WebView)
         PoTokenManager.init(this)
+        // contexto dos cookies de login do YouTube (o motor yt-dlp não recebe
+        // Context; o caminho do cookies.txt fica cached aqui — v0.18.6)
+        YtCookies.init(this)
         // pré-aquece o motor yt-dlp em segundo plano: extrai python/yt-dlp e
         // atualiza a versão UMA vez, para o primeiro download sair sem espera
         thread(name = "ytdlp-warmup") {

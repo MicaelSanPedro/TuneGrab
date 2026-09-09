@@ -125,6 +125,9 @@ object DlpMetadata {
                 addOption("--socket-timeout", "20")
                 // espaça as chamadas ao innertube — mesma higiene do motor
                 addOption("--sleep-requests", "1")
+                // COOKIES do login do YouTube (v0.18.6) — mesmo gancho do
+                // motor; no-op quando o usuário não salvou sessão
+                YtCookies.applyTo(this)
                 if (client != null) {
                     addOption("--extractor-args", "youtube:player_client=$client")
                 }

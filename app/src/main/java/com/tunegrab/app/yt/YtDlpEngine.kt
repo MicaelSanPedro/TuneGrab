@@ -3,6 +3,7 @@ package com.tunegrab.app.yt
 import android.content.Context
 import android.util.Log
 import com.tunegrab.app.R
+import com.tunegrab.app.YtCookies
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
@@ -117,6 +118,11 @@ object YtDlpEngine {
             addOption("--fragment-retries", "5")
             // espaça as chamadas ao innertube — mitiga o bot-check na origem
             addOption("--sleep-requests", "1")
+            // COOKIES do login do YouTube (v0.18.6): com a sessão salva o
+            // YouTube deixa de pedir verificação anti-bot na origem — a cura
+            // recomendada pelo próprio yt-dlp. NO-OP sem cookies: o fluxo
+            // anônimo de sempre (rotação/retries) segue 100% idêntico.
+            YtCookies.applyTo(this)
             if (client != null) {
                 addOption("--extractor-args", "youtube:player_client=$client")
             }

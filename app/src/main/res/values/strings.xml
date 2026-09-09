@@ -128,6 +128,30 @@
     <string name="settings_mp3_hint">A fonte do YouTube tem até ~160 kbps; bitrates maiores preservam a qualidade sem adicioná-la.</string>
     <string name="settings_m4a">M4A · áudio original</string>
     <string name="settings_mp4_hint">Até 1080p sai em MP4/H.264; 1440p e 4K saem em MKV (contêiner nativo do YouTube nessas resoluções — VP9/AV1 em MP4 ficaria ilegível). Vídeo e áudio são baixados separados e juntos com o ffmpeg embutido, sem perder qualidade. Se cair para o motor reserva, o limite é 720p.</string>
+
+    <!-- Login do YouTube / cookies (v0.18.6) -->
+    <string name="settings_cookies">Login do YouTube (cookies)</string>
+    <string name="cookie_status_none">Sem login — o app usa acesso anônimo (sujeito ao anti-bot do YouTube).</string>
+    <string name="cookie_status_active">Cookies ativos (%1$s, desde %2$s) — o YouTube para de pedir verificação anti-bot nos downloads.</string>
+    <string name="cookie_via_login">login feito no app</string>
+    <string name="cookie_via_import">cookies.txt importado</string>
+    <string name="cookie_login_btn">Entrar no YouTube</string>
+    <string name="cookie_import_btn">Importar cookies.txt</string>
+    <string name="cookie_remove_btn">Remover</string>
+    <string name="settings_cookies_hint">A sessão da sua conta ensina o YouTube a confiar nos downloads (fim do erro anti-bot). Os cookies ficam salvos SÓ dentro do app e nunca são enviados a ninguém. Prefere não arriscar sua conta principal? Use uma conta secundária. Para importar: no PC, instale a extensão \"Get cookies.txt LOCALLY\", exporte em youtube.com e escolha o arquivo aqui.</string>
+    <string name="cookie_title">Entrar no YouTube</string>
+    <string name="cookie_instructions">Faça login na sua conta do YouTube na página abaixo. Terminou? Toque em Salvar cookies — a sessão fica guardada só dentro do TuneGrab. Se o Google barrar o login aqui, use o caminho Importar cookies.txt na aba Config. (exportado do seu PC).</string>
+    <string name="cookie_state_anon">Navegue e faça login no YouTube…</string>
+    <string name="cookie_state_login">✓ Sessão logada detectada — toque em Salvar cookies</string>
+    <string name="cookie_save">Salvar cookies</string>
+    <string name="cookie_none">Nenhum cookie capturado ainda — navegue até o youtube.com primeiro.</string>
+    <string name="cookie_saved_login">Cookies da sua conta salvos! Os downloads agora usam sua sessão.</string>
+    <string name="cookie_saved_anon">Cookies salvos (sem login detectado — mas já ajuda).</string>
+    <string name="cookie_save_failed">Não consegui salvar os cookies. Tenta de novo.</string>
+    <string name="cookie_import_ok">cookies.txt importado! Os downloads agora usam sua sessão.</string>
+    <string name="cookie_import_invalid">Esse arquivo não parece um cookies.txt do youtube.com.</string>
+    <string name="cookie_import_failed">Não consegui ler o arquivo.</string>
+    <string name="cookie_removed">Cookies removidos — o app voltou ao acesso anônimo.</string>
     <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>
     <string name="q_mp3_192">192 kbps</string>
