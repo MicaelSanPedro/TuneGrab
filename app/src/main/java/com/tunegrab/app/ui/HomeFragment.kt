@@ -16,6 +16,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.tunegrab.app.DlpMetadata
+import com.tunegrab.app.DlpPickerSheet
 import com.tunegrab.app.DownloadRequest
 import com.tunegrab.app.FormatPickerSheet
 import com.tunegrab.app.FormatPrefs
@@ -169,7 +171,16 @@ class HomeFragment : Fragment() {
             try {
                 val verified = fetchAndVerify(url)
                 if (verified.audio.isEmpty() && verified.video.isEmpty()) {
-                    setStatus(getString(R.string.err_streams_blocked))
+                    // fetch ok mas TODAS as URLs mortas (403): mesmo resgate —
+                    // o yt-dlp extrai/baixa por conta própria, sem depender
+                    // de URL direta nenhuma. Falhou também? volta ao aviso
+                    // honesto de sempre.
+                    try {
+                        dlpRescue(url)
+                    } catch (t2: Throwable) {
+                        Log.e(TAG, "Resgate yt-dlp falhou (faixas bloqueadas)", t2)
+                        setStatus(getString(R.string.err_streams_blocked))
+                    }
                     return@launch
                 }
                 setStatus(getString(R.string.status_pick_format))
@@ -182,8 +193,21 @@ class HomeFragment : Fragment() {
                     ensurePermissionsThen { start(request) }
                 }.show()
             } catch (t: Throwable) {
-                Log.e(TAG, "Falha ao buscar vídeo", t)
-                setStatus(getString(R.string.err_generic, friendlyError(t)))
+                // bot-check persistente (NewPipe+PoToken bloqueados)? Resgate
+                // pelo yt-dlp embutido em vez de erro cego — só erros de
+                // verdade (vídeo privado/apagado, link inválido) continuam
+                // virando mensagem de erro.
+                if (isBotCheckBlock(t)) {
+                    try {
+                        dlpRescue(url)
+                    } catch (t2: Throwable) {
+                        Log.e(TAG, "Resgate yt-dlp também falhou", t2)
+                        setStatus(getString(R.string.err_generic, friendlyError(t2)))
+                    }
+                } else {
+                    Log.e(TAG, "Falha ao buscar vídeo", t)
+                    setStatus(getString(R.string.err_generic, friendlyError(t)))
+                }
             } finally {
                 _binding?.progress?.visibility = View.GONE
                 setBusy(false)
@@ -491,8 +515,20 @@ class HomeFragment : Fragment() {
                     sheet.show()
                 }
             } catch (t: Throwable) {
-                Log.e(TAG, "Falha ao buscar playlist", t)
-                setStatus(getString(R.string.err_generic, friendlyError(t)))
+                if (isBotCheckBlock(t)) {
+                    // bot-check nos metadados da playlist: o yt-dlp lê a
+                    // lista (--flat-playlist) e a fila segue idêntica (item
+                    // a item, com o fallback yt-dlp por vídeo da v0.14.0)
+                    try {
+                        dlpPlaylistRescue(url)
+                    } catch (t2: Throwable) {
+                        Log.e(TAG, "Resgate da playlist também falhou", t2)
+                        setStatus(getString(R.string.err_generic, friendlyError(t2)))
+                    }
+                } else {
+                    Log.e(TAG, "Falha ao buscar playlist", t)
+                    setStatus(getString(R.string.err_generic, friendlyError(t)))
+                }
             } finally {
                 _binding?.progress?.visibility = View.GONE
                 setBusy(false)
@@ -612,6 +648,124 @@ class HomeFragment : Fragment() {
         putExtra(DownloadService.EXTRA_VIDEO_URL, videoUrl)
         putExtra(DownloadService.EXTRA_FORMAT, engineFormat)
         putExtra(DownloadService.EXTRA_BITRATE, 0)
+    }
+
+    // ---------- modo de resgate (v0.18.4) ----------
+
+    /**
+     * True quando o erro é da família do bot-check do YouTube ("Sign in to
+     * confirm you're not a bot", reCAPTCHA, rate-limit do GenerateIT) — o
+     * único caso em que o resgate yt-dlp entra. Erros de verdade (vídeo
+     * privado/apagado, link inválido) seguem virando mensagem de erro.
+     */
+    private fun isBotCheckBlock(t: Throwable): Boolean {
+        if (t is SignInConfirmNotBotException || t is ReCaptchaException) return true
+        val msg = (t.message ?: "").lowercase()
+        return listOf(
+            "not a bot",
+            "sign in to confirm",
+            "anti-bot",
+            "bot check",
+            "recaptcha"
+        ).any { it in msg }
+    }
+
+    /**
+     * RESGATE do download único: metadados pelo yt-dlp embutido + o MESMO
+     * seletor visual de sempre (DlpPickerSheet) + download pelo Plano A.
+     * O usuário percebe só o texto de status — o resto é idêntico ao fluxo
+     * normal. Bloqueia em IO pela extração (pode levar alguns segundos: o
+     * yt-dlp roda o desafio de extração dele por conta própria).
+     */
+    private suspend fun dlpRescue(url: String) {
+        Log.w(TAG, "bot-check persistente; modo de resgate yt-dlp (vídeo)")
+        // a extração yt-dlp pode demorar: se a aba já foi fechada no meio,
+        // nada de tocar no binding
+        if (_binding == null) return
+        setStatus(getString(R.string.status_rescue))
+        val appCtx = context?.applicationContext ?: return
+        val meta = withContext(Dispatchers.IO) { DlpMetadata.video(appCtx, url) }
+        if (_binding == null) return
+        val ctx = context ?: return
+        setStatus(getString(R.string.status_pick_format))
+        DlpPickerSheet(ctx, meta) { format, quality ->
+            ensurePermissionsThen { startDlp(meta, format, quality) }
+        }.show()
+    }
+
+    /** Confirmação do seletor de resgate: Plano A puro via [dlpIntentFor]. */
+    private fun startDlp(meta: DlpMetadata.VideoMeta, format: String, quality: String) {
+        val prepared = dlpIntentFor(meta, format, quality) ?: return
+        launchService(prepared.first)
+        setStatus(prepared.second)
+    }
+
+    /**
+     * Intent do Plano A para o resgate — MESMA montagem do fallback da fila
+     * de playlist (URL vazia + EXTRA_VIDEO_URL + EXTRA_FORMAT): o motor
+     * yt-dlp extrai/baixa/converte sozinho com só a URL do vídeo. NADA do
+     * motor mudou; é o caminho que ele já suporta de fábrica. M4A/Opus
+     * passam o bitrate escolhido (0 = melhor); MP4 passa a altura (o
+     * contêiner acompanha: >1080p sai em MKV, como no fluxo normal).
+     */
+    private fun dlpIntentFor(
+        meta: DlpMetadata.VideoMeta,
+        format: String,
+        quality: String
+    ): Pair<Intent, String>? {
+        val appCtx = context?.applicationContext ?: return null
+        val title = meta.title
+        val base = sanitize(title)
+        val videoUrl = meta.webUrl
+        val intent: Intent = when (format) {
+            FormatPrefs.FORMAT_MP3 -> DownloadService.mp3Intent(
+                appCtx, title, "", "$base.mp3", quality.toIntOrNull() ?: 320
+            ).apply {
+                putExtra(DownloadService.EXTRA_VIDEO_URL, videoUrl)
+                putExtra(DownloadService.EXTRA_FORMAT, "mp3")
+            }
+            FormatPrefs.FORMAT_M4A -> directFallback(appCtx, title, "$base.m4a", videoUrl, "m4a", "audio/mp4")
+                .apply { putExtra(DownloadService.EXTRA_BITRATE, quality.toIntOrNull() ?: 0) }
+            FormatPrefs.FORMAT_OPUS -> directFallback(appCtx, title, "$base.webm", videoUrl, "opus", "audio/webm")
+                .apply { putExtra(DownloadService.EXTRA_BITRATE, quality.toIntOrNull() ?: 0) }
+            else -> {
+                val height = quality.toIntOrNull() ?: 1080
+                directFallback(
+                    appCtx, title,
+                    "$base.${if (height > 1080) "mkv" else "mp4"}",
+                    videoUrl, "mp4", "video/mp4"
+                ).apply { putExtra(DownloadService.EXTRA_MAX_HEIGHT, height) }
+            }
+        }
+        return intent to appCtx.getString(R.string.status_downloading)
+    }
+
+    /**
+     * RESGATE da playlist: yt-dlp --flat-playlist lê a lista e devolve o
+     * MESMO PlaylistMeta do fluxo normal — o PlaylistSheet e a fila inteira
+     * funcionam sem nenhuma diferença (item a item, com o fallback yt-dlp
+     * por vídeo que a v0.14.0 já trouxe).
+     */
+    private suspend fun dlpPlaylistRescue(url: String) {
+        Log.w(TAG, "bot-check na playlist; modo de resgate yt-dlp (lista)")
+        if (_binding == null) return
+        setStatus(getString(R.string.status_rescue))
+        val appCtx = context?.applicationContext ?: return
+        val pl = withContext(Dispatchers.IO) { DlpMetadata.playlist(appCtx, url) }
+        if (_binding == null) return
+        if (pl.items.isEmpty()) {
+            setStatus(getString(R.string.pl_empty))
+            return
+        }
+        setStatus(getString(R.string.status_pick_format))
+        ensurePermissionsThen {
+            val ctx = context ?: return@ensurePermissionsThen
+            var sheet: PlaylistSheet? = null
+            sheet = PlaylistSheet(ctx, pl) { format, quality ->
+                sheet?.let { runPlaylist(pl, format, quality, it) }
+            }
+            sheet.show()
+        }
     }
 
     /** Pedido de download de um vídeo da playlist — MESMA semântica do

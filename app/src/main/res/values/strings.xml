@@ -34,6 +34,7 @@
     <string name="status_checking">Testando os links de download…</string>
     <string name="status_opening_player">Abrindo o player…</string>
     <string name="status_pick_format">Escolha o formato e a qualidade 👇</string>
+    <string name="status_rescue">O YouTube bloqueou a extração normal — usando o motor de resgate (yt-dlp)…</string>
     <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
     <string name="status_converting">Baixando e convertendo para MP3 %1$s… acompanhe pela notificação.</string>
 
