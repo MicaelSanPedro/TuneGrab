@@ -1,6 +1,9 @@
 package com.tunegrab.app
 
 import android.app.PictureInPictureParams
+import android.app.PendingIntent
+import android.app.RemoteAction
+import android.graphics.drawable.Icon
 import android.media.MediaPlayer
 import android.content.ComponentName
 import android.content.Context
@@ -158,6 +161,10 @@ class PlayerActivity : AppCompatActivity() {
             isVideo -> setupVideo(uri)
             else -> setupAudio(uri, title)
         }
+        // botão da janelinha PiP: liga o comando play/pause nesta activity
+        if (isVideo) {
+            pipToggleHook = { togglePipPlayback() }
+        }
     }
 
     // ---------- vídeo ----------
@@ -212,6 +219,8 @@ class PlayerActivity : AppCompatActivity() {
             }
             binding.videoView.start()
         }
+        // botão da janelinha PiP já nasce certo (vídeo começou a tocar)
+        refreshPipParams(true)
         // fim do vídeo DENTRO da janelinha PiP: fecha a janelinha (igual
         // YouTube — sem vídeo parado eterno flutuando na tela)
         binding.videoView.setOnCompletionListener {
@@ -291,6 +300,12 @@ class PlayerActivity : AppCompatActivity() {
                     if (playbackState == Player.STATE_ENDED && inPip) {
                         stopVideoCompletely()
                     }
+                }
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    // botão da janelinha PiP acompanha o estado real
+                    // (inclusive pausa por buffering/perda de foco)
+                    refreshPipParams(isPlaying)
                 }
             })
             playWhenReady = true
@@ -507,11 +522,67 @@ class PlayerActivity : AppCompatActivity() {
         return try {
             val params = PictureInPictureParams.Builder()
                 .setAspectRatio(pipAspectRatio())
+                // botão play/pause DENTRO da janelinha (igual YouTube Premium)
+                .setActions(pipActions(playing))
                 .build()
             enterPictureInPictureMode(params)
         } catch (ignored: Throwable) {
             // sem suporte/permitido no aparelho: cai pro handoff de áudio
             false
+        }
+    }
+
+    /** Ação da janelinha: play/pause sem expandir (RemoteAction → receiver). */
+    private fun pipActions(playing: Boolean): List<RemoteAction> {
+        if (Build.VERSION.SDK_INT < 26) return emptyList()
+        val toggle = PendingIntent.getBroadcast(
+            this,
+            1001,
+            Intent(this, PipActionReceiver::class.java)
+                .setAction(PipActionReceiver.ACTION_TOGGLE),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val label = getString(if (playing) R.string.player_pause else R.string.player_play)
+        return listOf(
+            RemoteAction(
+                Icon.createWithResource(this, if (playing) R.drawable.ic_pause else R.drawable.ic_play),
+                label,
+                label,
+                toggle
+            )
+        )
+    }
+
+    /** Refaz os parâmetros do PiP (ícone do botão acompanha o estado real). */
+    private fun refreshPipParams(playing: Boolean) {
+        if (Build.VERSION.SDK_INT < 26 || !isVideo) return
+        try {
+            setPictureInPictureParams(
+                PictureInPictureParams.Builder()
+                    .setAspectRatio(pipAspectRatio())
+                    .setActions(pipActions(playing))
+                    .build()
+            )
+        } catch (ignored: Throwable) {
+        }
+    }
+
+    /** Botão da janelinha apertado: pausa/retoma SEM expandir o vídeo. */
+    private fun togglePipPlayback() {
+        if (!isVideo) return
+        val exo = exoPlayer
+        if (exo != null) {
+            val play = !exo.isPlaying
+            if (play) exo.play() else exo.pause()
+            refreshPipParams(play)
+        } else {
+            val playing = try {
+                binding.videoView.isPlaying
+            } catch (ignored: Throwable) {
+                false
+            }
+            if (playing) binding.videoView.pause() else binding.videoView.start()
+            refreshPipParams(!playing)
         }
     }
 
@@ -648,6 +719,8 @@ class PlayerActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         tickHandler.removeCallbacks(tick)
+        // botão do PiP desliga com a activity (receiver vira no-op)
+        pipToggleHook = null
         if (bound) {
             try {
                 unbindService(serviceConn)
@@ -672,6 +745,15 @@ class PlayerActivity : AppCompatActivity() {
         /** Aberto pelo cartão de mídia do sistema: o serviço já está tocando
          *  esta faixa — a activity só conecta a UI (NÃO reinicia do zero). */
         const val EXTRA_FROM_CARD = "from_card"
+
+        // gancho do botão da janelinha PiP: o PipActionReceiver (mesmo
+        // processo) repassa o comando play/pause pra activity viva
+        private var pipToggleHook: (() -> Unit)? = null
+
+        /** Chamado pelo PipActionReceiver quando o botão do PiP é apertado. */
+        fun dispatchPipToggle() {
+            pipToggleHook?.invoke()
+        }
 
         /** Abre o player tocando um VÍDEO direto da rede (sem baixar nada). */
         fun remoteVideo(ctx: Context, url: String, title: String): Intent =

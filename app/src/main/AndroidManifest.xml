@@ -89,6 +89,11 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
+        <!-- Botões da janelinha PiP (play/pause sem expandir o vídeo) -->
+        <receiver
+            android:name=".PipActionReceiver"
+            android:exported="false" />
+
         <!-- Player embutido (áudio com controles próprios / vídeo em tela).
              configChanges: girar para tela cheia NÃO recria a activity — o
              vídeo continua tocando na rotação. supportsPictureInPicture:
