@@ -21,6 +21,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.tunegrab.app.databinding.ActivityPlayerBinding
 import com.tunegrab.app.playback.PlaybackService
 import com.tunegrab.app.yt.DownloaderImpl
@@ -58,6 +66,10 @@ class PlayerActivity : AppCompatActivity() {
     // serviço de reprodução (áudio)
     private var playback: PlaybackService? = null
     private var bound = false
+
+    // player HD (v0.17.0): ExoPlayer só no vídeo REMOTO (DASH video+áudio);
+    // morre junto com a activity — vídeo local e áudio seguem nos caminhos antigos
+    private var exoPlayer: ExoPlayer? = null
 
     // vídeo em tela cheia (gira o app, não o vídeo)
     private var fullscreen = false
@@ -97,10 +109,14 @@ class PlayerActivity : AppCompatActivity() {
             }
         })
 
-        if (isVideo) {
-            setupVideo(uri)
-        } else {
-            setupAudio(uri, title)
+        val videoUrl = intent.getStringExtra(EXTRA_VIDEO_URL)
+        val audioUrl = intent.getStringExtra(EXTRA_AUDIO_URL)
+        when {
+            // HD (v0.17.0): DASH do YouTube — vídeo até 1080p + áudio separados,
+            // MERGIDOS no ExoPlayer (o MediaPlayer não junta duas faixas)
+            isVideo && videoUrl != null && audioUrl != null -> setupExoVideo(videoUrl, audioUrl)
+            isVideo -> setupVideo(uri)
+            else -> setupAudio(uri, title)
         }
     }
 
@@ -159,6 +175,51 @@ class PlayerActivity : AppCompatActivity() {
             finish()
             true
         }
+    }
+
+    /**
+     * VÍDEO HD (v0.17.0): stream DASH do YouTube — faixa de vídeo (até 1080p,
+     * SEM áudio) + faixa de áudio separadas, tocando em sincronia via
+     * MergingMediaSource. LÊ direto da rede, sem salvar NADA. O botão de tela
+     * cheia continua girando o APP (mesma setFullscreen do vídeo local).
+     */
+    private fun setupExoVideo(videoUrl: String, audioUrl: String) {
+        // não sobrepor a música em segundo plano
+        PlaybackService.stopNow(this)
+
+        binding.playerView.visibility = View.VISIBLE
+        binding.btnFullscreen.visibility = View.VISIBLE
+        binding.btnFullscreen.setOnClickListener { setFullscreen(!fullscreen) }
+        // o botão de tela cheia do próprio controller também gira o app
+        binding.playerView.setFullscreenButtonClickListener { setFullscreen(!fullscreen) }
+
+        val http = DefaultHttpDataSource.Factory()
+            .setUserAgent(DownloaderImpl.USER_AGENT) // googlevideo recusa UA estranho
+            .setAllowCrossProtocolRedirects(true)    // googlevideo redireciona http<->https
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(15_000)
+        val dataSource = DefaultDataSource.Factory(this, http)
+        val videoSource = ProgressiveMediaSource.Factory(dataSource)
+            .createMediaSource(MediaItem.fromUri(videoUrl))
+        val audioSource = ProgressiveMediaSource.Factory(dataSource)
+            .createMediaSource(MediaItem.fromUri(audioUrl))
+
+        exoPlayer = ExoPlayer.Builder(this).build().apply {
+            setMediaSource(MergingMediaSource(videoSource, audioSource))
+            addListener(object : Player.Listener {
+                override fun onPlayerError(error: PlaybackException) {
+                    Toast.makeText(
+                        this@PlayerActivity,
+                        R.string.player_err_stream,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    finish()
+                }
+            })
+            playWhenReady = true
+            prepare()
+        }
+        binding.playerView.player = exoPlayer
     }
 
     /** Spinner "carregando…" centralizado (só existe no stream remoto). */
@@ -295,6 +356,7 @@ class PlayerActivity : AppCompatActivity() {
         // notificação de mídia (é o propósito desta versão).
         // VÍDEO: pausa ao sair do app (comportamento de player de vídeo).
         binding.videoView.pause()
+        exoPlayer?.pause()
     }
 
     override fun onDestroy() {
@@ -309,11 +371,15 @@ class PlayerActivity : AppCompatActivity() {
         }
         // sem stopService: a música continua tocando em segundo plano
         playback = null
+        exoPlayer?.release()
+        exoPlayer = null
     }
 
     companion object {
         const val EXTRA_TITLE = "title"
         const val EXTRA_IS_VIDEO = "is_video"
+        const val EXTRA_VIDEO_URL = "video_url"
+        const val EXTRA_AUDIO_URL = "audio_url"
 
         /** Abre o player tocando um VÍDEO direto da rede (sem baixar nada). */
         fun remoteVideo(ctx: Context, url: String, title: String): Intent =
@@ -321,6 +387,19 @@ class PlayerActivity : AppCompatActivity() {
                 .setData(Uri.parse(url))
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_IS_VIDEO, true)
+
+        /**
+         * Abre o player em HD (v0.17.0): vídeo DASH (até 1080p, video-only) +
+         * áudio separados — o ExoPlayer junta os dois. O setData no vídeo
+         * mantém o contrato do onCreate (intent.data não nulo).
+         */
+        fun remoteVideoHd(ctx: Context, videoUrl: String, audioUrl: String, title: String): Intent =
+            Intent(ctx, PlayerActivity::class.java)
+                .setData(Uri.parse(videoUrl))
+                .putExtra(EXTRA_TITLE, title)
+                .putExtra(EXTRA_IS_VIDEO, true)
+                .putExtra(EXTRA_VIDEO_URL, videoUrl)
+                .putExtra(EXTRA_AUDIO_URL, audioUrl)
 
         /** Abre o player tocando só o ÁUDIO da rede (fallback do modo remote). */
         fun remoteAudio(ctx: Context, url: String, title: String): Intent =

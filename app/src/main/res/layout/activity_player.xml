@@ -12,6 +12,21 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
+    <!-- Player HD (v0.17.0): reprodução DASH do play do Início — faixa de
+         vídeo (até 1080p, video-only) + faixa de áudio separadas, MERGIDAS
+         pelo ExoPlayer (Media3). O FitVideoView acima segue nos arquivos
+         LOCAIS da Biblioteca (MediaPlayer). resize_mode=fit mantém o aspect
+         ratio em qualquer tela/orientação; show_buffering gira o spinner -->
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/playerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        app:resize_mode="fit"
+        app:show_buffering="always"
+        app:use_controller="true" />
+
     <!-- Controles de ÁUDIO -->
     <LinearLayout
         android:id="@+id/audioControls"

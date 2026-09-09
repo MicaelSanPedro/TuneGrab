@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 35
-        versionName = "0.16.1"
+        versionCode = 36
+        versionName = "0.17.0"
 
         // ABIs do motor yt-dlp embutido (python + ffmpeg são nativos).
         // x86/x86_64 ficam de fora para o APK não dobrar de tamanho —
@@ -84,6 +84,13 @@ dependencies {
     implementation("io.coil-kt:coil:2.6.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+
+    // Player HD (v0.17.0): ExoPlayer/Media3 junta a faixa de vídeo DASH (até
+    // 1080p, video-only) com a faixa de áudio no play do Início — o MediaPlayer
+    // nativo só toca faixa muxada (vídeo+áudio juntos), e o YouTube não
+    // entrega muxed acima de 360p/720p.
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
 
     // Extração do YouTube — mesma engine usada pelo app NewPipe.
     // Fork próprio (https://github.com/MicaelSanPedro/NewPipeExtractor, tag v0.26.5-android4):
