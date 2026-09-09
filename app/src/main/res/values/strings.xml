@@ -170,4 +170,16 @@
     <string name="upd_open">Ver no GitHub</string>
     <string name="upd_no_notes">Sem notas de versão.</string>
     <string name="cd_close_update">Dispensar aviso de atualização</string>
+
+    <!-- Atualização (Fase 2: baixar e instalar dentro do app) -->
+    <string name="upd_download">Baixar atualização</string>
+    <string name="upd_install">Instalar agora</string>
+    <string name="upd_downloading">Baixando… %1$d%%</string>
+    <string name="upd_ready_toast">Atualização baixada — toque em Instalar agora ✓</string>
+    <string name="upd_err_download">Falha ao baixar a atualização. Tenta de novo.</string>
+    <string name="upd_err_install">Não foi possível iniciar a instalação.</string>
+    <string name="upd_need_permission">Autorize o TuneGrab a instalar apps (Ajustes) e toque em Instalar de novo.</string>
+    <string name="upd_metered_title">Baixar sem Wi-Fi?</string>
+    <string name="upd_metered_msg">A atualização (%1$s) será baixada usando a rede móvel. Continuar?</string>
+    <string name="upd_metered_yes">Baixar mesmo assim</string>
 </resources>

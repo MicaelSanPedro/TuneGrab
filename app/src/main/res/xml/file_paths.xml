@@ -2,4 +2,7 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Pasta pública Downloads/TuneGrab (Android 7–9: abrir/compartilhar via FileProvider) -->
     <external-path name="downloads_tunegrab" path="Download/TuneGrab/" />
+    <!-- Fase 2 do update: APK baixado dentro do app (Android/data/.../files/updates)
+         entregue ao instalador do sistema -->
+    <external-files-path name="update_apks" path="updates/" />
 </paths>

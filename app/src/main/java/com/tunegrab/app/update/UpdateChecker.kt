@@ -26,7 +26,9 @@ object UpdateChecker {
     data class UpdateInfo(
         val version: String,   // "0.10.7" (tag sem o "v")
         val notes: String,     // corpo da release (changelog)
-        val url: String        // html_url da release
+        val url: String,       // html_url da release
+        val apkUrl: String = "",  // asset .apk instalável (sem o -debug)
+        val apkSize: Long = 0L    // tamanho em bytes (0 = desconhecido)
     )
 
     private const val API = "https://api.github.com/repos/MicaelSanPedro/TuneGrab/releases/latest"
@@ -82,8 +84,29 @@ object UpdateChecker {
             val notes = json.optString("body", "").trim()
             if (version.isBlank() || url.isBlank()) return@withContext readCache(prefs)
 
+            // Fase 2: acha o APK instalável entre os assets da release
+            // (TuneGrab-vX.apk — o -debug fica de fora).
+            var apkUrl = ""
+            var apkSize = 0L
+            val assets = json.optJSONArray("assets")
+            if (assets != null) {
+                for (i in 0 until assets.length()) {
+                    val a = assets.optJSONObject(i) ?: continue
+                    val name = a.optString("name", "")
+                    if (name.endsWith(".apk") && name.startsWith("TuneGrab-")
+                        && !name.contains("debug")
+                    ) {
+                        apkUrl = a.optString("browser_download_url", "")
+                        apkSize = a.optLong("size", 0L)
+                        break
+                    }
+                }
+            }
+
             val current = currentVersion(appCtx) ?: return@withContext readCache(prefs)
-            val info = if (isNewer(version, current)) UpdateInfo(version, notes, url) else null
+            val info = if (isNewer(version, current)) {
+                UpdateInfo(version, notes, url, apkUrl, apkSize)
+            } else null
 
             prefs.edit()
                 .putString(KEY_CACHE, info?.let { toJson(it) })
@@ -109,7 +132,9 @@ object UpdateChecker {
             val info = UpdateInfo(
                 o.getString("version"),
                 o.optString("notes", ""),
-                o.getString("url")
+                o.getString("url"),
+                o.optString("apkUrl", ""),
+                o.optLong("apkSize", 0L)
             )
             if (info.version == dismissed) null else info
         } catch (t: Throwable) {
@@ -121,6 +146,8 @@ object UpdateChecker {
         put("version", i.version)
         put("notes", i.notes)
         put("url", i.url)
+        put("apkUrl", i.apkUrl)
+        put("apkSize", i.apkSize)
     }.toString()
 
     /** versionName instalado, ex.: "0.10.6". */

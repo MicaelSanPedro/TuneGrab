@@ -253,6 +253,7 @@ clients anônimos com iOS à frente.
 - [x] **Fase 1 do update automático: card "nova versão disponível" na Central com changelog + link da release (consulta o GitHub, throttle 6h, falha silenciosa)** (v0.10.7)
 - [x] **Biblioteca enxerga a pasta do PRÓPRIO app mesmo quando o MediaStore falha (listagem direta Download/Music/TuneGrab) + verificação dupla ao apagar arquivo** (v0.10.8)
 - [x] **Card de atualização consulta a cada abertura do app (a janela de 6h escondia releases novas; agora: gap mínimo 10 min + 1 consulta/hora por processo)** (v0.10.9)
+- [x] **Fase 2 do update automático: baixar o APK dentro do app com barra de progresso + "Instalar agora" via instalador do sistema + confirmação antes de gastar rede móvel** (v0.11.0)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

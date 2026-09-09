@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentDownloadsBinding
@@ -27,6 +28,7 @@ import com.tunegrab.app.databinding.ItemDownloadBinding
 import com.tunegrab.app.download.DownloadBus
 import com.tunegrab.app.download.DownloadService
 import com.tunegrab.app.update.UpdateChecker
+import com.tunegrab.app.update.UpdateInstaller
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,6 +51,10 @@ class DownloadsFragment : Fragment() {
 
     // Filtro do separador Músicas/Vídeos (Tudo é o padrão)
     private var filterKind = KIND_ALL
+
+    // Estado do card de atualização (Fase 2): baixando? % atual?
+    private var updateDownloading = false
+    private var updatePercent = 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -114,22 +120,114 @@ class DownloadsFragment : Fragment() {
         _binding = null
     }
 
-    /** Card "nova versão disponível": changelog + link da release + dispensar. */
+    /** Card "nova versão disponível": changelog + baixar/instalar + link. */
     private fun showUpdateCard(info: UpdateChecker.UpdateInfo) {
         val b = _binding ?: return
         b.cardUpdate.isVisible = true
         b.tvUpdateTitle.text = getString(R.string.upd_available, info.version)
         b.tvUpdateNotes.text = info.notes.ifBlank { getString(R.string.upd_no_notes) }
-        b.btnUpdate.setOnClickListener {
+        b.btnUpdateOpen.setOnClickListener {
             try {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.url)))
             } catch (t: Throwable) {
                 // sem navegador no aparelho — card continua lá, nada quebra
             }
         }
-        b.btnCloseUpdate.setOnClickListener {
-            b.cardUpdate.isVisible = false
-            UpdateChecker.dismiss(requireContext(), info.version)
+        b.btnUpdateAction.setOnClickListener { onUpdateAction(info) }
+        refreshUpdateAction()
+    }
+
+    /** Estado do botão principal: Baixar → Baixando…% → Instalar agora. */
+    private fun refreshUpdateAction() {
+        val b = _binding ?: return
+        val info = updateInfo ?: return
+        val ctx = context ?: return
+        when {
+            updateDownloading -> {
+                b.btnUpdateAction.isEnabled = false
+                b.btnUpdateAction.text = getString(R.string.upd_downloading, updatePercent)
+                b.progressUpdate.isVisible = true
+                b.progressUpdate.progress = updatePercent
+            }
+            UpdateInstaller.isReady(ctx, info) -> {
+                b.btnUpdateAction.isEnabled = true
+                b.btnUpdateAction.text = getString(R.string.upd_install)
+                b.progressUpdate.isVisible = false
+            }
+            else -> {
+                b.btnUpdateAction.isEnabled = true
+                b.btnUpdateAction.text = getString(R.string.upd_download)
+                b.progressUpdate.isVisible = false
+            }
+        }
+    }
+
+    private fun onUpdateAction(info: UpdateChecker.UpdateInfo) {
+        if (updateDownloading) return
+        val ctx = context ?: return
+        if (UpdateInstaller.isReady(ctx, info)) {
+            installUpdate(info)
+            return
+        }
+        // rede móvel = dados cobrados: confirma antes de baixar ~100MB
+        if (UpdateInstaller.isOnMetered(ctx)) {
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle(R.string.upd_metered_title)
+                .setMessage(
+                    ctx.getString(
+                        R.string.upd_metered_msg,
+                        UpdateInstaller.formatSize(ctx, info.apkSize)
+                    )
+                )
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.upd_metered_yes) { _, _ -> startUpdateDownload(info) }
+                .show()
+        } else {
+            startUpdateDownload(info)
+        }
+    }
+
+    private fun startUpdateDownload(info: UpdateChecker.UpdateInfo) {
+        val ctx = context ?: return
+        updateDownloading = true
+        updatePercent = 0
+        refreshUpdateAction()
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                UpdateInstaller.download(ctx.applicationContext, info) { pct ->
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        updatePercent = pct
+                        val b = _binding ?: return@launch
+                        b.progressUpdate.progress = pct
+                        b.btnUpdateAction.text = getString(R.string.upd_downloading, pct)
+                    }
+                }
+                updateDownloading = false
+                refreshUpdateAction()
+                Toast.makeText(ctx, R.string.upd_ready_toast, Toast.LENGTH_SHORT).show()
+            } catch (t: Throwable) {
+                updateDownloading = false
+                refreshUpdateAction()
+                Toast.makeText(ctx, R.string.upd_err_download, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun installUpdate(info: UpdateChecker.UpdateInfo) {
+        val ctx = context ?: return
+        // Android 8+: sem "instalar apps desconhecidos"? manda pro ajuste certo
+        if (UpdateInstaller.needsInstallPermission(ctx)) {
+            Toast.makeText(ctx, R.string.upd_need_permission, Toast.LENGTH_LONG).show()
+            try {
+                ctx.startActivity(UpdateInstaller.unknownSourcesScreen(ctx))
+            } catch (t: Throwable) {
+            }
+            return
+        }
+        try {
+            ctx.startActivity(UpdateInstaller.installIntent(ctx, info))
+        } catch (t: Throwable) {
+            Toast.makeText(ctx, R.string.upd_err_install, Toast.LENGTH_SHORT).show()
         }
     }
 
