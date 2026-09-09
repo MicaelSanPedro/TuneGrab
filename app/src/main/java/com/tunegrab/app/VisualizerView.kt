@@ -89,7 +89,7 @@ class VisualizerView @JvmOverloads constructor(
         if (viz != null) return true
         available = try {
             val v = Visualizer(0) // 0 = output mix global: pega o SOM REAL
-            val range = v.getCaptureSizeRange()
+            val range = Visualizer.getCaptureSizeRange() // STATIC da classe
             if (range != null && range.size >= 2) {
                 // maior janela = mais resolução de frequência (1024 → 512 bins)
                 v.captureSize = range[1].coerceAtMost(2048)
