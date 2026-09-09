@@ -25,6 +25,7 @@ import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentLibraryBinding
 import com.tunegrab.app.databinding.ItemLibraryFileBinding
+import com.tunegrab.app.databinding.ItemLibraryHeaderBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
