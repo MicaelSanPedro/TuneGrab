@@ -34,7 +34,16 @@ object UpdateChecker {
     private const val KEY_LAST_CHECK = "last_check_ms"
     private const val KEY_CACHE = "cached_update_json"
     private const val KEY_DISMISSED = "dismissed_version"
-    private const val INTERVAL_MS = 6 * 60 * 60 * 1000L // 6 horas
+
+    // Abertura fria do app SEMPRE consulta (gap mínimo de 10 min contra loop
+    // de force-kill); no mesmo processo, no máximo 1x por hora. Nada de
+    // janela cega de 6h — a v0.10.8 saiu 40min depois da 1ª consulta e o
+    // usuário ficava sem card até 6 horas (bug real reportado).
+    private const val MIN_GAP_MS = 10 * 60 * 1000L
+    private const val SAME_PROCESS_GAP_MS = 60 * 60 * 1000L
+
+    @Volatile
+    private var checkedThisProcess = false
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -47,11 +56,14 @@ object UpdateChecker {
         val prefs = appCtx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
 
-        // Dentro da janela de 6h: devolve o cache sem tocar na rede.
+        // Gap mínimo: morto e reaberto em segundos não martela a API.
         val lastCheck = prefs.getLong(KEY_LAST_CHECK, 0L)
-        if (now - lastCheck < INTERVAL_MS) {
+        if (now - lastCheck < MIN_GAP_MS) return@withContext readCache(prefs)
+        // Mesmo processo: já consultou há menos de 1h → usa o cache.
+        if (checkedThisProcess && now - lastCheck < SAME_PROCESS_GAP_MS) {
             return@withContext readCache(prefs)
         }
+        checkedThisProcess = true
 
         try {
             prefs.edit().putLong(KEY_LAST_CHECK, now).apply()
