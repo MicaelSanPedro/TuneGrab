@@ -4,8 +4,9 @@
     <string name="app_tagline">♪ TuneGrab</string>
     <string name="app_sub">Baixe o áudio de vídeos do YouTube</string>
 
-    <!-- Splash de boas-vindas (v0.15.0) -->
-    <string name="splash_welcome">Bem-vindo</string>
+    <!-- Splash de boas-vindas (v0.15.0) — minúsculo de propósito: o "B" maiúsculo
+         do Great Vibes tem um swash gigante que parece um "o" solto na tela -->
+    <string name="splash_welcome">bem-vindo</string>
     <string name="splash_made_by">feito por</string>
     <string name="splash_name">micaelsan</string>
 

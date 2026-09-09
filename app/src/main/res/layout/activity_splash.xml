@@ -28,9 +28,11 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:fontFamily="@font/great_vibes"
+            android:paddingEnd="10dp"
+            android:singleLine="true"
             android:text="@string/splash_welcome"
             android:textColor="@color/on_background"
-            android:textSize="64sp" />
+            android:textSize="68sp" />
 
         <LinearLayout
             android:id="@+id/madeByGroup"
