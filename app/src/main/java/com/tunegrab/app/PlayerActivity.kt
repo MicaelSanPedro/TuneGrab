@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.widget.MediaController
 import android.widget.SeekBar
@@ -67,9 +68,14 @@ class PlayerActivity : AppCompatActivity() {
     private var playback: PlaybackService? = null
     private var bound = false
 
-    // player HD (v0.17.0): ExoPlayer só no vídeo REMOTO (DASH video+áudio);
-    // morre junto com a activity — vídeo local e áudio seguem nos caminhos antigos
+    // player HD (v0.17.1): ExoPlayer só no vídeo REMOTO (DASH video+áudio até
+    // 720p); morre junto com a activity — vídeo local e áudio seguem nos caminhos antigos
     private var exoPlayer: ExoPlayer? = null
+
+    // stream muxado de sempre (vídeo+áudio juntos): se as faixas DASH falharem
+    // na hora de tocar (o YouTube anda bloqueando sem aviso), o player cai pra
+    // cá SOZINHO em vez de morrer no erro
+    private var fallbackUri: Uri? = null
 
     // vídeo em tela cheia (gira o app, não o vídeo)
     private var fullscreen = false
@@ -111,10 +117,12 @@ class PlayerActivity : AppCompatActivity() {
 
         val videoUrl = intent.getStringExtra(EXTRA_VIDEO_URL)
         val audioUrl = intent.getStringExtra(EXTRA_AUDIO_URL)
+        fallbackUri = intent.getStringExtra(EXTRA_FALLBACK_URL)?.let(Uri::parse)
         when {
-            // HD (v0.17.0): DASH do YouTube — vídeo até 1080p + áudio separados,
-            // MERGIDOS no ExoPlayer (o MediaPlayer não junta duas faixas)
-            isVideo && videoUrl != null && audioUrl != null -> setupExoVideo(videoUrl, audioUrl)
+            // HD (v0.17.1): DASH do YouTube — vídeo até 720p + áudio separados,
+            // MERGIDOS no ExoPlayer; se falhar na hora de tocar, cai pro muxed
+            isVideo && videoUrl != null && audioUrl != null ->
+                setupExoVideo(videoUrl, audioUrl)
             isVideo -> setupVideo(uri)
             else -> setupAudio(uri, title)
         }
@@ -178,10 +186,14 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     /**
-     * VÍDEO HD (v0.17.0): stream DASH do YouTube — faixa de vídeo (até 1080p,
+     * VÍDEO HD (v0.17.1): stream DASH do YouTube — faixa de vídeo (até 720p,
      * SEM áudio) + faixa de áudio separadas, tocando em sincronia via
-     * MergingMediaSource. LÊ direto da rede, sem salvar NADA. O botão de tela
-     * cheia continua girando o APP (mesma setFullscreen do vídeo local).
+     * MergingMediaSource. LÊ direto da rede, sem salvar NADA. Se as faixas
+     * DASH falharem na hora de tocar (o YouTube anda bloqueando sem aviso —
+     * o teste de URL de 2 bytes passa, mas o request completo leva 403), o
+     * player CAI SOZINHO pro muxed de sempre (VideoView) — o erro só aparece
+     * se o muxed também falhar. O botão de tela cheia continua girando o APP
+     * (mesma setFullscreen do vídeo local).
      */
     private fun setupExoVideo(videoUrl: String, audioUrl: String) {
         // não sobrepor a música em segundo plano
@@ -208,12 +220,21 @@ class PlayerActivity : AppCompatActivity() {
             setMediaSource(MergingMediaSource(videoSource, audioSource))
             addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
-                    Toast.makeText(
-                        this@PlayerActivity,
-                        R.string.player_err_stream,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    finish()
+                    Log.e(TAG, "Falha no stream DASH", error)
+                    // NUNCA morre no erro: solta o Exo e volta pro muxed de
+                    // sempre (VideoView). Sem toast aqui — se o muxed também
+                    // falhar, o erro real aparece lá
+                    exoPlayer?.release()
+                    exoPlayer = null
+                    binding.playerView.player = null
+                    binding.playerView.visibility = View.GONE
+                    val fb = fallbackUri
+                    if (fb == null) {
+                        finish()
+                        return
+                    }
+                    fallbackUri = null
+                    setupVideo(fb)
                 }
             })
             playWhenReady = true
@@ -376,10 +397,12 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val TAG = "PlayerActivity"
         const val EXTRA_TITLE = "title"
         const val EXTRA_IS_VIDEO = "is_video"
         const val EXTRA_VIDEO_URL = "video_url"
         const val EXTRA_AUDIO_URL = "audio_url"
+        const val EXTRA_FALLBACK_URL = "fallback_url"
 
         /** Abre o player tocando um VÍDEO direto da rede (sem baixar nada). */
         fun remoteVideo(ctx: Context, url: String, title: String): Intent =
@@ -389,17 +412,26 @@ class PlayerActivity : AppCompatActivity() {
                 .putExtra(EXTRA_IS_VIDEO, true)
 
         /**
-         * Abre o player em HD (v0.17.0): vídeo DASH (até 1080p, video-only) +
-         * áudio separados — o ExoPlayer junta os dois. O setData no vídeo
-         * mantém o contrato do onCreate (intent.data não nulo).
+         * Abre o player em HD (v0.17.1): vídeo DASH (até 720p, video-only) +
+         * áudio separados — o ExoPlayer junta os dois. O fallbackUrl (muxado
+         * de sempre) é a rede de segurança: se o stream DASH falhar na hora de
+         * tocar, o player cai pra ele SOZINHO em vez de morrer no erro. O
+         * setData no vídeo mantém o contrato do onCreate (intent.data não nulo).
          */
-        fun remoteVideoHd(ctx: Context, videoUrl: String, audioUrl: String, title: String): Intent =
+        fun remoteVideoHd(
+            ctx: Context,
+            videoUrl: String,
+            audioUrl: String,
+            title: String,
+            fallbackUrl: String? = null
+        ): Intent =
             Intent(ctx, PlayerActivity::class.java)
                 .setData(Uri.parse(videoUrl))
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_IS_VIDEO, true)
                 .putExtra(EXTRA_VIDEO_URL, videoUrl)
                 .putExtra(EXTRA_AUDIO_URL, audioUrl)
+                .putExtra(EXTRA_FALLBACK_URL, fallbackUrl)
 
         /** Abre o player tocando só o ÁUDIO da rede (fallback do modo remote). */
         fun remoteAudio(ctx: Context, url: String, title: String): Intent =

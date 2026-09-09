@@ -202,7 +202,7 @@
     <string name="player_pause">Pausar</string>
     <string name="player_close">Fechar</string>
     <string name="player_err">Não foi possível reproduzir este arquivo.</string>
-    <string name="player_err_stream">Não deu pra tocar esse vídeo. Confere a internet e tenta de novo 🙏</string>
+    <string name="player_err_stream">Não deu pra tocar esse vídeo. Tenta de novo em instantes 🙏</string>
     <string name="player_buffering">Carregando…</string>
     <string name="player_fullscreen">Tela cheia</string>
     <string name="player_exit_fullscreen">Sair da tela cheia</string>

@@ -224,14 +224,17 @@ class HomeFragment : Fragment() {
                     // do player lê direto da rede, sem salvar NADA
                     video != null || audio != null -> {
                         setStatus(getString(R.string.status_opening_player))
-                        // HD 1080p (v0.17.0): faixa DASH de vídeo (video-only) +
-                        // áudio separados, os dois aprovados no teste de URL, tocam
-                        // MERGIDOS no ExoPlayer — muxed não passa de 360p/720p. Se
-                        // nenhuma faixa DASH responder, cai pro muxed/áudio como antes
+                        // HD 720p (v0.17.1): faixa DASH de vídeo (video-only) +
+                        // áudio separados, tocam MERGIDOS no ExoPlayer — muxed não
+                        // passa de 360p/720p. O muxed de sempre vai junto como
+                        // fallback: se o stream DASH falhar NA HORA DE TOCAR (o
+                        // YouTube anda bloqueando sem aviso), o player cai sozinho
+                        // pro muxed em vez de morrer no erro
                         val hd = withContext(Dispatchers.IO) { pickHdStreams(verified) }
                         val intent = when {
                             hd != null -> PlayerActivity.remoteVideoHd(
-                                requireContext(), hd.first, hd.second, title
+                                requireContext(), hd.first, hd.second, title,
+                                fallbackUrl = video?.url
                             )
                             video != null -> PlayerActivity.remoteVideo(
                                 requireContext(), video.url!!, title
@@ -256,16 +259,17 @@ class HomeFragment : Fragment() {
     }
 
     /**
-     * 1080p no play (v0.17.0): o YouTube não entrega muxed acima de 360p/720p
-     * — 1080p só existe como faixa DASH de vídeo SEM áudio (video-only). Pega
-     * a maior faixa até 1080p que responde de verdade (H.264/avc1 primeiro,
+     * 720p no play (v0.17.1): o YouTube não entrega muxed acima de 360p/720p
+     * — 720p existe como faixa DASH de vídeo SEM áudio (video-only). Pega a
+     * maior faixa até 720p que responde de verdade (H.264/avc1 primeiro,
      * decode por hardware em qualquer aparelho; VP9/AV1 como plano B) + o
      * áudio de maior bitrate já aprovado no teste. Quem junta as duas em
-     * sincronia é o ExoPlayer no Player.
+     * sincronia é o ExoPlayer no Player — e se o YouTube bloquear as faixas
+     * DASH na hora de tocar, o player cai sozinho pro muxed (fallback).
      */
     private fun pickHdStreams(v: VerifiedStreams): Pair<String, String>? {
         val audioUrl = v.audio.maxByOrNull { it.averageBitrate }?.url ?: return null
-        val candidates = v.info.videoOnlyStreams.filter { it.height in 361..1080 }
+        val candidates = v.info.videoOnlyStreams.filter { it.height in 361..720 }
         if (candidates.isEmpty()) return null
         // H.264 (MPEG_4) primeiro; a ordenação por altura é estável, então no
         // empate de resolução o avc1 fica na frente do VP9/AV1

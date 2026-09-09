@@ -262,6 +262,7 @@ clients anônimos com iOS à frente.
 - [x] **"bem-vindo" na ASTON SCRIPT (fonte do autor, em TTF) com autoSize (nunca mais corta "bem vin…" em nenhuma tela/escala de fonte) + nome do app no Início virou LETREIRO DE LED ROLANTE (texto desliza e acende na faixa de luz)** (v0.16.0)
 - [x] **FIM do pisca-pisca: o "TuneGrab" do Início voltou a ser igual à assinatura do splash (texto PARADO, a luz varre — o letreiro rolante movia o texto por uma faixa fixa e apagava fora dela) + "bem-vindo" com altura FIXA (o autoSize com wrap_content deixava a view mais baixa que a linha da fonte e cortava o texto ao meio)** (v0.16.1)
 - [x] **Botão de play em 1080p (era 360p!) — o play do Início tocava a faixa muxada (vídeo+áudio juntos) que o YouTube só entrega até 360p; agora o ExoPlayer/Media3 junta a faixa DASH de vídeo (H.264/avc1 até 1080p, VP9 de plano B) com o áudio de maior bitrate, em streaming, sem baixar nada — e se o YouTube bloquear as faixas DASH, cai pro muxed de sempre** (v0.17.0)
+- [x] **Play em 720p + FIM do erro "confere a internet" — o teto de qualidade voltou pra 720p (a 1080p o YouTube anda bloqueando as faixas DASH sem aviso: o teste de URL passa, mas o request completo leva 403) e, quando isso acontece, o player CAI SOZINHO pro muxed de sempre em vez de morrer no erro — a mensagem enganosa virou "tenta de novo em instantes" e só aparece se TUDO falhar** (v0.17.1)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 
