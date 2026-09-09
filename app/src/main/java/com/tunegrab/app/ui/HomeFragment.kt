@@ -69,6 +69,7 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.btnDownload.setOnClickListener { onDownloadClicked() }
+        binding.btnPlay.setOnClickListener { onPlayClicked() }
         binding.btnSettings.setOnClickListener { (activity as? MainActivity)?.openTab(R.id.navSettings) }
         binding.tilUrl.setEndIconOnClickListener { pasteFromClipboard() }
         binding.inputUrl.setOnEditorActionListener { _, actionId, _ ->
@@ -128,6 +129,55 @@ class HomeFragment : Fragment() {
                 }.show()
             } catch (t: Throwable) {
                 Log.e(TAG, "Falha ao buscar vídeo", t)
+                setStatus(getString(R.string.err_generic, friendlyError(t)))
+            } finally {
+                _binding?.progress?.visibility = View.GONE
+                setBusy(false)
+            }
+        }
+    }
+
+    /**
+     * REPRODUZIR sem baixar: cola o link, o app extrai as faixas (a MESMA
+     * extração de sempre, em modo leitura — nada toca no motor de download)
+     * e abre o player com a melhor faixa MP4 progressiva (vídeo+áudio juntos)
+     * que passou no teste de URL. Sem faixa de vídeo? Toca o áudio.
+     */
+    private fun onPlayClicked() {
+        if (busy) return
+        val url = extractUrl()
+        if (url.isNullOrBlank()) {
+            setStatus(getString(R.string.err_invalid_url))
+            return
+        }
+        setBusy(true)
+        binding.progress.visibility = View.VISIBLE
+        setStatus(getString(R.string.status_fetching))
+
+        lifecycleScope.launch {
+            try {
+                val verified = fetchAndVerify(url)
+                val title = verified.info.name
+                val video = verified.video.firstOrNull()
+                val audio = verified.audio.firstOrNull()
+                when {
+                    // faixa progressiva MP4 (vídeo+áudio embutidos): o MediaPlayer
+                    // do player lê direto da rede, sem salvar NADA
+                    video != null -> {
+                        setStatus(getString(R.string.status_opening_player))
+                        startActivity(PlayerActivity.remoteVideo(requireContext(), video.url!!, title))
+                        setStatus(getString(R.string.status_idle))
+                    }
+                    // só sobrou faixa de áudio (raro): toca a música no player
+                    audio != null -> {
+                        setStatus(getString(R.string.status_opening_player))
+                        startActivity(PlayerActivity.remoteAudio(requireContext(), audio.url!!, title))
+                        setStatus(getString(R.string.status_idle))
+                    }
+                    else -> setStatus(getString(R.string.err_no_stream_play))
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "Falha ao buscar vídeo para reproduzir", t)
                 setStatus(getString(R.string.err_generic, friendlyError(t)))
             } finally {
                 _binding?.progress?.visibility = View.GONE
@@ -320,6 +370,7 @@ class HomeFragment : Fragment() {
     private fun setBusy(b: Boolean) {
         busy = b
         binding.btnDownload.isEnabled = !b
+        binding.btnPlay.isEnabled = !b
     }
 
     private fun sanitize(name: String): String =

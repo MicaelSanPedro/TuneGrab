@@ -21,6 +21,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.tunegrab.app.MainActivity
 import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentDownloadsBinding
@@ -71,6 +72,10 @@ class DownloadsFragment : Fragment() {
         binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = adapter
         binding.btnClear.setOnClickListener { DownloadBus.clearFinished() }
+        // CTA do estado vazio: pula direto pro Início baixar a primeira música
+        binding.btnEmptyGo.setOnClickListener {
+            (activity as? MainActivity)?.openTab(R.id.navHome)
+        }
         // LIGAÇÃO dos botões dos itens concluídos (o clique era morto sem isto)
         adapter.onShare = { item -> shareFinished(item) }
         adapter.onPlay = { item -> playFinished(item) }
@@ -249,11 +254,20 @@ class DownloadsFragment : Fragment() {
     private fun render(items: List<DownloadBus.Item>) {
         val shown = items.filter { matchesFilter(it) }
         adapter.submit(shown)
-        binding.tvEmpty.isVisible = shown.isEmpty()
-        binding.tvEmpty.text = if (items.isEmpty()) {
-            getString(R.string.dl_empty)
-        } else {
-            getString(R.string.dl_empty_filter)
+        val b = _binding ?: return
+        b.emptyState.isVisible = shown.isEmpty()
+        if (shown.isEmpty()) {
+            if (items.isEmpty()) {
+                // lista inteira vazia: convite pra baixar a primeira música
+                b.tvEmptyTitle.text = getString(R.string.dl_empty_title)
+                b.tvEmptySub.text = getString(R.string.dl_empty_sub)
+                b.btnEmptyGo.isVisible = true
+            } else {
+                // tem download, mas o filtro (Músicas/Vídeos) esconde tudo
+                b.tvEmptyTitle.text = getString(R.string.dl_empty_filter_title)
+                b.tvEmptySub.text = getString(R.string.dl_empty_filter_sub)
+                b.btnEmptyGo.isVisible = false
+            }
         }
         binding.btnClear.isVisible = items.any {
             it.state != DownloadBus.State.RUNNING && it.state != DownloadBus.State.PAUSED

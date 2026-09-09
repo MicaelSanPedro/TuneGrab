@@ -1,5 +1,6 @@
 package com.tunegrab.app
 
+import android.media.MediaPlayer
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -22,6 +23,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.tunegrab.app.databinding.ActivityPlayerBinding
 import com.tunegrab.app.playback.PlaybackService
+import com.tunegrab.app.yt.DownloaderImpl
 import java.util.Locale
 
 /**
@@ -44,6 +46,10 @@ class PlayerActivity : AppCompatActivity() {
 
     private var isVideo = false
     private var userSeeking = false
+
+    // stream da REDE (reproduzir sem baixar): mostra spinner de carregamento
+    // e fala com o googlevideo com o mesmo User-Agent da extração
+    private var isRemote = false
 
     // faixa inicial — permite retomar pelo botão play se o serviço foi fechado
     private var initialUri: Uri? = null
@@ -111,7 +117,20 @@ class PlayerActivity : AppCompatActivity() {
         val controller = MediaController(this)
         controller.setAnchorView(binding.videoView)
         binding.videoView.setMediaController(controller)
-        binding.videoView.setVideoURI(uri)
+
+        // stream do YouTube (reproduzir sem baixar): alguns servidores do
+        // googlevideo recusam User-Agent estranho — usa o mesmo da extração
+        isRemote = uri.scheme == "http" || uri.scheme == "https"
+        if (isRemote) {
+            showBuffering(true)
+            binding.videoView.setVideoURI(
+                uri,
+                mapOf("User-Agent" to DownloaderImpl.USER_AGENT)
+            )
+        } else {
+            binding.videoView.setVideoURI(uri)
+        }
+
         binding.videoView.setOnPreparedListener { mp ->
             mp.isLooping = false
             // proporção real do arquivo (lida do MediaPlayer) → o FitVideoView
@@ -119,13 +138,32 @@ class PlayerActivity : AppCompatActivity() {
             if (mp.getVideoWidth() > 0 && mp.getVideoHeight() > 0) {
                 binding.videoView.setVideoSize(mp.getVideoWidth(), mp.getVideoHeight())
             }
+            showBuffering(false)
+            // pausa de rede no meio do vídeo (stream remoto) volta a girar o spinner
+            mp.setOnInfoListener { _, what, _ ->
+                when (what) {
+                    MediaPlayer.MEDIA_INFO_BUFFERING_START -> showBuffering(true)
+                    MediaPlayer.MEDIA_INFO_BUFFERING_END -> showBuffering(false)
+                }
+                true
+            }
             binding.videoView.start()
         }
         binding.videoView.setOnErrorListener { _, _, _ ->
-            Toast.makeText(this, R.string.player_err, Toast.LENGTH_SHORT).show()
+            showBuffering(false)
+            Toast.makeText(
+                this,
+                if (isRemote) R.string.player_err_stream else R.string.player_err,
+                Toast.LENGTH_SHORT
+            ).show()
             finish()
             true
         }
+    }
+
+    /** Spinner "carregando…" centralizado (só existe no stream remoto). */
+    private fun showBuffering(on: Boolean) {
+        binding.progressBuffer.visibility = if (on) View.VISIBLE else View.GONE
     }
 
     /**
@@ -276,5 +314,19 @@ class PlayerActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_TITLE = "title"
         const val EXTRA_IS_VIDEO = "is_video"
+
+        /** Abre o player tocando um VÍDEO direto da rede (sem baixar nada). */
+        fun remoteVideo(ctx: Context, url: String, title: String): Intent =
+            Intent(ctx, PlayerActivity::class.java)
+                .setData(Uri.parse(url))
+                .putExtra(EXTRA_TITLE, title)
+                .putExtra(EXTRA_IS_VIDEO, true)
+
+        /** Abre o player tocando só o ÁUDIO da rede (fallback do modo remote). */
+        fun remoteAudio(ctx: Context, url: String, title: String): Intent =
+            Intent(ctx, PlayerActivity::class.java)
+                .setData(Uri.parse(url))
+                .putExtra(EXTRA_TITLE, title)
+                .putExtra(EXTRA_IS_VIDEO, false)
     }
 }

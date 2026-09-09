@@ -97,6 +97,17 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Carregando stream remoto (reproduzir sem baixar): gira até o
+         MediaPlayer preparar / termina a pausa de rede -->
+    <ProgressBar
+        android:id="@+id/progressBuffer"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="center"
+        android:contentDescription="@string/player_buffering"
+        android:indeterminateTint="@color/primary"
+        android:visibility="gone" />
+
     <ImageButton
         android:id="@+id/btnClose"
         android:layout_width="44dp"

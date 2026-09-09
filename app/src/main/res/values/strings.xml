@@ -8,6 +8,7 @@
     <string name="btn_download">Baixar</string>
     <string name="cd_thumb">Miniatura do vídeo</string>
     <string name="cd_paste">Colar da área de transferência</string>
+    <string name="cd_play">Reproduzir o vídeo sem baixar</string>
     <string name="paste_empty">Nada para colar na área de transferência.</string>
 
     <string name="back">Voltar</string>
@@ -19,6 +20,7 @@
     <string name="status_idle">Pronto. Cole um link e toque em Baixar.</string>
     <string name="status_fetching">Buscando informações…</string>
     <string name="status_checking">Testando os links de download…</string>
+    <string name="status_opening_player">Abrindo o player…</string>
     <string name="status_pick_format">Escolha o formato e a qualidade 👇</string>
     <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
     <string name="status_converting">Baixando e convertendo para MP3 %1$s… acompanhe pela notificação.</string>
@@ -44,6 +46,7 @@
     <string name="err_bot_check_reason">O YouTube bloqueou o acesso anônimo e a renovação do token interno falhou (%1$s). Aguarde um pouco e toque em Baixar de novo.</string>
     <string name="err_blocked_403">O YouTube bloqueou este stream agora. Tente baixar novamente em alguns minutos.</string>
     <string name="err_streams_blocked">O YouTube bloqueou os arquivos deste vídeo agora mesmo. O TuneGrab já renovou a sessão automaticamente — toque em Baixar de novo em alguns segundos.</string>
+    <string name="err_no_stream_play">Não achei nenhuma faixa reproduzível nesse vídeo :( Tenta tocar de novo ou baixa direto.</string>
     <string name="err_network">A conexão caiu no meio do download e o TuneGrab já tentou retomar. Verifique sua internet e tente de novo.</string>
     <string name="err_unavailable">Vídeo indisponível, privado ou com restrição de idade.</string>
     <string name="err_generic_short">Não foi possível buscar este vídeo.</string>
@@ -103,8 +106,11 @@
 
     <!-- Central de downloads -->
     <string name="dl_title">Central de downloads</string>
-    <string name="dl_empty">Nenhum download aqui ainda.\nCole um link no Início e baixe sua primeira música 🎵</string>
-    <string name="dl_empty_filter">Nada neste filtro.</string>
+    <string name="dl_empty_title">Nenhum download ainda :(</string>
+    <string name="dl_empty_sub">Os downloads aparecem aqui. Cole um link no Início e baixe sua primeira música 🎵</string>
+    <string name="dl_empty_cta">Baixar primeira música</string>
+    <string name="dl_empty_filter_title">Nada neste filtro</string>
+    <string name="dl_empty_filter_sub">Troca o filtro aí em cima pra ver os outros downloads.</string>
     <string name="dl_filter_all">Tudo</string>
     <string name="dl_filter_audio">Músicas</string>
     <string name="dl_filter_video">Vídeos</string>
@@ -159,6 +165,8 @@
     <string name="player_pause">Pausar</string>
     <string name="player_close">Fechar</string>
     <string name="player_err">Não foi possível reproduzir este arquivo.</string>
+    <string name="player_err_stream">Não deu pra tocar esse vídeo. Confere a internet e tenta de novo 🙏</string>
+    <string name="player_buffering">Carregando…</string>
     <string name="player_fullscreen">Tela cheia</string>
     <string name="player_exit_fullscreen">Sair da tela cheia</string>
     <string name="notif_channel_playback">Reprodução</string>

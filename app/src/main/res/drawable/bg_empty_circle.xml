@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Círculo com o mesmo gradiente do ícone do app (violeta → fúcsia):
+     a Central vazia continua com a cara do TuneGrab. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:angle="315"
+        android:endColor="@color/icon_bg_end"
+        android:startColor="@color/icon_bg_start" />
+</shape>
