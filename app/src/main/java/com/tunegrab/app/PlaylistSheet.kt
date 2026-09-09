@@ -93,13 +93,14 @@ class PlaylistSheet(
             context.getString(R.string.pl_preparing, done + 1, total, current)
     }
 
-    /** Fila inteira preparada: resumo com falhas, se houver. */
+    /** Fila inteira preparada: resumo com falhas, se houver. Nada entrou
+     *  (ok = 0) tem mensagem própria — orienta a esperar e re-tentar. */
     fun finished(okCount: Int, failCount: Int) {
         finishPanel(
-            if (failCount == 0) {
-                context.getString(R.string.pl_done_all, okCount)
-            } else {
-                context.getString(R.string.pl_done_partial, okCount, failCount)
+            when {
+                okCount == 0 -> context.getString(R.string.pl_done_none)
+                failCount == 0 -> context.getString(R.string.pl_done_all, okCount)
+                else -> context.getString(R.string.pl_done_partial, okCount, failCount)
             }
         )
     }

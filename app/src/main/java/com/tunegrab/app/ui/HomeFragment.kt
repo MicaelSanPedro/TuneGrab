@@ -50,6 +50,9 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private var busy = false
 
+    /** Modo do seletor do topo (Vídeo/Playlist) — lembra da última escolha. */
+    private var inputMode: String = FormatPrefs.MODE_VIDEO
+
     /** Ação guardada enquanto o usuário responde o pedido de permissão. */
     private var pendingAction: (() -> Unit)? = null
 
@@ -76,6 +79,7 @@ class HomeFragment : Fragment() {
         binding.btnPlay.setOnClickListener { onPlayClicked() }
         binding.btnSettings.setOnClickListener { (activity as? MainActivity)?.openTab(R.id.navSettings) }
         binding.tilUrl.setEndIconOnClickListener { pasteFromClipboard() }
+        setupModeSelector()
         binding.inputUrl.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
                 onDownloadClicked(); true
@@ -92,6 +96,31 @@ class HomeFragment : Fragment() {
         super.onDestroyView()
         _binding = null
     }
+
+    /**
+     * Seletor do topo (v0.14.0): VÍDEO ou PLAYLIST. O app automatiza a
+     * função — o modo muda o hint do campo e decide o que o link faz.
+     */
+    private fun setupModeSelector() {
+        inputMode = FormatPrefs.lastInputMode(requireContext())
+        binding.modeGroup.check(
+            if (inputMode == FormatPrefs.MODE_PLAYLIST) R.id.modePlaylist else R.id.modeVideo
+        )
+        binding.tilUrl.hint = hintForMode()
+        binding.modeGroup.setOnCheckedStateChangeListener { group, _ ->
+            inputMode = if (group.checkedChipId == R.id.modePlaylist) {
+                FormatPrefs.MODE_PLAYLIST
+            } else {
+                FormatPrefs.MODE_VIDEO
+            }
+            FormatPrefs.rememberMode(requireContext(), inputMode)
+            binding.tilUrl.hint = hintForMode()
+        }
+    }
+
+    private fun hintForMode(): String = getString(
+        if (inputMode == FormatPrefs.MODE_PLAYLIST) R.string.hint_url_playlist else R.string.hint_url
+    )
 
     /** Link vindo de "Compartilhar → TuneGrab" ou de abrir uma URL do YouTube. */
     fun handleSharedUrl(shared: String) {
@@ -111,12 +140,25 @@ class HomeFragment : Fragment() {
             setStatus(getString(R.string.err_invalid_url))
             return
         }
-        // PLAYLIST pura (youtube.com/playlist?list=…) tem fluxo próprio:
-        // escolhe formato UMA vez, os vídeos entram na fila um a um —
-        // pelo MESMO caminho de download único (motor intocado)
+        // PLAYLIST pura (youtube.com/playlist?list=…) tem fluxo próprio SEMPRE
+        // (vídeo único não existe pra esse link) — escolhe formato UMA vez e
+        // os vídeos entram na fila um a um pelo MESMO caminho do download único
         if (YtExtractor.isPlaylistUrl(url)) {
             startPlaylist(url)
             return
+        }
+        // Seletor em PLAYLIST: watch?v=X&list=Y / youtu.be/X?list=Y vira a
+        // playlist inteira — sem precisar caçar o link /playlist
+        if (inputMode == FormatPrefs.MODE_PLAYLIST) {
+            val listId = YtExtractor.playlistIdOf(url)
+            if (listId != null) {
+                startPlaylist("https://www.youtube.com/playlist?list=$listId")
+                return
+            }
+            // vídeo puro no modo playlist: automatiza mesmo assim — baixa
+            // como vídeo único e avisa por que não abriu a fila (toast: o
+            // status da busca sobrescreveria na sequência)
+            Toast.makeText(requireContext(), R.string.pl_no_list, Toast.LENGTH_SHORT).show()
         }
         setBusy(true)
         binding.progress.visibility = View.VISIBLE
@@ -159,6 +201,11 @@ class HomeFragment : Fragment() {
         val url = extractUrl()
         if (url.isNullOrBlank()) {
             setStatus(getString(R.string.err_invalid_url))
+            return
+        }
+        // playlist não toca no player (ele é de vídeo único)
+        if (YtExtractor.isPlaylistUrl(url)) {
+            setStatus(getString(R.string.pl_play_error))
             return
         }
         setBusy(true)
@@ -268,9 +315,13 @@ class HomeFragment : Fragment() {
      * não da aba: a fila da playlist roda fora do ciclo de vida do fragment
      * e continua enfileirando mesmo com a aba Início fechada. Devolve também
      * o texto de status do fluxo único (a playlist ignora).
+     *
+     * O parâmetro [ctx] é o contexto já capturado pela fila da playlist
+     * (resolver fragment.context DEPOIS que a aba fecha devolve null e a
+     * fila inteira "falharia" — por isso a fila captura UMA vez no início).
      */
-    private fun intentFor(request: DownloadRequest): Pair<Intent, String>? {
-        val appCtx = context?.applicationContext ?: return null
+    private fun intentFor(request: DownloadRequest, ctx: Context? = null): Pair<Intent, String>? {
+        val appCtx = (ctx ?: context)?.applicationContext ?: return null
         return when (request) {
             is DownloadRequest.Mp3 -> {
                 val url = request.source.url
@@ -363,13 +414,13 @@ class HomeFragment : Fragment() {
         return intent to appCtx.getString(R.string.status_downloading)
     }
 
-    private fun launchService(intent: Intent) {
+    private fun launchService(intent: Intent, ctx: Context? = null) {
         // contexto do APP: funciona até com a aba fechada (fila da playlist)
-        val ctx = context?.applicationContext ?: return
+        val c = (ctx ?: context)?.applicationContext ?: return
         if (Build.VERSION.SDK_INT >= 26) {
-            ContextCompat.startForegroundService(ctx, intent)
+            ContextCompat.startForegroundService(c, intent)
         } else {
-            ctx.startService(intent)
+            c.startService(intent)
         }
     }
 
@@ -413,9 +464,16 @@ class HomeFragment : Fragment() {
     /**
      * Prepara os vídeos UM A UM e enfileira cada um pelo MESMO intentFor do
      * download único. Roda no escopo do APP: trocar de aba no meio não aborta
-     * (a aba é replace(); o app não morre). Respiro de 1,2s entre extrações
-     * pra não martelar o YouTube; bot-check insistente = parada limpa, e o
-     * que já entrou na fila continua baixando normalmente.
+     * (o contexto do app é capturado UMA vez aqui — fragment desanexado não
+     * quebra a fila). Respiro de 1,2s entre extrações.
+     *
+     * À PROVA DE BLOQUEIO EM BLOCO (v0.14.0 — o bug do "0 entraram · 10
+     * falharam"): se a extração NewPipe de um item falhar POR QUALQUER MOTIVO
+     * (bot-check, token queimado, faixa que sumiu…), o vídeo entra na fila do
+     * MESMO JEITO pelo PLANO A — o yt-dlp extrai/baixa/convertendo sozinho com
+     * só a URL do vídeo (o motor já faz isso no download único; nada foi
+     * mexido nele). Depois de 2 falhas seguidas as extrações passam a tentar
+     * 1× só (sem retry de 5/10s) pra fila não virar mela-mela de espera.
      */
     private fun runPlaylist(
         pl: YtExtractor.PlaylistMeta,
@@ -423,34 +481,98 @@ class HomeFragment : Fragment() {
         quality: String,
         sheet: PlaylistSheet
     ) {
+        val appCtx = context?.applicationContext ?: return
         val total = pl.items.size
         var ok = 0
         var fail = 0
+        var extractionBlocked = false
         TuneGrabApp.appScope.launch {
             for ((idx, item) in pl.items.withIndex()) {
                 if (sheet.cancelled) return@launch
                 sheet.setProgress(idx, total, item.name)
+
+                var prepared: Pair<Intent, String>? = null
                 try {
-                    val info = fetchWithRetry(item.url)
+                    val info = fetchWithRetry(item.url, if (extractionBlocked) 1 else 3)
+                    extractionBlocked = false
                     val request = playlistRequest(info, format, quality)
-                    val prepared = request?.let { intentFor(it) }
-                    if (prepared == null) throw IllegalStateException("sem faixa utilizável")
-                    launchService(prepared.first)
-                    ok++
+                    prepared = request?.let { intentFor(it, appCtx) }
                 } catch (t: Throwable) {
-                    Log.w(TAG, "playlist: '${item.name}' falhou", t)
+                    extractionBlocked = true
+                    Log.w(
+                        TAG,
+                        "playlist: extração de '${item.name}' falhou; entra direto via yt-dlp",
+                        t
+                    )
+                }
+                if (prepared == null) {
+                    // extração OK mas sem faixa utilizável (ou intent nulo):
+                    // mesmo caminho de socorro — o yt-dlp resolve por conta própria
+                    prepared = fallbackIntent(appCtx, item, format, quality)
+                }
+                if (prepared == null) {
                     fail++
-                    // bot-check depois dos re-tentativas: para bonito — a fila
-                    // mantém o que já entrou e o usuário tenta de novo depois
-                    if (t is SignInConfirmNotBotException) {
-                        sheet.stopped(idx + 1, total)
-                        return@launch
-                    }
+                } else {
+                    launchService(prepared.first, appCtx)
+                    ok++
                 }
                 delay(1200)
             }
             sheet.finished(ok, fail)
         }
+    }
+
+    /**
+     * Fallback da fila (v0.14.0): monta o intent do PLANO A com só a URL do
+     * vídeo — MESMA montagem de um pedido do seletor único sem faixa direta
+     * (o caso "stream nulo é ok quando há videoUrl" que o motor já suporta).
+     * Se o yt-dlp também falhar, o item aparece com o erro REAL na Central e
+     * dá pra tentar de novo de lá — em vez de sumir silenciosamente aqui.
+     */
+    private fun fallbackIntent(
+        appCtx: Context,
+        item: YtExtractor.PlaylistMeta.Item,
+        format: String,
+        quality: String
+    ): Pair<Intent, String>? {
+        val title = item.name.ifBlank { "video" }
+        val base = sanitize(title)
+        val intent = when (format) {
+            FormatPrefs.FORMAT_MP3 ->
+                DownloadService.mp3Intent(appCtx, title, "", "$base.mp3", quality.toIntOrNull() ?: 320)
+                    .apply {
+                        putExtra(DownloadService.EXTRA_VIDEO_URL, item.url)
+                        putExtra(DownloadService.EXTRA_FORMAT, "mp3")
+                    }
+            FormatPrefs.FORMAT_M4A -> directFallback(appCtx, title, "$base.m4a", item.url, "m4a", "audio/mp4")
+            FormatPrefs.FORMAT_OPUS -> directFallback(appCtx, title, "$base.webm", item.url, "opus", "audio/webm")
+            else ->
+                directFallback(
+                    appCtx, title,
+                    "$base.${if ((quality.toIntOrNull() ?: 1080) > 1080) "mkv" else "mp4"}",
+                    item.url, "mp4", "video/mp4"
+                ).apply {
+                    // contêiner acompanha o pedido, como no fluxo único
+                    val height = quality.toIntOrNull() ?: 1080
+                    putExtra(DownloadService.EXTRA_MAX_HEIGHT, height)
+                }
+        }
+        return intent to appCtx.getString(R.string.status_downloading)
+    }
+
+    /** Plano A puro (sem faixa direta): M4A/Opus com EXTRA_BITRATE 0 = melhor
+     *  disponível (o default do intent é 320 — passaria a impressão errada). */
+    private fun directFallback(
+        appCtx: Context,
+        title: String,
+        fileName: String,
+        videoUrl: String,
+        engineFormat: String,
+        mime: String
+    ): Intent = DownloadService.intent(appCtx, title, "", fileName, mime).apply {
+        putExtra(DownloadService.EXTRA_VIDEO_URL, videoUrl)
+        putExtra(DownloadService.EXTRA_FORMAT, engineFormat)
+        putExtra(DownloadService.EXTRA_BITRATE, 0)
     }
 
     /** Pedido de download de um vídeo da playlist — MESMA semântica do

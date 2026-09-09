@@ -220,6 +220,19 @@ object YtExtractor {
     }
 
     /**
+     * ID de playlist embutido em QUALQUER link (watch?v=X&list=Y,
+     * youtu.be/X?list=Y, /playlist?list=Y…). null quando o link não carrega
+     * list= — é vídeo puro. Usado pelo seletor Vídeo/Playlist do Início
+     * (v0.14.0): no modo Playlist, um link de vídeo com lista no bolso vira
+     * a playlist inteira sem o usuário precisar caçar o link /playlist.
+     */
+    fun playlistIdOf(raw: String): String? = try {
+        Uri.parse(raw.trim()).getQueryParameter("list")?.takeIf { it.isNotBlank() }
+    } catch (t: Throwable) {
+        null
+    }
+
+    /**
      * Busca os metadados da playlist (título, canal, itens). Só LISTA —
      * nada é baixado aqui. Cada vídeo entra depois na fila normal pelo
      * mesmo caminho de sempre (extração por vídeo + DownloadService).

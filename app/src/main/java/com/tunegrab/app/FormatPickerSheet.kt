@@ -61,6 +61,7 @@ object FormatPrefs {
     private const val KEY_LAST_FORMAT = "last_format"
     private const val KEY_MP3_BITRATE = "mp3_bitrate"
     private const val KEY_M4A_PICK = "m4a_pick"
+    private const val KEY_INPUT_MODE = "input_mode"
 
     const val FORMAT_MP3 = "mp3"
     const val FORMAT_M4A = "m4a"
@@ -68,6 +69,10 @@ object FormatPrefs {
     const val FORMAT_MP4 = "mp4"
     const val PICK_BEST = "best"
     const val PICK_SMALL = "small"
+
+    /** Seletor do Início (v0.14.0): vídeo único ou playlist. */
+    const val MODE_VIDEO = "video"
+    const val MODE_PLAYLIST = "playlist"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
@@ -84,6 +89,13 @@ object FormatPrefs {
     fun setMp3DefaultBitrate(ctx: Context, kbps: Int) = prefs(ctx).edit().putInt(KEY_MP3_BITRATE, kbps).apply()
     fun m4aPick(ctx: Context): String = prefs(ctx).getString(KEY_M4A_PICK, PICK_BEST) ?: PICK_BEST
     fun setM4aPick(ctx: Context, pick: String) = prefs(ctx).edit().putString(KEY_M4A_PICK, pick).apply()
+
+    /** Modo do seletor do Início (vídeo/playlist) — sobrevive a fechar o app. */
+    fun lastInputMode(ctx: Context): String =
+        prefs(ctx).getString(KEY_INPUT_MODE, MODE_VIDEO) ?: MODE_VIDEO
+    fun rememberMode(ctx: Context, mode: String) {
+        prefs(ctx).edit().putString(KEY_INPUT_MODE, mode).apply()
+    }
 }
 
 /**

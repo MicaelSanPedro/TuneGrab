@@ -5,6 +5,9 @@
     <string name="app_sub">Baixe o áudio de vídeos do YouTube</string>
 
     <string name="hint_url">Cole o link do YouTube aqui</string>
+    <string name="hint_url_playlist">Cole o link da playlist aqui</string>
+    <string name="mode_video">Vídeo</string>
+    <string name="mode_playlist">Playlist</string>
     <string name="btn_download">Baixar</string>
     <string name="cd_thumb">Miniatura do vídeo</string>
     <string name="cd_paste">Colar da área de transferência</string>
@@ -62,6 +65,9 @@
     <string name="pl_preparing">Preparando %1$d de %2$d… %3$s</string>
     <string name="pl_done_all">Playlist na fila! 🎉 %1$d vídeos entraram</string>
     <string name="pl_done_partial">Fila pronta: %1$d entraram · %2$d falharam</string>
+    <string name="pl_done_none">Nada entrou na fila :( — o YouTube travou tudo. Espera 1 minutinho e tenta de novo</string>
+    <string name="pl_no_list">Esse link não tem playlist — baixando como vídeo único</string>
+    <string name="pl_play_error">Reproduzir é só pra vídeo único — playlist usa o botão Baixar</string>
     <string name="pl_stopped">Parou no vídeo %1$d de %2$d (verificação do YouTube). O que já entrou segue baixando — tenta de novo em 1 minutinho.</string>
     <string name="pl_q_best">Melhor disponível</string>
     <string name="pl_q_small">Menor arquivo</string>
