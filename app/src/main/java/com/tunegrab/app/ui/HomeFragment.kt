@@ -851,7 +851,15 @@ class HomeFragment : Fragment() {
             .take(80)
             .ifBlank { "audio" }
 
-    private fun friendlyError(t: Throwable): String = when (t) {
+    private fun friendlyError(t: Throwable): String {
+        // MODO DE RESGATE bloqueado TAMBÉM (YoutubeDLException do yt-dlp ou
+        // IllegalStateException do DlpMetadata com bot-check na mensagem): a
+        // v0.18.5 manda a orientação honesta em vez do dump bruto em inglês.
+        // As exceções próprias do NewPipe continuam nos ramos de baixo.
+        if (t !is SignInConfirmNotBotException && t !is ReCaptchaException && isBotCheckBlock(t)) {
+            return getString(R.string.err_bot_check_dlp)
+        }
+        return when (t) {
         is ReCaptchaException -> getString(R.string.err_recaptcha)
         is ContentNotAvailableException -> getString(R.string.err_unavailable)
         // antes de ParsingException: é subclasse dela, e a mensagem genérica
@@ -866,6 +874,7 @@ class HomeFragment : Fragment() {
         }
         is ParsingException, is IllegalArgumentException -> getString(R.string.err_invalid_url)
         else -> "${t.javaClass.simpleName}: ${t.message ?: getString(R.string.err_generic_short)}"
+        }
     }
 
     private fun setStatus(text: String) {

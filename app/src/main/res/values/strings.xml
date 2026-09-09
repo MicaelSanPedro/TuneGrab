@@ -59,6 +59,7 @@
     <string name="err_bot_check_reason">O YouTube bloqueou o acesso anônimo e a renovação do token interno falhou (%1$s). Aguarde um pouco e toque em Baixar de novo.</string>
     <string name="err_blocked_403">O YouTube bloqueou este stream agora. Tente baixar novamente em alguns minutos.</string>
     <string name="err_streams_blocked">O YouTube bloqueou os arquivos deste vídeo agora mesmo. O TuneGrab já renovou a sessão automaticamente — toque em Baixar de novo em alguns segundos.</string>
+    <string name="err_bot_check_dlp">O YouTube bloqueou TAMBÉM o motor de resgate neste vídeo — é bloqueio temporário da sua rede/IP. Troque de rede (Wi-Fi ↔ 4G/5G), espere alguns minutos e tente de novo.</string>
     <string name="err_no_stream_play">Não achei nenhuma faixa reproduzível nesse vídeo :( Tenta tocar de novo ou baixa direto.</string>
 
     <!-- Playlist (v0.13.0) -->

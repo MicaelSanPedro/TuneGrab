@@ -108,37 +108,97 @@ object DlpMetadata {
 
     /**
      * yt-dlp --dump-single-json (leitura de metadados, NADA baixa). Mesmas
-     * medidas anti-bot-check do motor: socket timeout curto e espaçamento de
-     * requests. O stdout do yt-dlp com -J é EXATAMENTE o JSON (logs vão para
-     * o stderr, que o execute() separa em response.err).
+     * medidas anti-bot-check do motor: socket timeout curto, espaçamento de
+     * requests e — desde a v0.18.5 — ROTAÇÃO DE CLIENTS entre tentativas
+     * (default → visionos → tv_embedded), a MESMA lista comprovada de ponta
+     * a ponta pelo motor de download (YtDlpEngine, prova 2026-09-08). Sem
+     * isso, o client default bot-checked virava erro cego na tela do usuário.
+     * O stdout do yt-dlp com -J é EXATAMENTE o JSON (logs vão para o stderr,
+     * que o execute() separa em response.err).
      */
     private fun dumpJson(url: String, flatPlaylist: Boolean): JSONObject {
-        val req = YoutubeDLRequest(url).apply {
-            addOption("--no-warnings")
-            addOption("--socket-timeout", "20")
-            // espaça as chamadas ao innertube — mesma higiene do motor
-            addOption("--sleep-requests", "1")
-            if (flatPlaylist) {
-                addOption("--flat-playlist")
-            } else {
-                // watch?v=X&list=Y no modo vídeo: só o vídeo, como sempre
-                addOption("--no-playlist")
+        var attempt = 0
+        while (true) {
+            val client = clientFor(attempt)
+            val req = YoutubeDLRequest(url).apply {
+                addOption("--no-warnings")
+                addOption("--socket-timeout", "20")
+                // espaça as chamadas ao innertube — mesma higiene do motor
+                addOption("--sleep-requests", "1")
+                if (client != null) {
+                    addOption("--extractor-args", "youtube:player_client=$client")
+                }
+                if (flatPlaylist) {
+                    addOption("--flat-playlist")
+                } else {
+                    // watch?v=X&list=Y no modo vídeo: só o vídeo, como sempre
+                    addOption("--no-playlist")
+                }
+                addOption("--dump-single-json")
             }
-            addOption("--dump-single-json")
+            // forma posicional (request, processId, callback) — a mesma que o
+            // motor usa para evitar ambiguidade de sobrecarga no execute().
+            // ProcessId NOVO a cada tentativa: cada retry é um processo novo
+            // (novo desafio de extração), igual ao motor.
+            val processId = UUID.randomUUID().toString()
+            try {
+                val response = YoutubeDL.execute(req, processId, { _, _, _ -> })
+                val out = response.out.trim()
+                if (out.isNotEmpty()) {
+                    Log.d(
+                        TAG,
+                        "metadados ok (client=${client ?: "default"}, ${out.length} bytes, flat=$flatPlaylist)"
+                    )
+                    return JSONObject(out)
+                }
+                // stdout vazio com erro do YouTube na saída de erro: embute a
+                // mensagem real — se for bot-check, o catch abaixo rotaciona
+                throw IllegalStateException(
+                    "yt-dlp não devolveu metadados" +
+                        response.err.take(200).let { if (it.isBlank()) "" else ": $it" }
+                )
+            } catch (e: Exception) {
+                attempt++
+                val msg = ((e.message ?: "") + " " + (e.cause?.message ?: "")).lowercase()
+                if (attempt <= RETRY_CLIENTS.size && BOT_CHECK_MARKERS.any { it in msg }) {
+                    Log.w(
+                        TAG,
+                        "bot-check na leitura de metadados (tentativa $attempt/${RETRY_CLIENTS.size + 1}, próximo client=${clientFor(attempt) ?: "default"}); re-tentando",
+                        e
+                    )
+                    // respiro crescente entre tentativas — martelar piora a
+                    // reputação do IP (lição da v0.3.2)
+                    Thread.sleep(1500L * attempt)
+                } else {
+                    throw e
+                }
+            }
         }
-        // forma posicional (request, processId, callback) — a mesma que o
-        // motor usa para evitar ambiguidade de sobrecarga no execute()
-        val processId = UUID.randomUUID().toString()
-        val response = YoutubeDL.execute(req, processId, { _, _, _ -> })
-        val out = response.out.trim()
-        if (out.isEmpty()) {
-            throw IllegalStateException(
-                "yt-dlp não devolveu metadados" + response.err.take(200).let { if (it.isBlank()) "" else ": $it" }
-            )
-        }
-        Log.d(TAG, "metadados ok (${out.length} bytes, flat=$flatPlaylist)")
-        return JSONObject(out)
     }
+
+    /**
+     * Rotação de clients do innertube entre tentativas — os MESMOS clients
+     * comprovados pelo motor de download (YtDlpEngine.RETRY_CLIENTS, prova
+     * de download real 2026-09-08): tentativa 0 = default do yt-dlp (que se
+     * auto-protege), retries forçam visionos e tv_embedded.
+     */
+    private val RETRY_CLIENTS = listOf("visionos", "tv_embedded")
+
+    private fun clientFor(attempt: Int): String? = RETRY_CLIENTS.getOrNull(attempt - 1)
+
+    /**
+     * Marcadores do bot-check na mensagem do erro (mesma família do motor +
+     * recaptcha do desafio web). Contra a mensagem minúscula.
+     */
+    private val BOT_CHECK_MARKERS = listOf(
+        "not a bot",
+        "sign in to confirm",
+        "confirm you're not",
+        "too many requests",
+        "http error 429",
+        "requested format is not available",
+        "recaptcha"
+    )
 
     private fun parseVideo(json: JSONObject): VideoMeta {
         val formats = json.optJSONArray("formats") ?: JSONArray()
