@@ -23,17 +23,20 @@
                 android:layout_weight="1"
                 android:orientation="vertical">
 
-                <!-- Nome do app como letreiro de led rolante (v0.16.0):
-                     o texto desliza em loop e acende na faixa de luz -->
-                <com.tunegrab.app.ui.MarqueeLedView
+                <!-- Nome do app na fonte do autor com LED passando (v0.16.1):
+                     o letreiro rolante da v0.16.0 movia o TEXTO por uma faixa de
+                     luz FIXA — fora dela o texto apagava e só acendia ao passar
+                     no centro (parecia pisca-pisca). Agora é igual à assinatura
+                     do splash: texto parado, a LUZ é que varre em loop -->
+                <com.tunegrab.app.ui.LedTextView
                     android:id="@+id/ledAppName"
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
+                    android:fontFamily="@font/aston_script"
                     android:text="@string/home_led"
                     android:textColor="@color/primary"
-                    android:textSize="26sp"
-                    android:textStyle="bold" />
+                    android:textSize="30sp" />
 
                 <TextView
                     android:layout_width="wrap_content"

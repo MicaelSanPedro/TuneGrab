@@ -260,6 +260,7 @@ clients anônimos com iOS à frente.
 - [x] **Loader de abertura: "Bem-vindo" em cursiva (Great Vibes) + assinatura "feito por micaelsan" discreta com o nome brilhando em efeito de led passando** (v0.15.0)
 - [x] **Ajuste da splash: "bem-vindo" em minúsculas (o B maiúsculo da cursiva tem um swash que parecia um "o" solto na tela) + espaço pro rabinho do "o" final não cortar** (v0.15.1)
 - [x] **"bem-vindo" na ASTON SCRIPT (fonte do autor, em TTF) com autoSize (nunca mais corta "bem vin…" em nenhuma tela/escala de fonte) + nome do app no Início virou LETREIRO DE LED ROLANTE (texto desliza e acende na faixa de luz)** (v0.16.0)
+- [x] **FIM do pisca-pisca: o "TuneGrab" do Início voltou a ser igual à assinatura do splash (texto PARADO, a luz varre — o letreiro rolante movia o texto por uma faixa fixa e apagava fora dela) + "bem-vindo" com altura FIXA (o autoSize com wrap_content deixava a view mais baixa que a linha da fonte e cortava o texto ao meio)** (v0.16.1)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

@@ -14,7 +14,9 @@ import androidx.appcompat.widget.AppCompatTextView
  * XML; o brilho é um LinearGradient animado no shader do paint — nenhum
  * bitmap, nenhuma view extra, roda em qualquer API >= 21.
  *
- * Usado na assinatura da SplashActivity ("feito por micaelsan").
+ * Usado na assinatura da SplashActivity ("feito por micaelsan") e no nome do
+ * app no header do Início ("♪ TuneGrab ♪", v0.16.1 — troca o letreiro rolante
+ * que piscava: aqui o texto fica PARADO, só a luz varre).
  */
 class LedTextView @JvmOverloads constructor(
     context: Context,
@@ -32,6 +34,13 @@ class LedTextView @JvmOverloads constructor(
         super.onSizeChanged(w, h, oldw, oldh)
         // o shader precisa da largura final do texto — só liga depois do layout
         if (w > 0 && sweep == null) startSweep(w)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        // troca de aba destrói/recria a view do fragmento: ao voltar pro Início,
+        // o led religa sozinho mesmo sem passar por onSizeChanged de novo
+        if (width > 0 && sweep == null) startSweep(width)
     }
 
     override fun onDetachedFromWindow() {

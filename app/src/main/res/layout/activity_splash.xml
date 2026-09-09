@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Loader de abertura (v0.16.0): logo, "bem-vindo" na Aston Script (fonte do
-     próprio autor do app) com autoSize — o texto encolhe sozinho pra caber em
-     qualquer tela/escala de fonte (mata o bug do corte "bem vin…") — e a
-     assinatura "feito por micaelsan" com o nome em LedTextView -->
+<!-- Loader de abertura (v0.16.1): logo, "bem-vindo" na Aston Script (fonte do
+     próprio autor do app) e a assinatura "feito por micaelsan" com o nome em
+     LedTextView. O texto tem ALTURA FIXA: o autoSize com wrap_content deixava
+     a view mais baixa que a própria linha da fonte (a Aston Script tem caixa
+     de linha de 2,175em) e o Android cortava metade do texto — com altura
+     fixa o autoSize só escolhe o tamanho pela largura e a caixa nunca aperta. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -25,19 +27,21 @@
             android:contentDescription="@string/app_name"
             android:src="@mipmap/ic_launcher" />
 
-        <!-- autoSize: nunca corta nem quebra linha — o Android acha o tamanho
-             que cabe, em qualquer aparelho/escala de fonte do sistema -->
+        <!-- autoSize pela LARGURA + altura FIXA de 124dp (caixa cheia do tamanho
+             máximo, 56sp × 2,175em = 122dp): o texto nunca é cortado — nem em
+            baixo (altura fixa, era o bug do corte ao meio), nem pela largura
+             (autoSize acha o tamanho que cabe em qualquer tela/escala) -->
         <TextView
             android:id="@+id/txtWelcome"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="124dp"
             android:layout_marginTop="20dp"
             android:fontFamily="@font/aston_script"
             android:gravity="center"
             android:text="@string/splash_welcome"
             android:textColor="@color/on_background"
             app:autoSizeMaxTextSize="56sp"
-            app:autoSizeMinTextSize="30sp"
+            app:autoSizeMinTextSize="24sp"
             app:autoSizeStepGranularity="1sp"
             app:autoSizeTextType="uniform" />
 
