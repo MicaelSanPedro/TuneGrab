@@ -159,4 +159,10 @@
     <string name="notif_channel_playback">Reprodução</string>
     <string name="notif_channel_playback_desc">Controles da música que está tocando em segundo plano</string>
     <string name="dl_not_found">Arquivo não encontrado para compartilhar — confira na aba Biblioteca.</string>
+
+    <!-- Atualização (Fase 1 do auto-update: aviso + link da release) -->
+    <string name="upd_available">TuneGrab %s disponível 🎉</string>
+    <string name="upd_open">Ver no GitHub</string>
+    <string name="upd_no_notes">Sem notas de versão.</string>
+    <string name="cd_close_update">Dispensar aviso de atualização</string>
 </resources>

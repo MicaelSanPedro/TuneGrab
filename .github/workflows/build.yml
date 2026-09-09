@@ -21,6 +21,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Histórico completo: as notas da release (que viram o changelog do
+          # card de atualização dentro do app) são geradas do log de commits.
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -67,12 +71,27 @@ jobs:
           cp app/build/outputs/apk/release/*.apk "app/build/outputs/apk/release/TuneGrab-${VERSION}.apk"
           cp app/build/outputs/apk/debug/*.apk "app/build/outputs/apk/debug/TuneGrab-${VERSION}-debug.apk"
 
+      - name: Release notes (commits desde a tag anterior)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          {
+            echo "### Novidades"
+            echo
+            PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+            if [ -n "$PREV" ]; then
+              git log --format='- %s' "${PREV}..${GITHUB_REF_NAME}"
+            else
+              echo "- Primeira release pública 🎉"
+            fi
+          } > body.md
+          echo "--- body.md ---"; cat body.md
+
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: "${{ github.ref_name }} — Stable"
+          body_path: body.md
           files: |
             app/build/outputs/apk/release/TuneGrab-*.apk
             app/build/outputs/apk/debug/TuneGrab-*.apk
-          generate_release_notes: true

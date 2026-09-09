@@ -26,6 +26,7 @@ import com.tunegrab.app.databinding.FragmentDownloadsBinding
 import com.tunegrab.app.databinding.ItemDownloadBinding
 import com.tunegrab.app.download.DownloadBus
 import com.tunegrab.app.download.DownloadService
+import com.tunegrab.app.update.UpdateChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -97,11 +98,39 @@ class DownloadsFragment : Fragment() {
                 DownloadBus.items.collect { render(it) }
             }
         }
+
+        // Fase 1 do update automático: consulta o GitHub (throttle 6h, falha
+        // silenciosa) e mostra o card SE existir versão mais nova. Fora do
+        // repeatOnLifecycle de propósito: 1 consulta por abertura, não 1 por
+        // frame de STARTED.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val info = UpdateChecker.check(requireContext())
+            if (info != null && _binding != null) showUpdateCard(info)
+        }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    /** Card "nova versão disponível": changelog + link da release + dispensar. */
+    private fun showUpdateCard(info: UpdateChecker.UpdateInfo) {
+        val b = _binding ?: return
+        b.cardUpdate.isVisible = true
+        b.tvUpdateTitle.text = getString(R.string.upd_available, info.version)
+        b.tvUpdateNotes.text = info.notes.ifBlank { getString(R.string.upd_no_notes) }
+        b.btnUpdate.setOnClickListener {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.url)))
+            } catch (t: Throwable) {
+                // sem navegador no aparelho — card continua lá, nada quebra
+            }
+        }
+        b.btnCloseUpdate.setOnClickListener {
+            b.cardUpdate.isVisible = false
+            UpdateChecker.dismiss(requireContext(), info.version)
+        }
     }
 
     private fun sendControl(intent: Intent) {
