@@ -139,6 +139,11 @@ object YtDlpEngine {
                     addOption("--audio-quality", "${preset.bitrateKbps}")
                     // ID3 com título/artista, como o yt-dlp faz no desktop
                     addOption("--add-metadata")
+                    // CAPA NO ARQUIVO (v0.19.0, pedido do autor): thumbnail
+                    // do vídeo vira capa ID3 (webp → jpg automático pelo
+                    // ffmpeg embutido). Falha de capa não derruba o download
+                    // (rede de segurança no catch abaixo).
+                    addOption("--embed-thumbnail")
                 }
                 is Preset.M4a -> {
                     // TOLERÂNCIA +16: o YouTube reporta abr fracionário (ex.: itag 140
@@ -156,6 +161,12 @@ object YtDlpEngine {
                     addOption("-f", filter)
                     addOption("-x")
                     addOption("--audio-format", "m4a")
+                    // CAPA + TÍTULO/ARTISTA dentro do arquivo (v0.19.0, pedido
+                    // do autor — "independente do formato"): capa no átomo
+                    // covr do MP4 via ffmpeg embutido. Falha de capa não
+                    // derruba o download (rede de segurança no catch abaixo).
+                    addOption("--embed-thumbnail")
+                    addOption("--embed-metadata")
                 }
                 is Preset.Opus -> {
                     // mesma tolerância do M4A (abr reportado: 158 vs chip "160")
@@ -169,6 +180,13 @@ object YtDlpEngine {
                     addOption("-f", filter)
                     addOption("-x")
                     addOption("--audio-format", "opus")
+                    // CAPA + METADADOS (v0.19.0, pedido do autor): o -x
+                    // --audio-format opus repacka o webm em OGG/Opus — e o
+                    // OGG aceita a capa embutida (METADATA_BLOCK_PICTURE via
+                    // ffmpeg embutido). Falha de capa não derruba o download
+                    // (rede de segurança no catch abaixo).
+                    addOption("--embed-thumbnail")
+                    addOption("--embed-metadata")
                 }
                 is Preset.Mp4 -> {
                     // TETO 4K: 8K (4320p) saiu do app — arquivo gigante para
@@ -242,8 +260,25 @@ object YtDlpEngine {
             } catch (e: YoutubeDL.CanceledException) {
                 throw e // pausa/cancelamento pedidos pelo usuário: NUNCA re-tentar
             } catch (e: Exception) {
-                attempt++
                 val msg = (e.message ?: "").lowercase()
+                // REDE DE SEGURANÇA DA CAPA (v0.19.0): a capa/metadados são
+                // bônus — se o postprocessor de embedding falhar (thumbnail
+                // estranha, ffmpeg resmungando) MAS o áudio já estiver em pé
+                // no diretório, ENTREGA o arquivo em vez de falhar. Sem isso,
+                // um vídeo sem thumbnail jogaria fora o áudio bom.
+                if (COVER_FAIL_MARKERS.any { it in msg }) {
+                    val produced = outDir.listFiles()
+                        ?.filter { it.isFile && it.length() > MIN_BYTES }
+                        ?.maxByOrNull { it.lastModified() }
+                    if (produced != null) {
+                        Log.w(
+                            TAG,
+                            "capa/metadados falharam ($msg); entregando o áudio sem capa: ${produced.name}"
+                        )
+                        return produced
+                    }
+                }
+                attempt++
                 if (attempt <= BOT_CHECK_RETRIES && BOT_CHECK_MARKERS.any { it in msg }) {
                     // O bot-check do YouTube ("Sign in to confirm you're not a
                     // bot") depende da reputação do IP E do client do innertube
@@ -294,6 +329,15 @@ object YtDlpEngine {
         "too many requests",
         "http error 429",
         "requested format is not available"
+    )
+
+    /** Erros de capa/metadados NÃO falham o download: com o áudio em pé no
+     *  diretório, ele é entregue sem capa (a capa é bônus, não produto). */
+    private val COVER_FAIL_MARKERS = listOf(
+        "thumbnail",
+        "atomicparsley",
+        "embed",
+        "metadata"
     )
 
     /** Resposta menor que isso é página de erro, não mídia. */

@@ -156,8 +156,7 @@
     <!-- Barrinhas de DJ / visualizador de áudio (v0.18.7) -->
     <string name="settings_player">Player</string>
     <string name="settings_visualizer">Barrinhas de áudio no player</string>
-    <string name="settings_visualizer_hint">Espectro REAL do som que está tocando (graves à esquerda, agudos à direita) — não é animação e NÃO precisa de permissão nenhuma: o app lê o áudio por dentro do próprio player.</string>
-    <string name="player_volume">Volume</string>
+    <string name="settings_visualizer_hint">Espectro REAL do som que está tocando (grave no centro, agudo nas pontas, espelhado como mesa de DJ) — não é animação e NÃO precisa de permissão nenhuma: o app lê o áudio por dentro do próprio player.</string>
 
     <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>
@@ -233,6 +232,8 @@
     <!-- Player -->
     <string name="player_play">Reproduzir</string>
     <string name="player_pause">Pausar</string>
+    <string name="player_previous">Faixa anterior</string>
+    <string name="player_next">Próxima faixa</string>
     <string name="player_close">Fechar</string>
     <string name="player_err">Não foi possível reproduzir este arquivo.</string>
     <string name="player_err_stream">Não deu pra tocar esse vídeo. Tenta de novo em instantes 🙏</string>

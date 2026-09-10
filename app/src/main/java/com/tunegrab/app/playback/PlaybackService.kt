@@ -52,10 +52,21 @@ import com.tunegrab.app.yt.DownloaderImpl
  */
 class PlaybackService : Service() {
 
+    /** Faixa da fila: uri + título de exibição. */
+    data class Track(val uri: Uri, val title: String)
+
     private var player: ExoPlayer? = null
     private var session: MediaSessionCompat? = null
     private var uri: Uri? = null
     private var trackTitle: String = ""
+
+    // FILA da Biblioteca (v0.19.0, pedido do autor: passar pra próxima e
+    // voltar pra anterior): a aba Músicas entrega a lista de faixas visíveis
+    // (na ordem da tela) + o índice da faixa aberta. A faixa que ACABA pula
+    // sozinha pra próxima; sem fila (áudio remoto, handoff de vídeo) a
+    // navegação fica desligada e o comportamento é o de sempre.
+    private var queue: List<Track> = emptyList()
+    private var queueIndex = -1
 
     // posição inicial da faixa (handoff do vídeo: saiu do app com vídeo
     // tocando e o áudio segue aqui DE ONDE parou)
@@ -109,8 +120,16 @@ class PlaybackService : Service() {
 
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
-            // fim da faixa: para em "pausado no fim" — play volta do zero
-            if (playbackState == Player.STATE_ENDED) refreshMediaState()
+            if (playbackState == Player.STATE_ENDED) {
+                // fim da faixa COM fila: pula sozinho pra próxima (player de
+                // música de verdade); na última faixa (ou sem fila), para em
+                // "pausado no fim" — play volta do zero, como sempre
+                if (hasNext()) {
+                    goTo(queueIndex + 1)
+                } else {
+                    refreshMediaState()
+                }
+            }
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -178,11 +197,75 @@ class PlaybackService : Service() {
         refreshMediaState()
     }
 
+    // ---------- FILA (v0.19.0): próxima / anterior ----------
+
+    fun hasNext(): Boolean = queue.isNotEmpty() && queueIndex < queue.size - 1
+
+    /** Anterior sempre responde: antes da 1ª faixa (ou depois de 3s tocando)
+     *  reinicia a atual — comportamento clássico dos players de música. */
+    fun hasPrevious(): Boolean = queue.isNotEmpty() &&
+        (queueIndex > 0 || position() > PREVIOUS_RESTART_MS)
+
+    fun skipNext() {
+        if (!hasNext()) return
+        goTo(queueIndex + 1)
+    }
+
+    fun skipPrevious() {
+        if (queue.isEmpty()) return
+        if (position() > PREVIOUS_RESTART_MS) {
+            seekTo(0)
+        } else if (queueIndex > 0) {
+            goTo(queueIndex - 1)
+        } else {
+            seekTo(0)
+        }
+    }
+
+    /** Título da faixa corrente — a PlayerActivity usa pra sincronizar o
+     *  cartão de arte e o título quando a fila pula de faixa. */
+    fun currentTitle(): String = trackTitle
+
+    fun currentUri(): Uri? = uri
+
+    /** Entra na faixa do índice pedido: troca uri/título, prepara o player
+     *  do zero e refaz notificação/sessão. Funciona também com o player
+     *  morto (faixa pula pela NOTIFICAÇÃO depois de fechada — o serviço
+     *  revive igual no toggle). */
+    private fun goTo(index: Int) {
+        val t = queue.getOrNull(index) ?: return
+        queueIndex = index
+        uri = t.uri
+        trackTitle = t.title
+        if (player == null) {
+            // serviço revivido pela notificação: foreground JÁ (contrato do
+            // startForegroundService) antes de preparar o áudio
+            createChannel()
+            startForeground(NOTIF_ID, buildNotification(playing = false))
+        }
+        startTrack()
+    }
+
     // ---------- ciclo do serviço ----------
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_PLAY -> {
+                // fila (v0.19.0): extras opcionais — sem eles, fila vazia
+                // (áudio remoto, handoff de vídeo): navegação desligada
+                val uris = intent.getStringArrayListExtra(EXTRA_QUEUE_URIS)
+                val titles = intent.getStringArrayListExtra(EXTRA_QUEUE_TITLES)
+                val idx = intent.getIntExtra(EXTRA_QUEUE_INDEX, -1)
+                queue = if (uris != null && titles != null && idx >= 0 &&
+                    uris.size == titles.size
+                ) {
+                    uris.mapNotNull { u -> u.toUriOrNull() }
+                        .zip(titles) { u, t -> Track(u, t) }
+                        .takeIf { it.size == uris.size }
+                } else {
+                    emptyList()
+                }
+                queueIndex = if (queue.isNotEmpty() && idx < queue.size) idx else -1
                 uri = intent.data
                 trackTitle = intent.getStringExtra(EXTRA_TITLE) ?: ""
                 pendingStartMs = intent.getIntExtra(EXTRA_START_MS, 0)
@@ -193,6 +276,8 @@ class PlaybackService : Service() {
                 startTrack()
             }
             ACTION_TOGGLE -> toggle()
+            ACTION_NEXT -> skipNext()
+            ACTION_PREVIOUS -> skipPrevious()
             ACTION_STOP -> stopNow()
             else -> {
                 // reinício sem ação (ex.: processo revivido): nada a tocar
@@ -317,6 +402,8 @@ class PlaybackService : Service() {
             override fun onPlay() = resume()
             override fun onPause() = pause()
             override fun onSeekTo(pos: Long) = seekTo(pos.toInt())
+            override fun onSkipToNext() = skipNext()
+            override fun onSkipToPrevious() = skipPrevious()
             override fun onStop() = stopNow()
         })
         s.isActive = true
@@ -333,6 +420,8 @@ class PlaybackService : Service() {
                     PlaybackStateCompat.ACTION_PLAY
                         or PlaybackStateCompat.ACTION_PAUSE
                         or PlaybackStateCompat.ACTION_SEEK_TO
+                        or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+                        or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
                         or PlaybackStateCompat.ACTION_STOP
                 )
                 .setState(
@@ -362,10 +451,23 @@ class PlaybackService : Service() {
         .setContentTitle(trackTitle)
         .setContentText(getString(R.string.app_name))
         .setContentIntent(contentIntent())
+        // fila (v0.19.0): anterior e próxima na notificação/cartão de mídia
+        // (só aparecem úteis quando existem — nas pontas da fila o sistema
+        // entrega o toque e o serviço simplesmente não pula)
+        .addAction(
+            R.drawable.ic_skip_previous,
+            getString(R.string.player_previous),
+            serviceIntent(5, ACTION_PREVIOUS)
+        )
         .addAction(
             if (playing) R.drawable.ic_pause else R.drawable.ic_play,
             getString(if (playing) R.string.player_pause else R.string.player_play),
             serviceIntent(1, ACTION_TOGGLE)
+        )
+        .addAction(
+            R.drawable.ic_skip_next,
+            getString(R.string.player_next),
+            serviceIntent(6, ACTION_NEXT)
         )
         .addAction(
             R.drawable.ic_close,
@@ -375,7 +477,7 @@ class PlaybackService : Service() {
         .setStyle(
             androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(ensureSession().sessionToken)
-                .setShowActionsInCompactView(0)
+                .setShowActionsInCompactView(0, 1, 2)
         )
         // arrastável: FECHAR O CARTÃO PARA O SOM (deleteIntent abaixo) — o
         // áudio fantasma que só morria na forçar-parada acabou
@@ -429,25 +531,55 @@ class PlaybackService : Service() {
         const val ACTION_PLAY = "com.tunegrab.app.playback.PLAY"
         const val ACTION_TOGGLE = "com.tunegrab.app.playback.TOGGLE"
         const val ACTION_STOP = "com.tunegrab.app.playback.STOP"
+        const val ACTION_NEXT = "com.tunegrab.app.playback.NEXT"
+        const val ACTION_PREVIOUS = "com.tunegrab.app.playback.PREVIOUS"
         const val EXTRA_TITLE = "title"
         const val EXTRA_START_MS = "start_ms"
+        const val EXTRA_QUEUE_URIS = "queue_uris"
+        const val EXTRA_QUEUE_TITLES = "queue_titles"
+        const val EXTRA_QUEUE_INDEX = "queue_index"
+
+        /** Acima disso, "anterior" reinicia a faixa em vez de voltar. */
+        private const val PREVIOUS_RESTART_MS = 3000
         private const val CHANNEL_ID = "tunegrab_playback"
         private const val NOTIF_ID = 200
 
         /** True entre onCreate/onDestroy — evita startForegroundService órfão. */
         private var running = false
 
+        /** "content://..." → Uri sem estourar exceção (uri podre na fila = fora). */
+        private fun String.toUriOrNull(): Uri? = try {
+            Uri.parse(this).takeIf { it.toString().isNotBlank() }
+        } catch (ignored: Throwable) {
+            null
+        }
+
         /**
          * Toca (ou substitui) a faixa em [uri] — áudio segue em 2º plano.
          * [startMs] retoma no meio da faixa (miniplayer: quando o usuário sai
          * do app com um VÍDEO tocando, o som continua aqui de onde parou).
+         * [queueUris]/[queueTitles]/[queueIndex]: fila da Biblioteca (v0.19.0)
+         * — permite próxima/anterior e o avanço automático no fim da faixa.
          */
-        fun play(ctx: Context, uri: Uri, title: String, startMs: Int = 0) {
+        fun play(
+            ctx: Context,
+            uri: Uri,
+            title: String,
+            startMs: Int = 0,
+            queueUris: List<String>? = null,
+            queueTitles: List<String>? = null,
+            queueIndex: Int = -1
+        ) {
             val i = Intent(ctx, PlaybackService::class.java)
                 .setAction(ACTION_PLAY)
                 .setData(uri)
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_START_MS, startMs)
+            if (!queueUris.isNullOrEmpty() && !queueTitles.isNullOrEmpty() && queueIndex >= 0) {
+                i.putStringArrayListExtra(EXTRA_QUEUE_URIS, ArrayList(queueUris))
+                i.putStringArrayListExtra(EXTRA_QUEUE_TITLES, ArrayList(queueTitles))
+                i.putExtra(EXTRA_QUEUE_INDEX, queueIndex)
+            }
             ContextCompat.startForegroundService(ctx, i)
         }
 

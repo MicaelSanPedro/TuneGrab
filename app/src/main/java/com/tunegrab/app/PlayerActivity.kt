@@ -3,8 +3,9 @@ package com.tunegrab.app
 import android.app.PictureInPictureParams
 import android.app.PendingIntent
 import android.app.RemoteAction
+import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
-import android.media.AudioManager
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.content.ComponentName
 import android.content.Context
@@ -29,6 +30,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -40,6 +42,10 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.tunegrab.app.databinding.ActivityPlayerBinding
 import com.tunegrab.app.playback.PlaybackService
 import com.tunegrab.app.yt.DownloaderImpl
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 /**
@@ -70,6 +76,19 @@ class PlayerActivity : AppCompatActivity() {
     // faixa inicial — permite retomar pelo botão play se o serviço foi fechado
     private var initialUri: Uri? = null
     private var initialTitle: String = ""
+
+    // FILA da Biblioteca (v0.19.0, pedido do autor: próxima/anterior): a aba
+    // Músicas entrega a lista de faixas visíveis + o índice da aberta — o
+    // PlaybackService pula faixas (botões, notificação e auto-advance) e
+    // esta activity acompanha pelo tick. Sem fila, os botões ficam apagados.
+    private var queueUris: List<String> = emptyList()
+    private var queueTitles: List<String> = emptyList()
+    private var queueIndex = -1
+
+    // CAPA (v0.19.0): bitmap embutido no arquivo cobre o cartão de arte;
+    // coverUri guarda de qual faixa é a capa atual (não recarrega à toa)
+    private var coverUri: Uri? = null
+    private var coverJob: Job? = null
 
     // serviço de reprodução (áudio)
     private var playback: PlaybackService? = null
@@ -142,6 +161,11 @@ class PlayerActivity : AppCompatActivity() {
         val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
         isVideo = intent.getBooleanExtra(EXTRA_IS_VIDEO, false)
         fromCard = intent.getBooleanExtra(EXTRA_FROM_CARD, false)
+        queueUris = intent.getStringArrayListExtra(PlaybackService.EXTRA_QUEUE_URIS)
+            ?: emptyList()
+        queueTitles = intent.getStringArrayListExtra(PlaybackService.EXTRA_QUEUE_TITLES)
+            ?: emptyList()
+        queueIndex = intent.getIntExtra(PlaybackService.EXTRA_QUEUE_INDEX, -1)
         binding.tvTitle.text = title
 
         binding.btnClose.setOnClickListener { finish() }
@@ -372,7 +396,14 @@ class PlayerActivity : AppCompatActivity() {
         // tocando esta faixa — só conecta a UI nele. Reiniciar do zero era o
         // bug do "a faixa recomeça" ao tocar no cartão.
         if (!fromCard) {
-            PlaybackService.play(this, uri, title)
+            PlaybackService.play(
+                this,
+                uri,
+                title,
+                queueUris = queueUris,
+                queueTitles = queueTitles,
+                queueIndex = queueIndex
+            )
         }
         bindService(
             Intent(this, PlaybackService::class.java),
@@ -388,8 +419,26 @@ class PlayerActivity : AppCompatActivity() {
             } else {
                 // serviço foi fechado pela notificação: retoma a faixa
                 val u = initialUri ?: return@setOnClickListener
-                PlaybackService.play(this, u, initialTitle)
+                PlaybackService.play(
+                    this,
+                    u,
+                    initialTitle,
+                    queueUris = queueUris,
+                    queueTitles = queueTitles,
+                    queueIndex = queueIndex
+                )
             }
+            binding.btnPlay.postDelayed({ updatePosition() }, 100)
+        }
+
+        // FILA (v0.19.0): anterior/próxima conversam direto com o serviço —
+        // se a faixa pulou (inclusive pela notificação), o tick sincroniza
+        binding.btnNext.setOnClickListener {
+            playback?.skipNext()
+            binding.btnPlay.postDelayed({ updatePosition() }, 100)
+        }
+        binding.btnPrev.setOnClickListener {
+            playback?.skipPrevious()
             binding.btnPlay.postDelayed({ updatePosition() }, 100)
         }
 
@@ -410,7 +459,7 @@ class PlayerActivity : AppCompatActivity() {
 
         tickHandler.post(tick)
         setupVisualizer()
-        setupVolume()
+        loadCover(uri)
     }
 
     /**
@@ -429,20 +478,46 @@ class PlayerActivity : AppCompatActivity() {
         binding.visualizer.attach()
     }
 
-    /** Slider de volume (v0.18.8): controle REAL do STREAM_MUSIC — o mesmo
-     *  volume que os botões físicos mexem, com os limites do aparelho. */
-    private fun setupVolume() {
-        val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        binding.sliderVolume.valueFrom = 0f
-        binding.sliderVolume.valueTo = max.toFloat()
-        binding.sliderVolume.value = audio
-            .getStreamVolume(AudioManager.STREAM_MUSIC)
-            .coerceIn(0, max)
-            .toFloat()
-        binding.sliderVolume.addOnChangeListener { _, value, fromUser ->
-            if (fromUser) {
-                audio.setStreamVolume(AudioManager.STREAM_MUSIC, value.toInt(), 0)
+    /**
+     * CAPA DA FAIXA (v0.19.0, pedido do autor: "a capa aparecer no lugar
+     * daquele ícone genérico"): lê a imagem embutida no ARQUIVO de áudio
+     * (MediaMetadataRetriever entende M4A/MP3/OGG-Opus — os três formatos
+     * que o TuneGrab baixa, agora com capa embutida pelo yt-dlp). Com capa,
+     * o bitmap cobre o cartão de arte (clip no contorno arredondado do
+     * bg_album_art); sem capa, volta o ícone musical genérico. Corrotina de
+     * IO — a leitura nunca trava o player — e só pra arquivo LOCAL (stream
+     * remoto não tem capa embutida pra ler).
+     */
+    private fun loadCover(source: Uri) {
+        if (source.scheme == "http" || source.scheme == "https") return
+        if (coverUri == source) return
+        coverUri = source
+        coverJob?.cancel()
+        coverJob = lifecycleScope.launch {
+            val bytes = withContext(Dispatchers.IO) {
+                val r = MediaMetadataRetriever()
+                try {
+                    r.setDataSource(applicationContext, source)
+                    r.embeddedPicture
+                } catch (ignored: Throwable) {
+                    null
+                } finally {
+                    try {
+                        r.release()
+                    } catch (ignored: Throwable) {
+                    }
+                }
+            }
+            if (coverUri != source || isFinishing || isDestroyed) return@launch
+            val bmp = bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+            if (bmp != null) {
+                binding.imgArt.setImageBitmap(bmp)
+                binding.imgArt.clipToOutline = true
+                binding.imgArtIcon.visibility = View.GONE
+            } else {
+                // sem capa (ou ilegível): gradiente violeta + ícone de sempre
+                binding.imgArt.setImageDrawable(null)
+                binding.imgArtIcon.visibility = View.VISIBLE
             }
         }
     }
@@ -469,6 +544,25 @@ class PlayerActivity : AppCompatActivity() {
                 if (playing) R.string.player_pause else R.string.player_play
             )
         }
+
+        // FILA (v0.19.0): botões vivos só quando existe pra onde ir — e se a
+        // faixa pulou (notificação, botão, auto-advance no fim da faixa), o
+        // título e a capa daqui acompanham o que o serviço está tocando
+        val hasNext = svc.hasNext()
+        val hasPrev = svc.hasPrevious()
+        if (binding.btnNext.isEnabled != hasNext) {
+            binding.btnNext.isEnabled = hasNext
+            binding.btnNext.alpha = if (hasNext) 1f else 0.35f
+        }
+        if (binding.btnPrev.isEnabled != hasPrev) {
+            binding.btnPrev.isEnabled = hasPrev
+            binding.btnPrev.alpha = if (hasPrev) 1f else 0.35f
+        }
+        if (svc.currentTitle() != binding.tvTitle.text.toString()) {
+            binding.tvTitle.text = svc.currentTitle()
+        }
+        val trackUri = svc.currentUri()
+        if (trackUri != null) loadCover(trackUri)
     }
 
     private fun formatMs(ms: Int): String {

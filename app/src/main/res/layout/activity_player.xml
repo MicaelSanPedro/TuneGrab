@@ -45,13 +45,19 @@
             android:layout_width="220dp"
             android:layout_height="220dp">
 
+            <!-- CAPA da música (v0.19.0): quando o arquivo tem capa embutida
+                 (pedido do autor: áudios baixam com capa), o bitmap cobre o
+                 cartão inteiro — clipToOutline usa o contorno arredondado do
+                 bg_album_art. Sem capa: o gradiente violeta de sempre -->
             <ImageView
+                android:id="@+id/imgArt"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_album_art"
                 android:contentDescription="@null" />
 
             <ImageView
+                android:id="@+id/imgArtIcon"
                 android:layout_width="80dp"
                 android:layout_height="80dp"
                 android:layout_gravity="center"
@@ -116,56 +122,50 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
-        <!-- Play/PAUSE: disco circular cheio (estilo da referência), ícone
-             escuro por cima do violeta -->
-        <ImageButton
-            android:id="@+id/btnPlay"
-            android:layout_width="76dp"
-            android:layout_height="76dp"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/bg_play_circle"
-            android:contentDescription="@string/player_play"
-            android:padding="21dp"
-            android:src="@drawable/ic_play"
-            app:tint="@color/background" />
-
-        <!-- Volume: alto-falante — slider — alto-falante grande (v0.18.8,
-             controle REAL do STREAM_MUSIC) -->
+        <!-- Transporte (v0.19.0): ANTERIOR — play — PRÓXIMA (pedido do
+             autor). Os botões laterais conversam com a fila da Biblioteca
+             que o PlaybackService guarda; sem fila, ficam apagados.
+             O slider de volume saiu (pedido: "tira aquilo de áudio") -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:contentDescription="@string/player_volume"
-                android:src="@drawable/ic_volume_low"
-                app:tint="@color/on_surface_variant" />
+            <ImageButton
+                android:id="@+id/btnPrev"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/player_previous"
+                android:padding="14dp"
+                android:src="@drawable/ic_skip_previous"
+                app:tint="@color/on_background" />
 
-            <com.google.android.material.slider.Slider
-                android:id="@+id/sliderVolume"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:layout_marginEnd="10dp"
-                android:layout_weight="1"
-                android:stepSize="1"
-                android:valueFrom="0"
-                android:valueTo="15"
-                app:labelBehavior="gone"
-                app:thumbColor="@color/primary"
-                app:trackColorActive="@color/primary"
-                app:trackColorInactive="@color/stroke" />
+            <!-- Play/PAUSE: disco circular cheio (estilo da referência), ícone
+                 escuro por cima do violeta -->
+            <ImageButton
+                android:id="@+id/btnPlay"
+                android:layout_width="76dp"
+                android:layout_height="76dp"
+                android:layout_marginStart="22dp"
+                android:layout_marginEnd="22dp"
+                android:background="@drawable/bg_play_circle"
+                android:contentDescription="@string/player_play"
+                android:padding="21dp"
+                android:src="@drawable/ic_play"
+                app:tint="@color/background" />
 
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_volume_high"
-                app:tint="@color/on_surface_variant" />
+            <ImageButton
+                android:id="@+id/btnNext"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/player_next"
+                android:padding="14dp"
+                android:src="@drawable/ic_skip_next"
+                app:tint="@color/on_background" />
         </LinearLayout>
     </LinearLayout>
 

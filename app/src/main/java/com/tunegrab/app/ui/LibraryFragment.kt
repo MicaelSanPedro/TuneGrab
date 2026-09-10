@@ -26,6 +26,7 @@ import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentLibraryBinding
 import com.tunegrab.app.databinding.ItemLibraryFileBinding
 import com.tunegrab.app.databinding.ItemLibraryHeaderBinding
+import com.tunegrab.app.playback.PlaybackService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,6 +50,11 @@ class LibraryFragment : Fragment() {
 
     /** Filtro do separador: false = Músicas (padrão), true = Vídeos. */
     private var showVideos = false
+
+    /** FILA (v0.19.0): as músicas VISÍVEIS na aba (na ordem da tela, próprias
+     *  primeiro) — repassada ao player, que ganha anterior/próxima e pula
+     *  sozinho pra próxima no fim de cada faixa. */
+    private var audioQueue: List<LibraryEntry> = emptyList()
 
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -165,6 +171,8 @@ class LibraryFragment : Fragment() {
         }
         adapter.submit(rows)
         b.tvEmpty.isVisible = shown.isEmpty()
+        // fila de músicas na ordem em que aparecem na tela (próprias primeiro)
+        audioQueue = if (showVideos) emptyList() else own + others
         // MESMA DOENÇA do print da Central: vazio peso 1 × lista peso 99 —
         // com a lista “visível e vazia” a mensagem ficava com 1% da tela.
         b.list.isVisible = shown.isNotEmpty()
@@ -188,13 +196,34 @@ class LibraryFragment : Fragment() {
         val uri = LibraryFiles.shareableUri(requireContext(), e)
         if (uri == Uri.EMPTY) return cant(R.string.lib_err_open)
         try {
-            startActivity(
-                Intent(requireContext(), PlayerActivity::class.java)
-                    .setDataAndType(uri, e.mime.ifBlank { "*/*" })
-                    .putExtra(PlayerActivity.EXTRA_TITLE, e.name)
-                    .putExtra(PlayerActivity.EXTRA_IS_VIDEO, e.isVideoKind)
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            )
+            val i = Intent(requireContext(), PlayerActivity::class.java)
+                .setDataAndType(uri, e.mime.ifBlank { "*/*" })
+                .putExtra(PlayerActivity.EXTRA_TITLE, e.name)
+                .putExtra(PlayerActivity.EXTRA_IS_VIDEO, e.isVideoKind)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // FILA (v0.19.0): nas MÚSICAS, manda a lista visível da aba + o
+            // índice da faixa tocada — no player viram os botões de
+            // anterior/próxima e o avanço automático no fim da faixa
+            if (!e.isVideoKind && audioQueue.size > 1) {
+                val uris = ArrayList<String>(audioQueue.size)
+                val titles = ArrayList<String>(audioQueue.size)
+                var index = -1
+                for (entry in audioQueue) {
+                    val u = LibraryFiles.shareableUri(requireContext(), entry)
+                    if (u == Uri.EMPTY) continue
+                    if (index < 0 && entry.name == e.name && entry.size == e.size) {
+                        index = uris.size
+                    }
+                    uris.add(u.toString())
+                    titles.add(entry.name)
+                }
+                if (uris.size > 1 && index >= 0) {
+                    i.putStringArrayListExtra(PlaybackService.EXTRA_QUEUE_URIS, uris)
+                    i.putStringArrayListExtra(PlaybackService.EXTRA_QUEUE_TITLES, titles)
+                    i.putExtra(PlaybackService.EXTRA_QUEUE_INDEX, index)
+                }
+            }
+            startActivity(i)
         } catch (t: Throwable) {
             cant(R.string.player_err)
         }
