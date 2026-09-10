@@ -72,13 +72,15 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
-        <!-- Barrinhas de DJ (v0.18.8): espectro REAL do áudio que está
+        <!-- Barrinhas de DJ (v0.18.9): espectro REAL do áudio que está
              tocando — o SpectrumProcessor espia o PCM dentro do próprio
-             player (SEM permissão nenhuma). Faixa fina, igual à referência -->
+             player (SEM permissão nenhuma). Grave no centro, agudo nas
+             pontas, espelhado e SEM emenda. Faixa alta: as barras sobem
+             de verdade na pancada -->
         <com.tunegrab.app.VisualizerView
             android:id="@+id/visualizer"
             android:layout_width="match_parent"
-            android:layout_height="48dp"
+            android:layout_height="72dp"
             android:layout_marginTop="18dp"
             android:visibility="gone" />
 
