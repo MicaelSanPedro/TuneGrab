@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Uma página do tutorial (v0.19.6): ilustração (halo + círculo gradiente +
+     glifo branco), título grande e texto BEM EXPLICADO embaixo — o conteúdo
+     é preenchido pela OnboardingActivity (5 páginas no ViewPager2) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal|center_vertical"
+    android:orientation="vertical"
+    android:paddingStart="36dp"
+    android:paddingEnd="36dp">
+
+    <!-- Ilustração: halo de 10% do violeta atrás, círculo gradiente (o mesmo
+         do ícone do app) no meio e o glifo da página por cima -->
+    <FrameLayout
+        android:layout_width="176dp"
+        android:layout_height="176dp">
+
+        <View
+            android:layout_width="176dp"
+            android:layout_height="176dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_onboarding_halo" />
+
+        <View
+            android:layout_width="128dp"
+            android:layout_height="128dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_onboarding_circle" />
+
+        <ImageView
+            android:id="@+id/imgIcon"
+            android:layout_width="58dp"
+            android:layout_height="58dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_music_note"
+            android:tint="@android:color/white" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/txtTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="34dp"
+        android:gravity="center"
+        android:textColor="@color/on_background"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/txtBody"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center"
+        android:lineSpacingExtra="5dp"
+        android:textColor="@color/on_surface_variant"
+        android:textSize="14.5sp" />
+</LinearLayout>

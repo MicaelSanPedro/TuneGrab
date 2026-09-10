@@ -56,7 +56,13 @@ class SplashActivity : AppCompatActivity() {
         // sai sozinho; se o usuário apertou voltar antes, não empurra nada
         window.decorView.postDelayed({
             if (!isFinishing && !isDestroyed) {
-                startActivity(Intent(this, MainActivity::class.java))
+                // v0.19.6: 1ª abertura vai primeiro pro TUTORIAL (pedido do
+                // autor) — só depois dele é que a barra montada aparece.
+                // Links compartilhados/abertos não passam por aqui de
+                // propósito: quem mandou um link sabe o que está fazendo.
+                val next = if (OnboardingActivity.isDone(this)) MainActivity::class.java
+                else OnboardingActivity::class.java
+                startActivity(Intent(this, next))
                 @Suppress("DEPRECATION")
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                 finish()

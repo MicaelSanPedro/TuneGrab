@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 54
-        versionName = "0.19.5"
+        versionCode = 55
+        versionName = "0.19.6"
 
         // ABIs do motor yt-dlp embutido (python + ffmpeg são nativos).
         // x86/x86_64 ficam de fora para o APK não dobrar de tamanho —
@@ -87,6 +87,9 @@ dependencies {
     implementation("io.coil-kt:coil:2.6.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+
+    // Tutorial de primeira abertura (v0.19.6): o pager deslizante do tour
+    implementation("androidx.viewpager2:viewpager2:1.1.0")
 
     // Player HD (v0.17.0): ExoPlayer/Media3 junta a faixa de vídeo DASH (até
     // 1080p, video-only) com a faixa de áudio no play do Início — o MediaPlayer

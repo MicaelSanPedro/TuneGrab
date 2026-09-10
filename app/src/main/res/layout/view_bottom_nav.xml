@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Barra "empurra" (v0.19.3): a ExpandingNavBar cresce a aba clicada
      (ícone + nome lado a lado) e desliza os vizinhos pra fora do caminho.
-     Mesmo ID bottomNav de sempre — o binding e o MainActivity não mudam. -->
+     Mesmo ID bottomNav de sempre — o binding e o MainActivity não mudam.
+     v0.19.6: ÍCONES FLUTUANTES (pedido do autor) — a caixa com borda e a
+     pill roxa do item ativo saíram de cena: os glifos flutuam direto sobre
+     o fundo do app, e o destaque da aba ativa é cor violeta + nome +
+     escala do ícone. -->
 <com.tunegrab.app.ui.ExpandingNavBar
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/bottomNav"
@@ -10,7 +14,5 @@
     android:layout_marginStart="10dp"
     android:layout_marginEnd="10dp"
     android:layout_marginBottom="10dp"
-    android:background="@drawable/bg_bottom_nav"
-    android:elevation="6dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp" />
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp" />

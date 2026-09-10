@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tutorial de primeira abertura (v0.19.6): 5 páginas deslizáveis no
+     ViewPager2, indicador de pontos (o ativo cresce virando pílula) e
+     barra de ação com "Pular" + "Próximo" (na última vira "Começar a
+     usar"). Tela inteira no tema do app, sobre a barra ainda escondida -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background">
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/pager"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Indicador de pontos: o ativo estica pra pílula violeta (animateLayout
+         Changes anima a troca de largura de graça) -->
+    <LinearLayout
+        android:id="@+id/dots"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:animateLayoutChanges="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnNext"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="22dp"
+        android:layout_marginEnd="24dp"
+        android:text="@string/onb_next"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        app:cornerRadius="16dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSkip"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="14dp"
+        android:text="@string/onb_skip"
+        android:textColor="@color/on_surface_variant" />
+</LinearLayout>

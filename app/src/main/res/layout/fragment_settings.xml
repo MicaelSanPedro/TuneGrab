@@ -324,6 +324,35 @@
                 android:textColor="@color/on_surface_variant"
                 android:textSize="11sp" />
 
+            <!-- Como usar (v0.19.6): reabrir o tutorial de primeira abertura -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/settings_tutorial"
+                android:textColor="@color/primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTutorial"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/settings_tutorial_btn"
+                app:icon="@drawable/ic_play"
+                app:iconTint="@color/primary"
+                app:strokeColor="@color/stroke" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/settings_tutorial_hint"
+                android:textColor="@color/on_surface_variant"
+                android:textSize="11sp" />
+
             <!-- Atualização (v0.19.3): verificação manual — o card de
                  instalar vive na Central de Downloads, então ao achar versão
                  nova o app leva o usuário direto pra lá -->

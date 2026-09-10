@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ponto inativo do indicador do tutorial (v0.19.6): bolinha no tom da
+     borda antiga da barra (stroke) — discreta, dá o passo pro ponto ativo -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/stroke" />
+    <corners android:radius="4dp" />
+</shape>

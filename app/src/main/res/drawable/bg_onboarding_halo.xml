@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Halo atrás do círculo do tutorial (v0.19.6): um aro suave de 10% do
+     violeta primário dá a sensação de o círculo "flutuar" na tela -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#1AA78BFA" />
+</shape>

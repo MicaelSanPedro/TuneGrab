@@ -6,7 +6,6 @@ import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Typeface
-import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.View
@@ -21,9 +20,11 @@ import kotlin.math.roundToInt
 
 /**
  * Barra de navegação "empurra" (v0.19.3, pedido do autor): a aba clicada
- * CRESCE — ícone + nome LADO A LADO dentro de uma pill — e os outros
- * ícones deslizam pros lados abrindo espaço. O nome não nasce "do nada,
- * sequinho": desliza pra fora com fade enquanto a pill se expande.
+ * CRESCE — ícone + nome LADO A LADO — e os outros ícones deslizam pros
+ * lados abrindo espaço. O nome não nasce "do nada, sequinho": desliza pra
+ * fora com fade. v0.19.6: ÍCONES FLUTUANTES (pedido do autor) — sem a pill
+ * roxa e sem a caixa com borda da barra: os glifos flutuam direto sobre o
+ * fundo do app, e o destaque da aba ativa é cor + nome + escala do ícone.
  *
  * Por que custom em vez de BottomNavigationView: o componente do Material
  * empilha o rótulo ABAIXO do ícone (labelVisibilityMode) — nada se move na
@@ -56,8 +57,7 @@ class ExpandingNavBar @JvmOverloads constructor(
         val icon: ImageView,
         val label: TextView,
         val labelWidth: Int,
-        val labelGap: Int,
-        val pill: Drawable?
+        val labelGap: Int
     ) {
         var animator: ValueAnimator? = null
     }
@@ -76,6 +76,12 @@ class ExpandingNavBar @JvmOverloads constructor(
      * Float: translationX é Float e o dp() é Int — misturar os dois no
      * if/else dobra o tipo (Comparable&Number) e o compilador crava erro. */
     private val labelSlide = dp(10).toFloat()
+
+    /** Escala do ícone selecionado (v0.19.6): sem a pill roxa, o destaque da
+     *  aba ativa vem do próprio glifo — ele cresce um tiquinho (1.12×) e volta
+     *  ao tamanho normal quando outra aba assume. Scale NÃO afeta layout:
+     *  sem requestLayout extra, a animação do empurrão segue intocada. */
+    private val iconScale = 1.12f
 
     init {
         orientation = HORIZONTAL
@@ -133,10 +139,7 @@ class ExpandingNavBar @JvmOverloads constructor(
                 // v0.19.4: gap 6→10dp — com 6dp o nome nascia colado no ícone
                 // (o logo do YouTube encosta na borda da caixa, os glifos do
                 // Material Symbols têm folga própria); 10dp nivela todos.
-                dp(10),
-                // mutate(): instância própria por aba — a pill do fecho anima
-                // alpha individual enquanto a do outro lado nasce opaca
-                ContextCompat.getDrawable(context, R.drawable.bg_nav_item)?.mutate()
+                dp(10)
             )
         )
     }
@@ -183,8 +186,8 @@ class ExpandingNavBar @JvmOverloads constructor(
             if (selected) tab.labelGap else 0
         tab.label.alpha = if (selected) 1f else 0f
         tab.label.translationX = if (selected) 0f else -labelSlide
-        tab.pill?.alpha = 255
-        tab.item.background = if (selected) tab.pill else null
+        tab.icon.scaleX = if (selected) iconScale else 1f
+        tab.icon.scaleY = if (selected) iconScale else 1f
         tab.icon.setColorFilter(if (selected) colorActive else colorIdle)
         tab.item.requestLayout()
     }
@@ -196,9 +199,9 @@ class ExpandingNavBar @JvmOverloads constructor(
      * -10dp → 0 abrindo (o texto desliza pra fora do ícone) e 0 → -10dp
      * fechando, sem NENHUMA componente vertical. Mais lento e mais redondo
      * que antes (420ms/300ms com as curvas "emphasized" do Material 3: abrir
-     * desacelera no fim, fechar acelera e sai) — a pill acompanha os DOIS
-     * sentidos (nasce crescendo, morre encolhendo com fade) em vez de sumir
-     * seca no primeiro frame do fecho.
+     * desacelera no fim, fechar acelera e sai). v0.19.6: a pill saiu de
+     * cena — no lugar dela, o ÍCONE da aba ativa cresce 1.12× junto da
+     * abertura (e volta ao tamanho natural no fecho), flutuando de verdade.
      */
     private fun animateTab(tab: Tab, open: Boolean) {
         tab.animator?.cancel()
@@ -213,11 +216,8 @@ class ExpandingNavBar @JvmOverloads constructor(
         val toTx = if (open) 0f else -labelSlide
         val fromColor = if (open) colorIdle else colorActive
         val toColor = if (open) colorActive else colorIdle
-        val fromPill = tab.pill?.alpha ?: 255
-        val toPill = if (open) 255 else 0
-        // abrindo: pill entra já no primeiro frame (cresce junto); fechando:
-        // ela PERMANECE e encolhe com o item — sai só no fim da animação
-        if (open) tab.item.background = tab.pill
+        val fromScale = tab.icon.scaleX
+        val toScale = if (open) iconScale else 1f
         val anim = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = if (open) 420L else 300L
             interpolator =
@@ -230,7 +230,8 @@ class ExpandingNavBar @JvmOverloads constructor(
                 tab.label.alpha = fromAlpha + (toAlpha - fromAlpha) * f
                 tab.label.translationX = fromTx + (toTx - fromTx) * f
                 tab.icon.setColorFilter(argb.evaluate(f, fromColor, toColor) as Int)
-                tab.pill?.alpha = (fromPill + (toPill - fromPill) * f).roundToInt()
+                tab.icon.scaleX = fromScale + (toScale - fromScale) * f
+                tab.icon.scaleY = fromScale + (toScale - fromScale) * f
                 tab.item.requestLayout()
             }
             addListener(object : AnimatorListenerAdapter() {
@@ -248,8 +249,8 @@ class ExpandingNavBar @JvmOverloads constructor(
                         tab.label.alpha = toAlpha
                         tab.label.translationX = toTx
                         tab.icon.setColorFilter(toColor)
-                        tab.pill?.alpha = toPill
-                        if (!open) tab.item.background = null
+                        tab.icon.scaleX = toScale
+                        tab.icon.scaleY = toScale
                         tab.item.requestLayout()
                     }
                 }

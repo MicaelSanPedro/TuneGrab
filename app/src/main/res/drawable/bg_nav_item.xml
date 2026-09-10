@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Pill da aba selecionada na barra "empurra" (v0.19.3): fundo roxo-escuro
-     que envolve ícone + nome. Acompanha o crescimento do item durante a
-     animação (é o background do próprio item, que se expande) -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="@color/nav_pill" />
-    <corners android:radius="21dp" />
-</shape>

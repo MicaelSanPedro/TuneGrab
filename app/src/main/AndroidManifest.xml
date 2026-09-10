@@ -78,6 +78,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Tutorial de primeira abertura (v0.19.6): roteado pelo Splash na
+             1ª vez que o app abre; Config. > Como usar também reabre -->
+        <activity
+            android:name=".OnboardingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TuneGrab" />
+
         <service
             android:name=".download.DownloadService"
             android:exported="false"

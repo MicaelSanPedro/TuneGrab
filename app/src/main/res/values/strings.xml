@@ -289,4 +289,25 @@
     <string name="upd_metered_title">Baixar sem Wi-Fi?</string>
     <string name="upd_metered_msg">A atualização (%1$s) será baixada usando a rede móvel. Continuar?</string>
     <string name="upd_metered_yes">Baixar mesmo assim</string>
+
+    <!-- Tutorial de primeira abertura (v0.19.6): 5 páginas bem explicadas —
+         Bem-vindo · Cole o link · Aba YouTube · Central · Biblioteca -->
+    <string name="onb_skip">Pular</string>
+    <string name="onb_next">Próximo</string>
+    <string name="onb_start">Começar a usar ♪</string>
+    <string name="onb1_title">Bem-vindo ao TuneGrab!</string>
+    <string name="onb1_body">Este é o seu baixador de músicas e vídeos do YouTube: rápido, sem anúncios e salvando tudo direto no aparelho. Siga este tour — ele te mostra o caminho completo em 5 passos.</string>
+    <string name="onb2_title">Cole o link e escolha</string>
+    <string name="onb2_body">Copie o link de qualquer vídeo do YouTube e cole no campo da aba Início. O app reconhece sozinho se é música ou playlist e abre as qualidades: áudio (M4A, Opus ou MP3) pra ouvir, ou vídeo (até 4K) pra assistir.</string>
+    <string name="onb3_title">Baixe direto do YouTube</string>
+    <string name="onb3_body">Na aba YouTube você navega no site por dentro do app — até logado na sua conta. Achou o vídeo? Toque no botão Baixar que aparece na tela: o link vai sozinho pro download, sem copiar e colar nada.</string>
+    <string name="onb4_title">Acompanhe na Central</string>
+    <string name="onb4_body">Todo download aparece na Central de Downloads com progresso ao vivo: pause, cancele ou toque na notificação pra voltar direto pra lá. Quando o arquivo termina, ele já entra na sua Biblioteca.</string>
+    <string name="onb5_title">Suas músicas num só lugar</string>
+    <string name="onb5_body">Tudo que você baixar fica na aba Biblioteca: toque em qualquer faixa pra ouvir no player completo, com capa e visualizador. Agora é só colar seu primeiro link — boa música!</string>
+
+    <!-- Config. > Como usar (v0.19.6): reabrir o tutorial -->
+    <string name="settings_tutorial">Como usar</string>
+    <string name="settings_tutorial_btn">Ver tutorial de novo</string>
+    <string name="settings_tutorial_hint">O mesmo guia que aparece na primeira vez que você abre o app.</string>
 </resources>

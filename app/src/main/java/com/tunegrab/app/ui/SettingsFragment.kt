@@ -17,6 +17,7 @@ import com.tunegrab.app.BuildConfig
 import com.tunegrab.app.CookieLoginActivity
 import com.tunegrab.app.FormatPrefs
 import com.tunegrab.app.MainActivity
+import com.tunegrab.app.OnboardingActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.YtCookies
 import com.tunegrab.app.databinding.FragmentSettingsBinding
@@ -115,8 +116,21 @@ class SettingsFragment : Fragment() {
         refreshFolderUi()
         refreshCookieUi()
         bindVisualizer()
+        bindTutorial()
         bindUpdate()
         bindAbout()
+    }
+
+    /** Como usar (v0.19.6): reabre o MESMO tutorial da primeira abertura
+     *  (EXTRA_FROM_SETTINGS: ao terminar ele só fecha, sem abrir a Main
+     *  de novo — ela já está atrás). */
+    private fun bindTutorial() {
+        binding.btnTutorial.setOnClickListener {
+            startActivity(
+                Intent(requireContext(), OnboardingActivity::class.java)
+                    .putExtra(OnboardingActivity.EXTRA_FROM_SETTINGS, true)
+            )
+        }
     }
 
     /** Barrinhas de DJ (v0.18.8): o toggle liga o visualizador REAL do
