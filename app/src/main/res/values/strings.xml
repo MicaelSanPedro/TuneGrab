@@ -202,7 +202,16 @@
     <string name="dl_filter_all">Tudo</string>
     <string name="dl_filter_audio">Músicas</string>
     <string name="dl_filter_video">Vídeos</string>
-    <string name="dl_clear">Limpar finalizados</string>
+    <string name="dl_clear">Excluir finalizados</string>
+    <!-- v0.19.5: excluir finalizados agora apaga as MÍDIAS do aparelho -->
+    <string name="dl_clear_title">Excluir mídias baixadas?</string>
+    <string name="dl_clear_msg">Os arquivos dos downloads concluídos serão apagados do aparelho (a lista também limpa). Downloads com falha ou cancelados só saem da lista.</string>
+    <string name="dl_clear_msg_list">Limpar a lista de downloads finalizados? Nenhum arquivo será apagado.</string>
+    <string name="dl_clear_yes">Excluir tudo</string>
+    <string name="dl_clear_done">Mídias apagadas ✓</string>
+    <string name="dl_clear_done_list">Lista limpa ✓</string>
+    <string name="dl_clear_partial">Alguns arquivos não puderam ser apagados</string>
+    <string name="lib_delete">Apagar mídia</string>
     <string name="dl_preparing">Preparando…</string>
     <string name="dl_running_pct">%1$d%%</string>
     <string name="dl_running_pct_speed">%1$d%% · %2$s</string>

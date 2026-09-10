@@ -20,6 +20,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.documentfile.provider.DocumentFile
 import com.tunegrab.app.CrashReportActivity
+import com.tunegrab.app.MainActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.audio.AudioQuality
 import com.tunegrab.app.audio.Mp3Converter
@@ -818,8 +819,28 @@ class DownloadService : Service() {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
+            // v0.19.5: toque na notificação ABRE O APP NA CENTRAL de downloads
+            // (antes o toque não fazia NADA — queixa do autor). Cobre progresso,
+            // pausada e cancelada; a de falha sobrepõe o intent do relatório.
+            .setContentIntent(openCentralPendingIntent())
             .setOnlyAlertOnce(true)
             .setOngoing(true)
+
+    /**
+     * Toque na notificação → MainActivity com ação OPEN_CENTRAL (v0.19.5).
+     * A Main é singleTask: app fechado abre direto na Central; app aberto em
+     * qualquer aba cai no onNewIntent e troca pra Central. Só mexe no
+     * EMBRULHO visual da notificação — nada da mecânica de download.
+     */
+    private fun openCentralPendingIntent(): PendingIntent {
+        val i = Intent(this, MainActivity::class.java).setAction(ACTION_OPEN_CENTRAL)
+        return PendingIntent.getActivity(
+            this,
+            RC_OPEN,
+            i,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    }
 
     private fun notificationProgress(name: String, percent: Int, indeterminate: Boolean): Notification =
         baseBuilder(getString(R.string.notif_downloading, name), "$percent%")
@@ -906,6 +927,8 @@ class DownloadService : Service() {
             .setContentTitle(getString(R.string.notif_done))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            // v0.19.5: toque na notificação de concluído → Central de Downloads
+            .setContentIntent(openCentralPendingIntent())
             .setOngoing(false)
             .setAutoCancel(true)
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID + 1, b.build())
@@ -1028,9 +1051,13 @@ class DownloadService : Service() {
         const val ACTION_PAUSE = "com.tunegrab.app.action.PAUSE"
         const val ACTION_RESUME = "com.tunegrab.app.action.RESUME"
         const val ACTION_CANCEL = "com.tunegrab.app.action.CANCEL"
+
+        /** Toque em qualquer notificação de download → abrir a Central (v0.19.5). */
+        const val ACTION_OPEN_CENTRAL = "com.tunegrab.app.action.OPEN_CENTRAL"
         private const val RC_PAUSE = 11
         private const val RC_CANCEL = 12
         private const val RC_RESUME = 13
+        private const val RC_OPEN = 14
 
         /** "at 2.35MiB/s" na linha de progresso do yt-dlp (velocidade do plano A). */
         private val SPEED_REGEX = Regex("at\\s+([\\d.]+)\\s*([KMGT]?)iB/s")

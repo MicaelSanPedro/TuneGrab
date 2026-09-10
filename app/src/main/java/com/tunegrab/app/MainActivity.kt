@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
 import com.tunegrab.app.databinding.ActivityMainBinding
+import com.tunegrab.app.download.DownloadService
 import com.tunegrab.app.ui.BottomNav
 import com.tunegrab.app.ui.HomeFragment
 
@@ -36,6 +37,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
+        // v0.19.5: toque em qualquer notificação de download abre a CENTRAL.
+        // App fechado: onCreate → a barra já nasce na Central; app aberto:
+        // onNewIntent troca a aba (singleTask sempre cai aqui)
+        if (intent?.action == DownloadService.ACTION_OPEN_CENTRAL) {
+            openTab(R.id.navDownloads)
+            return
+        }
         val shared = when (intent?.action) {
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
             Intent.ACTION_VIEW -> intent.dataString

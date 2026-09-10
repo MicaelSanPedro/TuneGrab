@@ -71,7 +71,10 @@ class DownloadsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = adapter
-        binding.btnClear.setOnClickListener { DownloadBus.clearFinished() }
+        // v0.19.5: "Excluir finalizados" agora apaga as MÍDIAS de verdade
+        // (com diálogo confirmando) — antes só limpava a lista e o autor
+        // descobriu as músicas ainda no aparelho
+        binding.btnClear.setOnClickListener { askClearFinished() }
         // CTA do estado vazio: pula direto pro Início baixar a primeira música
         binding.btnEmptyGo.setOnClickListener {
             (activity as? MainActivity)?.openTab(R.id.navHome)
@@ -79,6 +82,7 @@ class DownloadsFragment : Fragment() {
         // LIGAÇÃO dos botões dos itens concluídos (o clique era morto sem isto)
         adapter.onShare = { item -> shareFinished(item) }
         adapter.onPlay = { item -> playFinished(item) }
+        adapter.onDelete = { item -> deleteFinished(item) }
         adapter.onPause = { sendControl(DownloadService.controlIntent(requireContext(), DownloadService.ACTION_PAUSE)) }
         adapter.onResumeClick = { sendControl(DownloadService.resumeIntent(requireContext())) }
         adapter.onCancel = { item ->
@@ -251,6 +255,75 @@ class DownloadsFragment : Fragment() {
         }
     }
 
+    // ---------- excluir mídia de verdade (v0.19.5) ----------
+
+    /**
+     * "Excluir finalizados": o botão que antes SÓ limpava a lista (as mídias
+     * ficavam no aparelho — queixa do autor). Agora os arquivos dos downloads
+     * CONCLUÍDOS são apagados de verdade; os que falharam ou foram cancelados
+     * só saem da lista mesmo (não têm arquivo). Diálogo na frente: apagar
+     * música do aparelho não pode ser acidente.
+     */
+    private fun askClearFinished() {
+        val ctx = context ?: return
+        val hasDone = DownloadBus.items.value.any { it.state == DownloadBus.State.DONE }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.dl_clear_title)
+            .setMessage(if (hasDone) R.string.dl_clear_msg else R.string.dl_clear_msg_list)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.dl_clear_yes) { _, _ -> clearFinishedNow() }
+            .show()
+    }
+
+    private fun clearFinishedNow() {
+        val ctx = context ?: return
+        val done = DownloadBus.items.value.filter { it.state == DownloadBus.State.DONE }
+        viewLifecycleOwner.lifecycleScope.launch {
+            var failures = 0
+            for (item in done) {
+                val ok = withContext(Dispatchers.IO) {
+                    val entry = LibraryFiles.findByFileName(ctx, item.fileName)
+                    entry != null && LibraryFiles.delete(ctx, entry)
+                }
+                if (!ok) failures++
+            }
+            DownloadBus.clearFinished()
+            if (!isAdded) return@launch
+            val msg = when {
+                done.isEmpty() -> R.string.dl_clear_done_list
+                failures == 0 -> R.string.dl_clear_done
+                else -> R.string.dl_clear_partial
+            }
+            Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** Lixeira do card concluído: VERIFICAÇÃO DUPLA igual à Biblioteca —
+     *  diálogo do app antes; o toque errado não pode custar uma música. */
+    private fun deleteFinished(item: DownloadBus.Item) {
+        val ctx = context ?: return
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.lib_delete_title)
+            .setMessage(ctx.getString(R.string.lib_delete_msg, item.fileName))
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.lib_delete_yes) { _, _ ->
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val ok = withContext(Dispatchers.IO) {
+                        val entry = LibraryFiles.findByFileName(ctx, item.fileName)
+                        entry != null && LibraryFiles.delete(ctx, entry)
+                    }
+                    if (!isAdded) return@launch
+                    if (ok) {
+                        DownloadBus.remove(item.fileName)
+                        Toast.makeText(ctx, R.string.lib_deleted, Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(ctx, R.string.lib_err_delete, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .show()
+    }
+
     private fun render(items: List<DownloadBus.Item>) {
         val shown = items.filter { matchesFilter(it) }
         adapter.submit(shown)
@@ -356,6 +429,7 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
     var onPause: (() -> Unit)? = null
     var onResumeClick: (() -> Unit)? = null
     var onCancel: ((DownloadBus.Item) -> Unit)? = null
+    var onDelete: ((DownloadBus.Item) -> Unit)? = null
 
     fun submit(list: List<DownloadBus.Item>) {
         items = list
@@ -374,10 +448,13 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
         val b = holder.binding
         val ctx = b.root.context
         b.tvName.text = item.title
-        // reset do estado RECICLADO: botão de copiar do card "Falhou" e o
-        // limite de linhas da fase não podem vazar para os outros estados
+        // reset do estado RECICLADO: botão de copiar do card "Falhou", a
+        // lixeira do card concluído e o limite de linhas da fase não podem
+        // vazar para os outros estados
         b.btnCopy.isVisible = false
         b.btnCopy.setOnClickListener(null)
+        b.btnDelete.isVisible = false
+        b.btnDelete.setOnClickListener(null)
         b.tvPhase.maxLines = Int.MAX_VALUE
         when (item.state) {
             DownloadBus.State.RUNNING -> {
@@ -436,12 +513,15 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 b.tvPhase.text = ctx.getString(R.string.dl_state_done)
                 b.tvPercent.isVisible = false
                 b.progress.isVisible = false
-                // download concluído → reproduzir e compartilhar direto daqui
+                // download concluído → reproduzir, compartilhar e APAGAR a
+                // mídia de verdade (v0.19.5) direto daqui
                 b.btnPause.isVisible = false
                 b.btnPlay.isVisible = true
                 b.btnPlay.setOnClickListener { onPlay?.invoke(item) }
                 b.btnShare.isVisible = true
                 b.btnShare.setOnClickListener { onShare?.invoke(item) }
+                b.btnDelete.isVisible = true
+                b.btnDelete.setOnClickListener { onDelete?.invoke(item) }
                 b.btnCancel.isVisible = false
             }
             DownloadBus.State.FAILED -> {

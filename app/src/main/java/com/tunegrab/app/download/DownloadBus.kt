@@ -115,6 +115,16 @@ object DownloadBus {
         }
     }
 
+    /**
+     * Remove UM item do espelho (v0.19.5): a Central apagou a mídia do
+     * aparelho e o card precisa sair na hora — sem esperar o fim do app.
+     * Espelho de UI: nada da mecânica de download passa por aqui.
+     */
+    @Synchronized
+    fun remove(fileName: String) {
+        _items.value = _items.value.filter { it.fileName != fileName }
+    }
+
     private fun upsert(item: Item) {
         val list = _items.value.toMutableList()
         val idx = list.indexOfFirst { it.fileName == item.fileName }

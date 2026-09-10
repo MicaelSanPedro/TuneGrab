@@ -316,6 +316,26 @@ object LibraryFiles {
 
     // ---------- ações ----------
 
+    /**
+     * APAGAR DE VERDADE (v0.19.5): remove a mídia do aparelho em qualquer
+     * uma das fontes (pasta escolhida via SAF, MediaStore API 29+ ou
+     * java.io.File nas pastas legadas). Os downloads do TuneGrab são donos
+     * dos próprios arquivos, então a exclusão não pede permissão extra;
+     * falha (arquivo de outro app, storage travado) devolve false — quem
+     * chama decide o aviso. Nada aqui mexe na mecânica de download.
+     */
+    fun delete(ctx: Context, e: LibraryEntry): Boolean = try {
+        when {
+            e.docUri != null -> DocumentFile.fromSingleUri(ctx, e.docUri)?.delete() == true
+            e.mediaUri != null -> ctx.contentResolver.delete(e.mediaUri, null, null) > 0
+            e.file != null -> e.file.delete()
+            else -> false
+        }
+    } catch (t: Throwable) {
+        Log.w(TAG, "apagar falhou: ${e.name}", t)
+        false
+    }
+
     /** URI segura para abrir/compartilhar (content://, nunca file:// fora do app). */
     fun shareableUri(ctx: Context, e: LibraryEntry): Uri = when {
         e.mediaUri != null -> e.mediaUri
