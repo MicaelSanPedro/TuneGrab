@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import com.tunegrab.app.BuildConfig
 import com.tunegrab.app.CookieLoginActivity
 import com.tunegrab.app.FormatPrefs
+import com.tunegrab.app.MainActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.YtCookies
 import com.tunegrab.app.databinding.FragmentSettingsBinding
