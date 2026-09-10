@@ -126,8 +126,9 @@ class YoutubeFragment : Fragment() {
         val saved = savedWebState
         var restored = false
         if (saved != null) {
+            // restoreState devolve WebBackForwardList? — null = não restaurou
             restored = try {
-                web.restoreState(saved)
+                web.restoreState(saved) != null
             } catch (ignored: Throwable) {
                 false
             }
