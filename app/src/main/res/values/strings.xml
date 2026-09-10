@@ -245,6 +245,26 @@
     <string name="lib_delete_title">Apagar arquivo?</string>
     <string name="lib_delete_msg">“%1$s” será apagado definitivamente. Essa ação não pode ser desfeita.</string>
     <string name="lib_delete_yes">Apagar</string>
+
+    <!-- Seleção múltipla na Biblioteca (v0.19.7): segurar na faixa entra no
+         modo de marcar; a lixeira da barra apaga todas de uma vez -->
+    <string name="cd_sel_close">Sair da seleção</string>
+    <string name="lib_sel_all">Todos</string>
+    <string name="cd_sel_delete">Apagar as selecionadas</string>
+    <plurals name="lib_sel_count">
+        <item quantity="one">%1$d selecionada</item>
+        <item quantity="other">%1$d selecionadas</item>
+    </plurals>
+    <plurals name="lib_sel_delete_title">
+        <item quantity="one">Apagar %1$d arquivo?</item>
+        <item quantity="other">Apagar %1$d arquivos?</item>
+    </plurals>
+    <string name="lib_sel_delete_msg">Os arquivos selecionados serão apagados definitivamente. Essa ação não pode ser desfeita.</string>
+    <plurals name="lib_sel_deleted">
+        <item quantity="one">%1$d arquivo apagado ✓</item>
+        <item quantity="other">%1$d arquivos apagados ✓</item>
+    </plurals>
+    <string name="lib_sel_partial">Apaguei %1$d de %2$d — os que restaram são de outros apps e pedem confirmação própria (apague um por um)</string>
     <string name="cd_refresh">Atualizar</string>
     <string name="cd_share">Compartilhar</string>
     <string name="cd_delete">Apagar</string>

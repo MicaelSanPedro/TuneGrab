@@ -3,12 +3,14 @@ package com.tunegrab.app.ui
 import android.app.Activity
 import android.app.RecoverableSecurityException
 import android.content.Intent
+import android.content.res.ColorStateList
 import androidx.activity.result.IntentSenderRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.text.format.DateUtils
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,7 +40,9 @@ import androidx.documentfile.provider.DocumentFile
  * o banner pede a permissão de áudio para achar músicas antigas mesmo depois
  * de atualizar/reinstalar o app). MÚSICAS (áudio) e VÍDEOS ficam separados
  * em chips próprios — nada misturado. Ações: reproduzir no app / abrir /
- * compartilhar / apagar.
+ * compartilhar / apagar. v0.19.7: SEGUIR NA FAIXA — segurar num cartão
+ * entra no modo de seleção múltipla (tap alterna o check, barra contextual
+ * com contador + Todos + lixeira) pra apagar em lote.
  */
 class LibraryFragment : Fragment() {
 
@@ -98,14 +102,22 @@ class LibraryFragment : Fragment() {
         adapter.onOpen = { e -> open(e) }
         adapter.onShare = { e -> LibraryFiles.share(requireContext(), e) }
         adapter.onDelete = { e -> delete(e) }
+        // v0.19.7: barra contextual da seleção múltipla (contador/Todos/lixeira)
+        adapter.onSelectCount = { n -> onSelCount(n) }
+        binding.btnSelClose.setOnClickListener { adapter.exitSelection() }
+        binding.btnSelAll.setOnClickListener { adapter.selectAllVisible() }
+        binding.btnDeleteSel.setOnClickListener { confirmDeleteSelected() }
         binding.chipFilterAudio.setOnCheckedChangeListener { _, checked ->
             if (checked) {
+                // trocou de aba: a seleção morre — nada de apagar o que não se vê
+                adapter.exitSelection()
                 showVideos = false
                 render()
             }
         }
         binding.chipFilterVideo.setOnCheckedChangeListener { _, checked ->
             if (checked) {
+                adapter.exitSelection()
                 showVideos = true
                 render()
             }
@@ -297,6 +309,70 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    // ---------- seleção múltipla (v0.19.7) ----------
+
+    /** A barra contextual acompanha a contagem: entrando no modo ela
+     *  substitui o cabeçalho; voltando a 0 o "Biblioteca" de sempre volta. */
+    private fun onSelCount(n: Int) {
+        val b = _binding ?: return
+        b.headerRow.isVisible = !adapter.selectionMode
+        b.selBar.isVisible = adapter.selectionMode
+        b.tvSelCount.text = resources.getQuantityString(R.plurals.lib_sel_count, n, n)
+        // "Todos" some quando a aba visível inteira já está marcada
+        b.btnSelAll.isVisible = adapter.visibleFileCount > n
+    }
+
+    /** Lixeira da barra: VERIFICAÇÃO DUPLA igual à individual — o toque
+     *  errado não pode custar N músicas de uma vez. */
+    private fun confirmDeleteSelected() {
+        val entries = adapter.selectedEntries()
+        if (entries.isEmpty()) return
+        val ctx = context ?: return
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(
+                resources.getQuantityString(
+                    R.plurals.lib_sel_delete_title, entries.size, entries.size
+                )
+            )
+            .setMessage(R.string.lib_sel_delete_msg)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.lib_delete_yes) { _, _ -> deleteMany(entries) }
+            .show()
+    }
+
+    /** Deleção em lote com o MESMO LibraryFiles.delete da v0.19.5 (o app é
+     *  dono dos próprios downloads — sem permissão extra). Faixa de OUTRO
+     *  app falha no lote (a confirmação do sistema é por arquivo): o toast
+     *  diz quantos foram e explica o resto. */
+    private fun deleteMany(entries: List<LibraryEntry>) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            val deleted = withContext(Dispatchers.IO) {
+                entries.count { LibraryFiles.delete(ctx, it) }
+            }
+            if (_binding == null) return@launch // a aba saiu da tela no meio
+            adapter.exitSelection()
+            when {
+                deleted == entries.size ->
+                    Toast.makeText(
+                        ctx,
+                        ctx.resources.getQuantityString(
+                            R.plurals.lib_sel_deleted, deleted, deleted
+                        ),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                deleted > 0 ->
+                    Toast.makeText(
+                        ctx,
+                        ctx.getString(R.string.lib_sel_partial, deleted, entries.size),
+                        Toast.LENGTH_LONG
+                    ).show()
+                else -> cant(R.string.lib_err_delete)
+            }
+            load()
+        }
+    }
+
     private fun cant(msgRes: Int) {
         context?.let { Toast.makeText(it, msgRes, Toast.LENGTH_SHORT).show() }
     }
@@ -322,6 +398,69 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     var onOpen: ((LibraryEntry) -> Unit)? = null
     var onShare: ((LibraryEntry) -> Unit)? = null
     var onDelete: ((LibraryEntry) -> Unit)? = null
+
+    // ---------- seleção múltipla (v0.19.7) ----------
+
+    /** Estado do modo: segurar numa faixa entra, tap alterna. A chave é
+     *  (nome, tamanho) — o MESMO critério de dedupe do listAll, então a
+     *  seleção sobrevive a re-render da lista. */
+    var selectionMode = false
+        private set
+
+    private val selected = LinkedHashSet<String>()
+
+    /** Contagem mudou (entra/alterna/sai) — o fragment atualiza a barra. */
+    var onSelectCount: ((Int) -> Unit)? = null
+
+    /** Quantas faixas a aba visível tem (o "Todos" some quando completa). */
+    val visibleFileCount: Int
+        get() = rows.count { it is LibRow.File }
+
+    private fun key(e: LibraryEntry) = "${e.name}\u0000${e.size}"
+
+    /** Segurar na faixa: entra no modo com ela já marcada (o fragment
+     *  cuida do feedback tátil antes de chamar). */
+    fun enterSelection(first: LibraryEntry) {
+        if (!selectionMode) {
+            selectionMode = true
+            selected.clear()
+        }
+        selected.add(key(first))
+        notifyDataSetChanged()
+        onSelectCount?.invoke(selected.size)
+    }
+
+    /** Toque na faixa DENTRO do modo: alterna o check. Voltando a 0 sai. */
+    fun toggle(entry: LibraryEntry) {
+        val k = key(entry)
+        if (!selected.remove(k)) selected.add(k)
+        if (selected.isEmpty()) {
+            exitSelection()
+        } else {
+            notifyDataSetChanged()
+            onSelectCount?.invoke(selected.size)
+        }
+    }
+
+    fun exitSelection() {
+        if (!selectionMode) return
+        selectionMode = false
+        selected.clear()
+        notifyDataSetChanged()
+        onSelectCount?.invoke(0)
+    }
+
+    /** "Todos": marca a aba visível inteira (o filtro atual). */
+    fun selectAllVisible() {
+        selectionMode = true
+        rows.filterIsInstance<LibRow.File>().forEach { selected.add(key(it.entry)) }
+        notifyDataSetChanged()
+        onSelectCount?.invoke(selected.size)
+    }
+
+    /** As faixas marcadas, na ordem da tela (a lixeira usa). */
+    fun selectedEntries(): List<LibraryEntry> =
+        rows.filterIsInstance<LibRow.File>().map { it.entry }.filter { key(it) in selected }
 
     fun submit(list: List<LibRow>) {
         rows = list
@@ -376,7 +515,28 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.primary))
                 }
 
-                b.root.setOnClickListener { onOpen?.invoke(entry) }
+                // v0.19.7: no modo seleção os 3 botões saem e o círculo de
+                // check entra; o cartão marcado ganha fundo roxo + borda violeta
+                val isSel = selectionMode && key(entry) in selected
+                b.selBox.isVisible = selectionMode
+                b.chk.setImageResource(if (isSel) R.drawable.bg_sel_on else R.drawable.bg_sel_off)
+                b.btnPlay.isVisible = !selectionMode
+                b.btnShare.isVisible = !selectionMode
+                b.btnDelete.isVisible = !selectionMode
+                b.root.setCardBackgroundColor(
+                    ContextCompat.getColor(ctx, if (isSel) R.color.sel_card else R.color.surface)
+                )
+                b.root.strokeColor = ColorStateList.valueOf(
+                    ContextCompat.getColor(ctx, if (isSel) R.color.primary else R.color.stroke)
+                )
+                b.root.setOnClickListener {
+                    if (selectionMode) toggle(entry) else onOpen?.invoke(entry)
+                }
+                b.root.setOnLongClickListener { v ->
+                    v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    if (selectionMode) toggle(entry) else enterSelection(entry)
+                    true
+                }
                 b.btnPlay.setOnClickListener { onPlay?.invoke(entry) }
                 b.btnShare.setOnClickListener { onShare?.invoke(entry) }
                 b.btnDelete.setOnClickListener { onDelete?.invoke(entry) }

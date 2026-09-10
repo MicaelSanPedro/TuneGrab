@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Check do modo seleção múltipla (v0.19.7): círculo violeta preenchido com
+     o ic_check branco no centro (a própria fonte do check já é branca) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/primary" />
+        </shape>
+    </item>
+    <item
+        android:gravity="center"
+        android:width="13dp"
+        android:height="13dp"
+        android:drawable="@drawable/ic_check" />
+</layer-list>

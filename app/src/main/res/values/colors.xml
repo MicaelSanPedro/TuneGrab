@@ -11,4 +11,8 @@
     <color name="icon_bg_end">#C026D3</color>
     <color name="state_done">#4ADE80</color>
     <color name="state_failed">#F87171</color>
+    <!-- Cartão selecionado na Biblioteca (v0.19.7): o tom roxo da pill antiga
+         da barra (nav_pill, aposentada na v0.19.6) volta como destaque da
+         faixa marcada no modo de seleção múltipla -->
+    <color name="sel_card">#2E2749</color>
 </resources>
