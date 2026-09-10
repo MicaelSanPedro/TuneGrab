@@ -13,12 +13,12 @@ import com.tunegrab.app.playback.SpectrumBus
 import kotlin.math.pow
 
 /**
- * AS "BARRINHAS DE DJ" do player (v0.18.9) — espectro REAL, sem permissão.
+ * AS "BARRINHAS DE DJ" do player (v0.18.10) — espectro REAL, sem permissão.
  *
  * A fonte continua sendo o SpectrumProcessor injetado no ExoPlayer do
  * PlaybackService (v0.18.8): ele ESPIA o PCM que o próprio app está tocando
  * (antes de sair no alto-falante) e publica as 28 bandas de frequência no
- * SpectrumBus. Esta view SÓ desenha, com três truques novos:
+ * SpectrumBus. Esta view SÓ desenha, com quatro truques:
  *
  *  1. ESPELHO GRAVE NO CENTRO (o pedido "divide os lados entre agudo e
  *     grave, sem mostrar que está dividido"): as 28 bandas fluem do CENTRO
@@ -32,7 +32,17 @@ import kotlin.math.pow
  *     bandas graves ganham um "soco" de ganho que decai rápido (~0,3s),
  *     então a batida SALTA na tela em vez de só balançar;
  *  3. BARRAS MAIS ALTAS: ganho 2.2 com curva ^0.7 (era 1.6/^0.75) — o
- *     nível médio sobe pra perto do topo e o agudo fraco aparece.
+ *     nível médio sobe pra perto do topo e o agudo fraco aparece;
+ *  4. SINCRONIA COM O SOM QUE SAI (v0.18.10, o pedido "bota um delay de
+ *     0,40 segundos porque ele tá meio adiantado"): o PCM espiado pelo
+ *     SpectrumProcessor ainda atravessa o buffer de saída do AudioTrack/HAL
+ *     antes de virar som no alto-falante — sem compensação, as barras
+ *     chegavam ~0,4s ADIANTADAS em relação ao que se ouve. A view guarda um
+ *     HISTÓRICO CIRCULAR de snapshots do bus (~23ms cada) e exibe o
+ *     snapshot de DELAY_MS atrás: a barra dança QUANDO O SOM SOA. Pausou?
+ *     As barras seguem ~400ms (o buffer de verdade ainda drena som) e
+ *     depois caem — e o motor de batida roda sobre o snapshot atrasado,
+ *     então o soco do grave bate junto com o áudio que se ouve.
  *
  * Além disso: ataque INSTANTÂNEO (a barra sobe na pancada), decaimento
  * constante (~0,8s de cauda) e pontinho de PICO com gravidade acumulada
@@ -57,6 +67,20 @@ class VisualizerView @JvmOverloads constructor(
 
     /** Velocidade de queda de cada pico (gravidade acumulada). */
     private val peakVel = FloatArray(BARS)
+
+    /**
+     * Histórico circular de snapshots do bus — a matéria-prima do atraso de
+     * exibição: cada entrada guarda (momento da publicação, 28 bandas).
+     * ~23ms entre publicações × HIST entradas ≈ 840ms de história, sobra
+     * pro atraso de 400ms + janela de frescor.
+     */
+    private val histStamp = LongArray(HIST)
+    private val histData = Array(HIST) { FloatArray(BARS) }
+    private var histHead = 0   // próxima posição a escrever
+    private var histCount = 0
+
+    /** Stamp do último snapshot analisado pelo motor de batida. */
+    private var lastBeatStamp = 0L
 
     /** Média lenta da energia do grave — a "linha do groove" (referência). */
     private var bassAvg = 0f
@@ -107,23 +131,38 @@ class VisualizerView @JvmOverloads constructor(
     }
 
     /**
-     * Consome o SpectrumBus e roda o motor de batida. Dado "velho"
-     * (> STALE_MS sem publicação nova — faixa pausada/encerrada) = alvo
-     * zero → as barras caem sozinhas pelo decay (e a batida esvazia).
+     * Consome o histórico de snapshots do bus e roda o motor de batida SOBRE
+     * O SNAPSHOT DE DELAY_MS ATRÁS (o som que está saindo agora no
+     * alto-falante). Sem publicação nova recente (faixa pausada/encerrada) =
+     * alvo zero → as barras caem sozinhas pelo decay (e a batida esvazia).
      */
     private fun ingest() {
-        val bus = SpectrumBus.bands
-        val fresh = bus != null &&
-            (SystemClock.elapsedRealtime() - SpectrumBus.stampMs) < STALE_MS
+        pushHistory()
+        val now = SystemClock.elapsedRealtime()
 
-        // ---- motor de batida: grave atual vs. groove (média lenta) ----
-        if (fresh) {
+        // frescor pelo snapshot MAIS NOVO: música rodando = publicação nova
+        // chegou há menos de DELAY_MS + STALE_MS; parou = histórico envelhece
+        var fresh = false
+        var delayedIdx = -1
+        if (histCount > 0) {
+            val newest = (histHead - 1 + HIST) % HIST
+            fresh = (now - histStamp[newest]) < DELAY_MS + STALE_MS
+            if (fresh) delayedIdx = snapshotAt(now - DELAY_MS)
+        }
+        val bands: FloatArray? = if (fresh && delayedIdx >= 0) histData[delayedIdx] else null
+        val stamp = if (delayedIdx >= 0) histStamp[delayedIdx] else 0L
+
+        // ---- motor de batida: grave do snapshot ATRASADO vs. groove ----
+        // (a batida também respeita o atraso: o soco bate QUANDO O SOM SAI.
+        //  Guard lastBeatStamp: cada snapshot é analisado UMA vez — o frame
+        //  roda a ~60/s mas o bus publica a ~43/s, não reprocessar o mesmo)
+        if (bands != null && stamp != lastBeatStamp) {
+            lastBeatStamp = stamp
             var sum = 0f
-            for (i in 0 until BASS_BANDS) sum += bus!![i]
+            for (i in 0 until BASS_BANDS) sum += bands[i]
             val bass = sum / BASS_BANDS
             bassAvg += (bass - bassAvg) * BASS_SMOOTH
             val spike = bass - bassAvg
-            val now = SystemClock.elapsedRealtime()
             if (bass > BASS_FLOOR &&
                 spike > bassAvg * BEAT_RATIO + BEAT_MIN_SPIKE &&
                 now - lastBeatMs > BEAT_GAP_MS
@@ -138,7 +177,7 @@ class VisualizerView @JvmOverloads constructor(
 
         // ---- alvo de cada banda: nível bruto × ganho (com soco no grave) ----
         for (i in 0 until BARS) {
-            val raw = if (fresh && i < bus!!.size) bus[i] else 0f
+            val raw = if (bands != null) bands[i] else 0f
             // peso do soco: total nas bandas do kick, sumindo até BEAT_BANDS
             val beatW = if (i < BEAT_BANDS) 1f - i / (BEAT_BANDS + 4f) else 0f
             val gain = GAIN * (1f + TILT_HI * i / (BARS - 1)) * (1f + punch * beatW)
@@ -153,6 +192,36 @@ class VisualizerView @JvmOverloads constructor(
                 peaks[i] = (peaks[i] - peakVel[i]).coerceAtLeast(0f)
             }
         }
+    }
+
+    /**
+     * Registra o snapshot corrente do bus no histórico circular — só quando
+     * o stamp mudou (o bus publica a cada ~23ms; os frames rodam a ~60/s).
+     */
+    private fun pushHistory() {
+        val bus = SpectrumBus.bands ?: return
+        val stamp = SpectrumBus.stampMs
+        if (histCount > 0 && histStamp[(histHead - 1 + HIST) % HIST] == stamp) return
+        val slot = histData[histHead]
+        System.arraycopy(bus, 0, slot, 0, minOf(BARS, bus.size))
+        histStamp[histHead] = stamp
+        histHead = (histHead + 1) % HIST
+        if (histCount < HIST) histCount++
+    }
+
+    /**
+     * Índice no histórico do snapshot mais novo com stamp <= t — o espectro
+     * que estava no pipeline na hora em que o som de "t" estava sendo
+     * preparado pra sair. -1 = o histórico ainda não alcança "t" (começo de
+     * playback: as barras ficam no chão até existir dado tão antigo quanto
+     * o atraso — honesto, o alto-falante também ainda não soou).
+     */
+    private fun snapshotAt(t: Long): Int {
+        for (k in 0 until histCount) {
+            val idx = (histHead - 1 - k + 2 * HIST) % HIST
+            if (histStamp[idx] <= t) return idx
+        }
+        return -1
     }
 
     // ---------- desenho ----------
@@ -232,6 +301,8 @@ class VisualizerView @JvmOverloads constructor(
     companion object {
         private const val BARS = 28          // bandas de frequência (igual ao processador)
         private const val COLUMNS = BARS * 2 // colunas desenhadas (espelho: 56)
+        private const val DELAY_MS = 400L    // atraso de exibição — sincronia com o alto-falante
+        private const val HIST = 36          // snapshots no histórico (~23ms cada ≈ 840ms)
         private const val GAIN = 2.2f        // ganho pré-curva — barras ALTAS (era 1.6)
         private const val CURVE = 0.7f       // curva perceptual mais generosa (era 0.75)
         private const val TILT_HI = 0.25f    // reforço extra de agudo na ponta do espelho

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Loader de abertura: logo e "bem-vindo" na Aston Script (fonte do próprio
      autor do app). Desde a v0.18.8 a VERSÃO fica no rodapé da tela (pedido
-     do autor) e a assinatura "feito por micaelsan" mudou pro rodapé do
-     Início, ao lado do número da versão. O "bem-vindo" tem ALTURA FIXA: o
+     do autor) e desde a v0.18.10 a assinatura "feito por Micael San" voltou
+     pra cá, AO LADO do número (com o letreiro de led). O "bem-vindo" tem
+     ALTURA FIXA: o
      autoSize com wrap_content deixava a view mais baixa que a própria linha
      da fonte (a Aston Script tem caixa de linha de 2,175em) e o Android
      cortava metade do texto — com altura fixa o autoSize só escolhe o
@@ -55,18 +56,37 @@
             android:indeterminateTint="@color/primary" />
     </LinearLayout>
 
-    <!-- Versão SEMPRE no rodapé (v0.18.8, pedido do autor): o texto é
-         preenchido no SplashActivity com o BuildConfig da build — nunca
-         desatualiza. A assinatura "feito por micaelsan" agora mora ao lado
-         do número da versão no rodapé do Início -->
-    <TextView
-        android:id="@+id/txtVersion"
+    <!-- Rodapé (v0.18.10): versão + "feito por Micael San" AO LADO — o nome
+         VOLTOU pra tela de bem-vindo (pedido do autor), de novo com o
+         letreiro de led (LedTextView). O texto do número é preenchido no
+         SplashActivity com o BuildConfig da build — nunca desatualiza -->
+    <LinearLayout
+        android:id="@+id/footerGroup"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="30dp"
+        android:layout_marginBottom="26dp"
         android:alpha="0"
-        android:letterSpacing="0.06"
-        android:textColor="@color/on_surface_variant"
-        android:textSize="13sp" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/txtVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.06"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="13sp" />
+
+        <com.tunegrab.app.ui.LedTextView
+            android:id="@+id/txtName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:fontFamily="@font/poppins_semibold"
+            android:letterSpacing="0.12"
+            android:text="@string/splash_name"
+            android:textColor="@color/primary"
+            android:textSize="16sp" />
+    </LinearLayout>
 </FrameLayout>

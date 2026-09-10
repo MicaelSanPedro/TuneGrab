@@ -9,11 +9,12 @@ import androidx.appcompat.app.AppCompatActivity
 
 /**
  * Loader de abertura: logo + "Bem-vindo" em cursiva e, NO RODAPÉ, a versão
- * da build (v0.18.8, pedido do autor — "a partir de agora o nome da versão
- * deve ficar embaixo, na tela de bem-vindo"). A assinatura "feito por
- * micaelsan" agora mora no rodapé do Início, ao lado do número da versão.
- * Puramente visual — nada de rede aqui. Depois de ~2,6s abre a MainActivity
- * e sai da pilha (voltar no splash fecha o app, como se espera).
+ * da build AO LADO da assinatura "feito por Micael San" (v0.18.10 — o nome
+ * voltou pra tela de bem-vindo a pedido do autor, com o letreiro de led;
+ * continua no rodapé do Início também). O número vem do BuildConfig da
+ * build — nunca desatualiza. Puramente visual — nada de rede aqui. Depois
+ * de ~2,6s abre a MainActivity e sai da pilha (voltar no splash fecha o
+ * app, como se espera).
  *
  * Links compartilhados/abertos (ACTION_SEND/VIEW) continuam indo direto
  * para a MainActivity — o splash só aparece na abertura pelo ícone.
@@ -26,13 +27,16 @@ class SplashActivity : AppCompatActivity() {
 
         val logo = findViewById<View>(R.id.imgLogo)
         val welcome = findViewById<TextView>(R.id.txtWelcome)
+        val footer = findViewById<View>(R.id.footerGroup)
         val version = findViewById<TextView>(R.id.txtVersion)
 
+        // rodapé: "v0.18.10  ·  feito por" + nome em LedTextView (no XML) —
         // versão SEMPRE atual (vem do BuildConfig da build — nunca desatualiza)
-        version.text = "v" + BuildConfig.VERSION_NAME
+        version.text = "v" + BuildConfig.VERSION_NAME +
+            "  ·  " + getString(R.string.splash_made_by)
 
         // entrada suave: logo surge, o "Bem-vindo" cresce e assenta,
-        // a versão aparece por último no rodapé
+        // o rodapé (versão + assinatura) aparece por último
         logo.alpha = 0f
         logo.animate().alpha(1f).setDuration(500).start()
 
@@ -45,7 +49,7 @@ class SplashActivity : AppCompatActivity() {
             .setInterpolator(DecelerateInterpolator(1.6f))
             .start()
 
-        version.animate().alpha(1f)
+        footer.animate().alpha(1f)
             .setStartDelay(650).setDuration(600)
             .start()
 
