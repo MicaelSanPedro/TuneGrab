@@ -526,8 +526,13 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 b.root.setCardBackgroundColor(
                     ContextCompat.getColor(ctx, if (isSel) R.color.sel_card else R.color.surface)
                 )
-                b.root.strokeColor = ColorStateList.valueOf(
-                    ContextCompat.getColor(ctx, if (isSel) R.color.primary else R.color.stroke)
+                // setStrokeColor EXPLÍCITO: o `strokeColor =` do Kotlin casa
+                // com o setter Int (pelo tipo do getter) e o ColorStateList
+                // não entra — v0.19.4 labelSlide, mesma família de overload
+                b.root.setStrokeColor(
+                    ColorStateList.valueOf(
+                        ContextCompat.getColor(ctx, if (isSel) R.color.primary else R.color.stroke)
+                    )
                 )
                 b.root.setOnClickListener {
                     if (selectionMode) toggle(entry) else onOpen?.invoke(entry)
