@@ -72,8 +72,10 @@ class ExpandingNavBar @JvmOverloads constructor(
 
     /** Deslize lateral do nome (v0.19.4): o texto SÓ anda pra frente/trás na
      * horizontal — nunca nasce de cima pra baixo (o singleLine do label mata
-     * a quebra de linha que fazia o texto "subir" durante a abertura). */
-    private val labelSlide = dp(10)
+     * a quebra de linha que fazia o texto "subir" durante a abertura).
+     * Float: translationX é Float e o dp() é Int — misturar os dois no
+     * if/else dobra o tipo (Comparable&Number) e o compilador crava erro. */
+    private val labelSlide = dp(10).toFloat()
 
     init {
         orientation = HORIZONTAL
