@@ -200,8 +200,15 @@ class PlaylistSheet(
                 } else {
                     qualities.first().value
                 }
-            // vídeo: 1080p fixo, como no seletor único
-            else -> if (qualities.any { it.value == "1080" }) "1080" else qualities.first().value
+            // vídeo: a qualidade padrão das Configurações (v0.19.3 — era
+            // 1080p fixo; o YouTube pode não ter o degrau exato, então cai
+            // pro mais próximo disponível)
+            else -> {
+                val def = FormatPrefs.videoDefaultHeight(context)
+                qualities.minByOrNull {
+                    kotlin.math.abs((it.value.toIntOrNull() ?: 0) - def)
+                }?.value ?: qualities.first().value
+            }
         }
 
         qualities.forEach { q ->

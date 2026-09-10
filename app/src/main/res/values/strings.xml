@@ -14,9 +14,6 @@
     <string name="home_led">♪ TuneGrab ♪</string>
 
     <string name="hint_url">Cole o link do YouTube aqui</string>
-    <string name="hint_url_playlist">Cole o link da playlist aqui</string>
-    <string name="mode_video">Vídeo</string>
-    <string name="mode_playlist">Playlist</string>
     <string name="btn_download">Baixar</string>
     <string name="cd_thumb">Miniatura do vídeo</string>
     <string name="cd_paste">Colar da área de transferência</string>
@@ -77,7 +74,6 @@
     <string name="pl_done_all">Playlist na fila! 🎉 %1$d vídeos entraram</string>
     <string name="pl_done_partial">Fila pronta: %1$d entraram · %2$d falharam</string>
     <string name="pl_done_none">Nada entrou na fila :( — o YouTube travou tudo. Espera 1 minutinho e tenta de novo</string>
-    <string name="pl_no_list">Esse link não tem playlist — baixando como vídeo único</string>
     <string name="pl_play_error">Reproduzir é só pra vídeo único — playlist usa o botão Baixar</string>
     <string name="pl_stopped">Parou no vídeo %1$d de %2$d (verificação do YouTube). O que já entrou segue baixando — tenta de novo em 1 minutinho.</string>
     <string name="pl_q_best">Melhor disponível</string>
@@ -157,6 +153,26 @@
     <string name="settings_player">Player</string>
     <string name="settings_visualizer">Barrinhas de áudio no player</string>
     <string name="settings_visualizer_hint">Espectro REAL do som que está tocando (grave no centro, agudo nas pontas, espelhado como mesa de DJ) — não é animação e NÃO precisa de permissão nenhuma: o app lê o áudio por dentro do próprio player.</string>
+
+    <!-- Vídeo: qualidade padrão do seletor (v0.19.3) -->
+    <string name="settings_video">Vídeo · qualidade padrão</string>
+    <string name="q_video_2160">4K (2160p)</string>
+    <string name="q_video_1080">1080p (Full HD)</string>
+    <string name="q_video_720">720p (HD)</string>
+    <string name="q_video_480">480p (leve)</string>
+
+    <!-- Atualização manual + Sobre (v0.19.3) -->
+    <string name="settings_update">Atualização</string>
+    <string name="update_check_btn">Verificar atualizações</string>
+    <string name="update_checking">Verificando…</string>
+    <string name="update_uptodate">Você já está na versão mais recente (v%1$s)</string>
+    <string name="update_available">Nova versão v%1$s disponível! Abrindo a Central de Downloads…</string>
+    <string name="settings_about">Sobre</string>
+    <string name="about_version_fmt">TuneGrab v%1$s</string>
+    <string name="about_made_by">feito por Micael San</string>
+    <string name="about_engines">Motor de download: yt-dlp + NewPipe Extractor · Player: ExoPlayer</string>
+    <string name="about_github_btn">Ver no GitHub</string>
+    <string name="about_no_browser">Nenhum navegador encontrado pra abrir o link.</string>
 
     <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>

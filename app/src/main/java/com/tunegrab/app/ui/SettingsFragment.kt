@@ -1,5 +1,6 @@
 package com.tunegrab.app.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -11,21 +12,31 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import com.tunegrab.app.BuildConfig
 import com.tunegrab.app.CookieLoginActivity
 import com.tunegrab.app.FormatPrefs
 import com.tunegrab.app.R
 import com.tunegrab.app.YtCookies
 import com.tunegrab.app.databinding.FragmentSettingsBinding
 import com.tunegrab.app.download.SaveLocation
+import com.tunegrab.app.update.UpdateChecker
+import kotlinx.coroutines.launch
 
 /**
- * Configurações: qualidade padrão de cada formato (configuradas separadamente)
- * e a pasta onde os arquivos são salvos.
+ * Configurações (v0.19.3 — "mais completa", pedido do autor):
  *  - MP3: bitrate padrão da conversão (320/256/192/128 kbps) — o "320 kbps
  *    (padrão)" do seletor
  *  - M4A: melhor disponível ou menor arquivo
- *  - Vídeo: padrão FIXO em 1080p no seletor (v0.10.1) — sem configuração aqui
+ *  - Vídeo: a qualidade que já vem pré-selecionada no seletor (v0.19.3 —
+ *    era 1080p FIXO desde a v0.10.1; o YouTube pode não ter o degrau
+ *    exato, então o seletor cai pro mais próximo disponível)
  *  - Pasta: Downloads/TuneGrab (padrão) ou pasta escolhida pelo usuário (SAF)
+ *  - Cookies: login do YouTube dentro do app ou importar cookies.txt
+ *  - Player: toggle das barrinhas de áudio (visualizador)
+ *  - Atualização: verificação manual — achou versão nova? Leva pra Central
+ *    de Downloads, onde vive o card de instalação
+ *  - Sobre: versão, assinatura do autor e link do repositório
  */
 class SettingsFragment : Fragment() {
 
@@ -99,9 +110,12 @@ class SettingsFragment : Fragment() {
         loadCurrent()
         bindMp3()
         bindM4a()
+        bindVideo()
         refreshFolderUi()
         refreshCookieUi()
         bindVisualizer()
+        bindUpdate()
+        bindAbout()
     }
 
     /** Barrinhas de DJ (v0.18.8): o toggle liga o visualizador REAL do
@@ -173,6 +187,71 @@ class SettingsFragment : Fragment() {
         binding.rgM4a.setOnCheckedChangeListener { _: RadioGroup, checkedId: Int ->
             val pick = if (checkedId == R.id.rbM4aSmall) FormatPrefs.PICK_SMALL else FormatPrefs.PICK_BEST
             FormatPrefs.setM4aPick(requireContext(), pick)
+        }
+    }
+
+    /** Vídeo (v0.19.3): a altura que já vem marcada no seletor de qualidade
+     *  (do seletor único à fila da playlist inteira). 1080p de fábrica. */
+    private fun bindVideo() {
+        when (FormatPrefs.videoDefaultHeight(requireContext())) {
+            2160 -> binding.rbVideo2160.isChecked = true
+            720 -> binding.rbVideo720.isChecked = true
+            480 -> binding.rbVideo480.isChecked = true
+            else -> binding.rbVideo1080.isChecked = true
+        }
+        binding.rgVideo.setOnCheckedChangeListener { _: RadioGroup, checkedId: Int ->
+            val height = when (checkedId) {
+                R.id.rbVideo2160 -> 2160
+                R.id.rbVideo720 -> 720
+                R.id.rbVideo480 -> 480
+                else -> 1080
+            }
+            FormatPrefs.setVideoDefaultHeight(requireContext(), height)
+        }
+    }
+
+    /** Atualização manual (v0.19.3): chama o MESMO UpdateChecker da Central
+     *  (mesmo cache/throttle — verificar aqui não martela a API do GitHub).
+     *  Achou versão nova? Leva o usuário pra Central de Downloads, onde o
+     *  card de baixar/instalar já está esperando. */
+    private fun bindUpdate() {
+        binding.btnCheckUpdate.setOnClickListener {
+            val ctx = requireContext()
+            binding.btnCheckUpdate.isEnabled = false
+            binding.tvUpdateStatus.setText(R.string.update_checking)
+            viewLifecycleOwner.lifecycleScope.launch {
+                val info = UpdateChecker.check(ctx)
+                if (_binding == null) return@launch // a aba saiu da tela no meio
+                binding.btnCheckUpdate.isEnabled = true
+                if (info != null) {
+                    binding.tvUpdateStatus.text =
+                        getString(R.string.update_available, info.version)
+                    (activity as? MainActivity)?.openTab(R.id.navDownloads)
+                } else {
+                    binding.tvUpdateStatus.text =
+                        getString(R.string.update_uptodate, BuildConfig.VERSION_NAME)
+                }
+            }
+        }
+    }
+
+    /** Sobre (v0.19.3): versão + assinatura + repositório (abre no navegador
+     *  do sistema — a aba YouTube é PRESA ao YouTube de propósito). */
+    private fun bindAbout() {
+        binding.tvAboutVersion.text =
+            getString(R.string.about_version_fmt, BuildConfig.VERSION_NAME) +
+                "  ·  " + getString(R.string.about_made_by)
+        binding.btnGithub.setOnClickListener {
+            try {
+                startActivity(
+                    Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://github.com/MicaelSanPedro/TuneGrab")
+                    )
+                )
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(requireContext(), R.string.about_no_browser, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

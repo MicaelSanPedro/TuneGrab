@@ -61,8 +61,8 @@ object FormatPrefs {
     private const val KEY_LAST_FORMAT = "last_format"
     private const val KEY_MP3_BITRATE = "mp3_bitrate"
     private const val KEY_M4A_PICK = "m4a_pick"
-    private const val KEY_INPUT_MODE = "input_mode"
     private const val KEY_VISUALIZER = "visualizer"
+    private const val KEY_VIDEO_HEIGHT = "video_height"
 
     const val FORMAT_MP3 = "mp3"
     const val FORMAT_M4A = "m4a"
@@ -70,10 +70,6 @@ object FormatPrefs {
     const val FORMAT_MP4 = "mp4"
     const val PICK_BEST = "best"
     const val PICK_SMALL = "small"
-
-    /** Seletor do Início (v0.14.0): vídeo único ou playlist. */
-    const val MODE_VIDEO = "video"
-    const val MODE_PLAYLIST = "playlist"
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
@@ -91,12 +87,12 @@ object FormatPrefs {
     fun m4aPick(ctx: Context): String = prefs(ctx).getString(KEY_M4A_PICK, PICK_BEST) ?: PICK_BEST
     fun setM4aPick(ctx: Context, pick: String) = prefs(ctx).edit().putString(KEY_M4A_PICK, pick).apply()
 
-    /** Modo do seletor do Início (vídeo/playlist) — sobrevive a fechar o app. */
-    fun lastInputMode(ctx: Context): String =
-        prefs(ctx).getString(KEY_INPUT_MODE, MODE_VIDEO) ?: MODE_VIDEO
-    fun rememberMode(ctx: Context, mode: String) {
-        prefs(ctx).edit().putString(KEY_INPUT_MODE, mode).apply()
-    }
+    /** Vídeo (v0.19.3): altura que já vem pré-selecionada no seletor
+     *  (seção Vídeo das Configurações). 1080p de fábrica — o degrau da
+     *  escada que o YouTube quase sempre tem. */
+    fun videoDefaultHeight(ctx: Context): Int = prefs(ctx).getInt(KEY_VIDEO_HEIGHT, 1080)
+    fun setVideoDefaultHeight(ctx: Context, height: Int) =
+        prefs(ctx).edit().putInt(KEY_VIDEO_HEIGHT, height).apply()
 
     /** Barrinhas de DJ (v0.18.7): visualizador de espectro no player de
      *  áudio. Padrão LIGADO — a primeira exibição pede a permissão. */
@@ -287,9 +283,10 @@ class FormatPickerSheet(
     }
 
     /** Qualidade padrão de cada tipo — a que já vem pré-selecionada ao abrir
-     *  o seletor. Vídeo: 1080p FIXO (v0.10.1); MP3: o bitrate padrão das
-     *  Configurações (320 kbps de fábrica); M4A: melhor disponível (ou menor
-     *  arquivo, se escolhido nas Configurações); Opus: melhor disponível. */
+     *  o seletor. Vídeo: a altura das Configurações (v0.19.3 — era 1080p
+     *  FIXO desde a v0.10.1); MP3: o bitrate padrão das Configurações
+     *  (320 kbps de fábrica); M4A: melhor disponível (ou menor arquivo, se
+     *  escolhido nas Configurações); Opus: melhor disponível. */
     private fun defaultQualityFor(format: String, values: List<String>): String {
         if (values.isEmpty()) return ""
         return when (format) {
@@ -306,8 +303,14 @@ class FormatPickerSheet(
                 values.first()
             }
             FormatPrefs.FORMAT_OPUS -> values.first()
-            // vídeo: 1080p sempre — a escada padrão tem este degrau garantido
-            else -> if (values.contains("1080")) "1080" else values.first()
+            // vídeo: a altura das Configurações — o YouTube pode não ter o
+            // degrau exato, então cai pro mais próximo disponível
+            else -> {
+                val def = FormatPrefs.videoDefaultHeight(context)
+                values.minByOrNull {
+                    kotlin.math.abs((it.toIntOrNull() ?: 0) - def)
+                } ?: values.first()
+            }
         }
     }
 

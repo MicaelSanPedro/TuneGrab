@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- IDs das 5 abas da barra inferior (v0.19.3). Viviam no
+     menu_bottom_nav.xml; com a barra custom (ExpandingNavBar) as abas são
+     montadas em código (BottomNav.setup) e o menu XML saiu de cena. -->
+<resources>
+    <item name="navHome" type="id" />
+    <item name="navYouTube" type="id" />
+    <item name="navDownloads" type="id" />
+    <item name="navLibrary" type="id" />
+    <item name="navSettings" type="id" />
+</resources>

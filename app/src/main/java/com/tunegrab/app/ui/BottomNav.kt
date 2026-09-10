@@ -2,11 +2,10 @@ package com.tunegrab.app.ui
 
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.tunegrab.app.R
 
 /**
- * Barra de navegação inferior (Início · YouTube · Downloads · Músicas ·
+ * Barra de navegação inferior (Início · YouTube · Downloads · Biblioteca ·
  * Configurações).
  *
  * PADRÃO SINGLE-ACTIVITY: as 5 abas são fragments dentro da MainActivity e a
@@ -14,24 +13,35 @@ import com.tunegrab.app.R
  * troca seca virou cruzamento de 140ms), sem recriar a janela. Foi
  * exatamente a recriação da activity (multi-activity antigo) que dava aquele
  * "redimensionar + chacoalhar" ao trocar de aba.
+ *
+ * v0.19.3: a BARRA em si é a [ExpandingNavBar] — a aba clicada cresce
+ * (ícone + nome lado a lado, empurrão suave nos vizinhos, pedido do autor).
+ * As abas são montadas aqui em código: os ids vieram do antigo
+ * menu_bottom_nav.xml e hoje moram em res/values/ids.xml.
  */
 object BottomNav {
 
-    fun setup(activity: AppCompatActivity, nav: BottomNavigationView, containerId: Int, defaultItemId: Int) {
-        // marcado ANTES do listener: não dispara navegação no onCreate
-        nav.selectedItemId = defaultItemId
-        nav.setOnItemSelectedListener { item ->
-            navigate(activity, nav, containerId, item.itemId)
+    fun setup(activity: AppCompatActivity, nav: ExpandingNavBar, containerId: Int, defaultItemId: Int) {
+        nav.addTab(R.id.navHome, R.drawable.ic_nav_home, R.string.nav_home)
+        nav.addTab(R.id.navYouTube, R.drawable.ic_youtube, R.string.nav_youtube)
+        nav.addTab(R.id.navDownloads, R.drawable.ic_nav_downloads, R.string.nav_downloads)
+        nav.addTab(R.id.navLibrary, R.drawable.ic_nav_library, R.string.nav_library)
+        nav.addTab(R.id.navSettings, R.drawable.ic_nav_settings, R.string.nav_settings)
+        // seleção inicial SEM animação e ANTES do listener: não dispara
+        // navegação no onCreate (mesmo padrão do BottomNavigationView antigo)
+        nav.select(defaultItemId, animate = false)
+        nav.setOnItemSelectedListener { itemId ->
+            navigate(activity, containerId, itemId)
             true
         }
-        // abre a aba inicial DE FATO: selectedItemId antes do listener não
-        // dispara navegação, e sem isso o app abria em tela branca até o
-        // primeiro toque numa aba. navigate() é idempotente (mesma aba =
-        // nada a fazer), então rotação/recriação não recarrega à toa.
-        navigate(activity, nav, containerId, defaultItemId)
+        // abre a aba inicial DE FATO: select antes do listener não dispara
+        // navegação, e sem isso o app abria em tela branca até o primeiro
+        // toque numa aba. navigate() é idempotente (mesma aba = nada a
+        // fazer), então rotação/recriação não recarrega à toa.
+        navigate(activity, containerId, defaultItemId)
     }
 
-    private fun navigate(activity: AppCompatActivity, nav: BottomNavigationView, containerId: Int, itemId: Int) {
+    private fun navigate(activity: AppCompatActivity, containerId: Int, itemId: Int) {
         val tag = when (itemId) {
             R.id.navHome -> "home"
             R.id.navYouTube -> "youtube"

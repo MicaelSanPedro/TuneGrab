@@ -59,9 +59,6 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private var busy = false
 
-    /** Modo do seletor do topo (Vídeo/Playlist) — lembra da última escolha. */
-    private var inputMode: String = FormatPrefs.MODE_VIDEO
-
     /** Ação guardada enquanto o usuário responde o pedido de permissão. */
     private var pendingAction: (() -> Unit)? = null
 
@@ -88,7 +85,6 @@ class HomeFragment : Fragment() {
         binding.btnPlay.setOnClickListener { onPlayClicked() }
         binding.btnSettings.setOnClickListener { (activity as? MainActivity)?.openTab(R.id.navSettings) }
         binding.tilUrl.setEndIconOnClickListener { pasteFromClipboard() }
-        setupModeSelector()
         binding.inputUrl.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
                 onDownloadClicked(); true
@@ -132,31 +128,6 @@ class HomeFragment : Fragment() {
         _binding = null
     }
 
-    /**
-     * Seletor do topo (v0.14.0): VÍDEO ou PLAYLIST. O app automatiza a
-     * função — o modo muda o hint do campo e decide o que o link faz.
-     */
-    private fun setupModeSelector() {
-        inputMode = FormatPrefs.lastInputMode(requireContext())
-        binding.modeGroup.check(
-            if (inputMode == FormatPrefs.MODE_PLAYLIST) R.id.modePlaylist else R.id.modeVideo
-        )
-        binding.tilUrl.hint = hintForMode()
-        binding.modeGroup.setOnCheckedStateChangeListener { group, _ ->
-            inputMode = if (group.checkedChipId == R.id.modePlaylist) {
-                FormatPrefs.MODE_PLAYLIST
-            } else {
-                FormatPrefs.MODE_VIDEO
-            }
-            FormatPrefs.rememberMode(requireContext(), inputMode)
-            binding.tilUrl.hint = hintForMode()
-        }
-    }
-
-    private fun hintForMode(): String = getString(
-        if (inputMode == FormatPrefs.MODE_PLAYLIST) R.string.hint_url_playlist else R.string.hint_url
-    )
-
     /** Link vindo de "Compartilhar → TuneGrab" ou de abrir uma URL do YouTube. */
     fun handleSharedUrl(shared: String) {
         binding.inputUrl.setText(shared)
@@ -175,25 +146,16 @@ class HomeFragment : Fragment() {
             setStatus(getString(R.string.err_invalid_url))
             return
         }
-        // PLAYLIST pura (youtube.com/playlist?list=…) tem fluxo próprio SEMPRE
-        // (vídeo único não existe pra esse link) — escolhe formato UMA vez e
-        // os vídeos entram na fila um a um pelo MESMO caminho do download único
+        // AUTO-DETECT (v0.19.3, pedido do autor — o seletor Vídeo/Playlist
+        // saiu): o LINK em si manda. Playlist pura (youtube.com/playlist?list=…)
+        // tem fluxo próprio — escolhe formato UMA vez e os vídeos entram na
+        // fila um a um pelo MESMO caminho do download único. Qualquer outro
+        // link (watch?v=, youtu.be, /shorts/ — MESMO com &list= de contexto)
+        // é vídeo único: quem pega música quer A MÚSICA da página que abriu,
+        // não a fila de 200 vídeos recomendados junto.
         if (YtExtractor.isPlaylistUrl(url)) {
             startPlaylist(url)
             return
-        }
-        // Seletor em PLAYLIST: watch?v=X&list=Y / youtu.be/X?list=Y vira a
-        // playlist inteira — sem precisar caçar o link /playlist
-        if (inputMode == FormatPrefs.MODE_PLAYLIST) {
-            val listId = YtExtractor.playlistIdOf(url)
-            if (listId != null) {
-                startPlaylist("https://www.youtube.com/playlist?list=$listId")
-                return
-            }
-            // vídeo puro no modo playlist: automatiza mesmo assim — baixa
-            // como vídeo único e avisa por que não abriu a fila (toast: o
-            // status da busca sobrescreveria na sequência)
-            Toast.makeText(requireContext(), R.string.pl_no_list, Toast.LENGTH_SHORT).show()
         }
         setBusy(true)
         binding.progress.visibility = View.VISIBLE

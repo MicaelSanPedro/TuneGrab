@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Aba do YouTube (v0.19.2): logo do "tubo" com o play no meio — o furo do
-     triângulo sai pelo fillType evenOdd (dois sub-caminhos no mesmo path).
-     A cor vem do itemIconTint da barra (cinza inativo / violeta ativo) -->
+<!-- Aba do YouTube (v0.19.3): o LOGO OFICIAL do YouTube (o tubo achatado
+     com o play no meio, do simple-icons) no lugar do "smart_display" do
+     Material que parecia uma TV — pedido do autor: "o de youtube mesmo,
+     só que não colorido". O furo do triângulo sai pelo fillType evenOdd
+     (dois sub-caminhos no mesmo path). A cor vem do tint da barra
+     (cinza inativo / violeta ativo) — monocromático como os demais -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -10,5 +13,5 @@
     <path
         android:fillColor="#FFFFFF"
         android:fillType="evenOdd"
-        android:pathData="M21.58,7.19c-0.23,-0.86 -0.91,-1.54 -1.77,-1.77C18.25,5 12,5 12,5s-6.25,0 -7.81,0.42c-0.86,0.23 -1.54,0.91 -1.77,1.77C2,8.75 2,12 2,12s0,3.25 0.42,4.81c0.23,0.86 0.91,1.54 1.77,1.77C5.75,19 12,19 12,19s6.25,0 7.81,-0.42c0.86,-0.23 1.54,-0.91 1.77,-1.77C22,15.25 22,12 22,12s0,-3.25 -0.42,-4.81zM10,15.5v-7l6,3.5 -6,3.5z" />
+        android:pathData="M23.498,6.186a3.016,3.016 0,0 0,-2.122,-2.136c-1.871,-0.505 -9.376,-0.505 -9.376,-0.505s-7.505,0 -9.377,0.505A3.017,3.017 0,0 0,0.502,6.186C0,8.07 0,12 0,12s0,3.93 0.502,5.814a3.016,3.016 0,0 0,2.122,2.136c1.871,0.505 9.376,0.505 9.376,0.505s7.505,0 9.377,-0.505a3.015,3.015 0,0 0,2.122,-2.136C24,15.93 24,12 24,12s0,-3.93 -0.502,-5.814zM9.545,15.568V8.432L15.818,12 9.545,15.568z" />
 </vector>

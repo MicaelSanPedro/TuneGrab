@@ -176,14 +176,61 @@
                     android:textSize="14sp" />
             </RadioGroup>
 
-            <!-- Vídeo: padrão fixo em 1080p no seletor (v0.10.1) — sem opção aqui.
-                 O rótulo "1080p (padrão)" aparece no próprio seletor de qualidade. -->
+            <!-- Vídeo (v0.19.3): a qualidade que já vem pré-selecionada no
+                 seletor — antes era 1080p FIXO (v0.10.1). O YouTube pode não
+                 ter o degrau exato; o app cai pro mais próximo disponível. -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/settings_video"
+                android:textColor="@color/primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <RadioGroup
+                android:id="@+id/rgVideo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp">
+
+                <RadioButton
+                    android:id="@+id/rbVideo2160"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="44dp"
+                    android:text="@string/q_video_2160"
+                    android:textSize="14sp" />
+
+                <RadioButton
+                    android:id="@+id/rbVideo1080"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="44dp"
+                    android:text="@string/q_video_1080"
+                    android:textSize="14sp" />
+
+                <RadioButton
+                    android:id="@+id/rbVideo720"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="44dp"
+                    android:text="@string/q_video_720"
+                    android:textSize="14sp" />
+
+                <RadioButton
+                    android:id="@+id/rbVideo480"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="44dp"
+                    android:text="@string/q_video_480"
+                    android:textSize="14sp" />
+            </RadioGroup>
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="8dp"
+                android:layout_marginTop="2dp"
                 android:text="@string/settings_mp4_hint"
                 android:textColor="@color/on_surface_variant"
                 android:textSize="11sp" />
@@ -276,6 +323,73 @@
                 android:text="@string/settings_visualizer_hint"
                 android:textColor="@color/on_surface_variant"
                 android:textSize="11sp" />
+
+            <!-- Atualização (v0.19.3): verificação manual — o card de
+                 instalar vive na Central de Downloads, então ao achar versão
+                 nova o app leva o usuário direto pra lá -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/settings_update"
+                android:textColor="@color/primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCheckUpdate"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/update_check_btn"
+                app:icon="@drawable/ic_refresh"
+                app:iconTint="@color/primary"
+                app:strokeColor="@color/stroke" />
+
+            <TextView
+                android:id="@+id/tvUpdateStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="@color/on_surface_variant"
+                android:textSize="12sp" />
+
+            <!-- Sobre (v0.19.3): versão, assinatura, motores e o repo -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/settings_about"
+                android:textColor="@color/primary"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvAboutVersion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="@color/on_background"
+                android:textSize="13sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/about_engines"
+                android:textColor="@color/on_surface_variant"
+                android:textSize="11sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnGithub"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:text="@string/about_github_btn"
+                app:strokeColor="@color/stroke" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

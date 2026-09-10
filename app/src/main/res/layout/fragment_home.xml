@@ -57,45 +57,18 @@
                 app:tint="@color/on_surface_variant" />
         </LinearLayout>
 
-        <!-- Seletor de modo (v0.14.0): o app automatiza a função — Vídeo baixa
-             o link como vídeo único; Playlist abre a fila da lista inteira -->
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/modeGroup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            app:chipSpacingHorizontal="8dp"
-            app:selectionRequired="true"
-            app:singleLine="true"
-            app:singleSelection="true">
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/modeVideo"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:checkable="true"
-                android:text="@string/mode_video"
-                app:chipIcon="@drawable/ic_movie"
-                app:chipIconTint="@color/primary" />
-
-            <com.google.android.material.chip.Chip
-                android:id="@+id/modePlaylist"
-                style="@style/Widget.Material3.Chip.Filter"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:checkable="true"
-                android:text="@string/mode_playlist"
-                app:chipIcon="@drawable/ic_playlist"
-                app:chipIconTint="@color/primary" />
-        </com.google.android.material.chip.ChipGroup>
+        <!-- AUTO-DETECT (v0.19.3, pedido do autor): o seletor de modo
+             Vídeo/Playlist saiu de cena — o LINK em si manda. Playlist pura
+             (/playlist?list=…) abre a fila da playlist; qualquer outro link
+             (watch?v=, youtu.be, /shorts/, mesmo com &list= de contexto) é
+             vídeo único. Zero pergunta no início. -->
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilUrl"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="16dp"
             android:hint="@string/hint_url"
             app:boxCornerRadiusBottomEnd="14dp"
             app:boxCornerRadiusBottomStart="14dp"
