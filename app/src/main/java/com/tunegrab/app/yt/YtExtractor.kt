@@ -156,9 +156,48 @@ object YtExtractor {
             .distinct()
             .sortedDescending()
 
+    /**
+     * Normaliza o link antes da extração: garante o esquema e — v0.19.11 —
+     * CANONICALIZA o link de vídeo.
+     *
+     * O bug do "Link inválido" no botão Baixar da aba YouTube: o YouTube
+     * mobile appenda contexto de mix em QUALQUER vídeo aberto pelo feed
+     * (watch?v=X&list=RD…&start_radio=1) e o link handler do extractor
+     * REJEITA watch com list= ("URL not accepted") — todo vídeo vindo da
+     * navegação da aba (e toda colagem com list= no bolso) virava erro
+     * honesto demais: "Link inválido". O v= manda: o rebuild limpo
+     * https://www.youtube.com/watch?v=ID derruba o contexto que só serve
+     * de ruído (pp/si/t/utm/radio). Playlist PURA (path /playlist?list=)
+     * NUNCA passa por aqui: o auto-detect da Home a roteia pro fluxo de
+     * playlist ANTES do fetch (e watch?v=X&list=Y já é vídeo único por
+     * design da v0.19.3). /live/, /embed/, /v/ passam como estão — o
+     * handler aceita e a canonicalização por segmento não se aplica.
+     */
     private fun normalize(url: String): String {
         val trimmed = url.trim().trim('"', '\'', '>', '<')
-        return if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
+        val withScheme = if (trimmed.startsWith("http")) trimmed else "https://$trimmed"
+        return canonicalVideoUrl(withScheme) ?: withScheme
+    }
+
+    /** Link de vídeo canônico a partir de watch?v=, youtu.be/ID ou
+     *  /shorts/ID — null quando não é dessas formas (URL segue como está). */
+    private fun canonicalVideoUrl(url: String): String? = try {
+        val u = Uri.parse(url)
+        val segments = u.pathSegments
+        when {
+            u.path == "/watch" ->
+                u.getQueryParameter("v")?.takeIf { it.isNotBlank() }
+                    ?.let { "https://www.youtube.com/watch?v=$it" }
+            (u.host ?: "").lowercase() == "youtu.be" ->
+                segments.firstOrNull()?.takeIf { it.isNotBlank() }
+                    ?.let { "https://www.youtube.com/watch?v=$it" }
+            u.path?.startsWith("/shorts/") == true ->
+                segments.getOrNull(1)?.takeIf { it.isNotBlank() }
+                    ?.let { "https://www.youtube.com/watch?v=$it" }
+            else -> null
+        }
+    } catch (t: Throwable) {
+        null
     }
 
     /**
