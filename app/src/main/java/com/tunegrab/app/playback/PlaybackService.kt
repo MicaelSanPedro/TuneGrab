@@ -262,6 +262,7 @@ class PlaybackService : Service() {
                     uris.mapNotNull { u -> u.toUriOrNull() }
                         .zip(titles) { u, t -> Track(u, t) }
                         .takeIf { it.size == uris.size }
+                        ?: emptyList() // uri podre na lista = fila inteira fora
                 } else {
                     emptyList()
                 }
