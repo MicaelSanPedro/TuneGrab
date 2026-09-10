@@ -26,16 +26,16 @@ import com.tunegrab.app.update.UpdateChecker
 import kotlinx.coroutines.launch
 
 /**
- * Configurações (v0.19.9 — "devem ser LITERALMENTE do jeito que está no
- * YouTube, ou seja, como se fosse em pastas", pedido do autor): a lista
- * principal são PASTAS clicáveis e tocar num assunto abre a página só
- * daquele tópico, com botão de voltar no cabeçalho (e o back do sistema
- * retorna pra lista em vez de sair do app).
+ * Configurações (v0.19.10 — "só aparece o que cada config faz", pedido do
+ * autor): as opções ficam VISÍVEIS na página — linha com título + sub +
+ * bolinha de seleção, toque escolhe e salva NA HORA (igual às configs do
+ * YouTube de verdade). Nada de diálogo: escolher é tocar.
  *
- *  - DOWNLOADS: pasta de salvamento (SAF) + voltar ao padrão.
- *  - ÁUDIO: qualidade do MP3 e do M4A — linhas que abrem diálogo de
- *    escolha única (como "Idiomas" no YouTube).
- *  - VÍDEO: qualidade padrão (4K/1080p/720p/480p).
+ *  - DOWNLOADS: pasta de salvamento (SAF) + voltar ao padrão + aviso de
+ *    dados móveis (switch inline, aplicado de verdade no Início).
+ *  - ÁUDIO: qualidade do MP3 (320/256/192/128) e do M4A (melhor/menor)
+ *    como linhas de radio inline.
+ *  - VÍDEO: escada completa 4K→360p como linhas de radio inline.
  *  - PLAYER: barrinhas de áudio (switch inline na própria linha).
  *  - YOUTUBE: status da conta — o LOGIN é automático na aba YouTube
  *    (capturado pelo [YoutubeFragment]); daqui só se vê, abre a aba ou
@@ -88,6 +88,7 @@ class SettingsFragment : Fragment() {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backToRoot)
         bindCategories()
         bindFolder()
+        bindMetered()
         bindQualities()
         bindVisualizer()
         bindAccount()
@@ -221,100 +222,77 @@ class SettingsFragment : Fragment() {
         binding.tvCatDownloadsSub.text = text
     }
 
-    /** MP3 / M4A / vídeo: linhas que abrem DIALOG de escolha única — o
-     *  padrão das configurações do YouTube pra opções curtas (e o subtítulo
-     *  da linha mostra o valor corrente, igual "Idiomas > Português"). */
+    /** Aviso de dados móveis (v0.19.10): switch INLINE na própria página —
+     *  o Início lê essa preferência antes de começar qualquer download.
+     *  Toque na linha inteira também alterna. */
+    private fun bindMetered() {
+        binding.pageDownloads.swMetered.isChecked =
+            FormatPrefs.meteredWarningOn(requireContext())
+        binding.pageDownloads.swMetered.setOnCheckedChangeListener { _, checked ->
+            FormatPrefs.setMeteredWarningOn(requireContext(), checked)
+        }
+        binding.pageDownloads.rowMetered.setOnClickListener {
+            binding.pageDownloads.swMetered.toggle()
+        }
+    }
+
+    /** Qualidades como linhas de RADIO INLINE (v0.19.10): a escolhida fica
+     *  com a bolinha roxa marcada — toque escolhe e salva na hora, sem
+     *  diálogo. As bolinhas são só visuais (clickable=false no estilo): a
+     *  linha inteira é quem responde. */
     private fun bindQualities() {
-        binding.pageAudio.rowMp3.setOnClickListener { askMp3() }
-        binding.pageAudio.rowM4a.setOnClickListener { askM4a() }
-        binding.pageVideo.rowVideo.setOnClickListener { askVideo() }
-    }
-
-    private fun askMp3() {
-        val ctx = requireContext()
-        val options = intArrayOf(320, 256, 192, 128)
-        val labels = arrayOf(
-            ctx.getString(R.string.q_mp3_320),
-            ctx.getString(R.string.q_mp3_256),
-            ctx.getString(R.string.q_mp3_192),
-            ctx.getString(R.string.q_mp3_128)
-        )
-        val checked = when (FormatPrefs.mp3DefaultBitrate(ctx)) {
-            256 -> 1
-            192 -> 2
-            128 -> 3
-            else -> 0
+        val a = binding.pageAudio
+        a.rowMp3320.setOnClickListener { pickMp3(320) }
+        a.rowMp3256.setOnClickListener { pickMp3(256) }
+        a.rowMp3192.setOnClickListener { pickMp3(192) }
+        a.rowMp3128.setOnClickListener { pickMp3(128) }
+        a.rowM4aBest.setOnClickListener {
+            FormatPrefs.setM4aPick(requireContext(), FormatPrefs.PICK_BEST)
+            refreshQualities()
         }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle(R.string.set_row_mp3)
-            .setMessage(R.string.settings_mp3_hint)
-            .setSingleChoiceItems(labels, checked) { d, which ->
-                FormatPrefs.setMp3DefaultBitrate(ctx, options[which])
-                d.dismiss()
-                refreshQualities()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun askM4a() {
-        val ctx = requireContext()
-        val checked = if (FormatPrefs.m4aPick(ctx) == FormatPrefs.PICK_SMALL) 1 else 0
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle(R.string.set_row_m4a)
-            .setMessage(R.string.set_dialog_m4a_msg)
-            .setSingleChoiceItems(
-                arrayOf(ctx.getString(R.string.q_best), ctx.getString(R.string.q_smallest)),
-                checked
-            ) { d, which ->
-                FormatPrefs.setM4aPick(
-                    ctx,
-                    if (which == 1) FormatPrefs.PICK_SMALL else FormatPrefs.PICK_BEST
-                )
-                d.dismiss()
-                refreshQualities()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun askVideo() {
-        val ctx = requireContext()
-        val options = intArrayOf(2160, 1080, 720, 480)
-        val labels = arrayOf(
-            ctx.getString(R.string.q_video_2160),
-            ctx.getString(R.string.q_video_1080),
-            ctx.getString(R.string.q_video_720),
-            ctx.getString(R.string.q_video_480)
-        )
-        val checked = when (FormatPrefs.videoDefaultHeight(ctx)) {
-            2160 -> 0
-            720 -> 2
-            480 -> 3
-            else -> 1
+        a.rowM4aSmall.setOnClickListener {
+            FormatPrefs.setM4aPick(requireContext(), FormatPrefs.PICK_SMALL)
+            refreshQualities()
         }
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle(R.string.set_row_video)
-            .setMessage(R.string.settings_mp4_hint)
-            .setSingleChoiceItems(labels, checked) { d, which ->
-                FormatPrefs.setVideoDefaultHeight(ctx, options[which])
-                d.dismiss()
-                refreshQualities()
-            }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
+        val v = binding.pageVideo
+        v.rowV2160.setOnClickListener { pickVideo(2160) }
+        v.rowV1440.setOnClickListener { pickVideo(1440) }
+        v.rowV1080.setOnClickListener { pickVideo(1080) }
+        v.rowV720.setOnClickListener { pickVideo(720) }
+        v.rowV480.setOnClickListener { pickVideo(480) }
+        v.rowV360.setOnClickListener { pickVideo(360) }
     }
 
+    private fun pickMp3(kbps: Int) {
+        FormatPrefs.setMp3DefaultBitrate(requireContext(), kbps)
+        refreshQualities()
+    }
+
+    private fun pickVideo(height: Int) {
+        FormatPrefs.setVideoDefaultHeight(requireContext(), height)
+        refreshQualities()
+    }
+
+    /** Marca a bolinha da escolha atual em Áudio e Vídeo. */
     private fun refreshQualities() {
         val ctx = context ?: return
-        binding.pageAudio.tvMp3Sub.text =
-            getString(R.string.set_sub_mp3_fmt, FormatPrefs.mp3DefaultBitrate(ctx))
-        binding.pageAudio.tvM4aSub.setText(
-            if (FormatPrefs.m4aPick(ctx) == FormatPrefs.PICK_SMALL) R.string.q_smallest
-            else R.string.q_best
-        )
-        binding.pageVideo.tvVideoSub.text =
-            getString(R.string.set_sub_video_fmt, FormatPrefs.videoDefaultHeight(ctx))
+        val a = binding.pageAudio
+        val mp3 = FormatPrefs.mp3DefaultBitrate(ctx)
+        a.rMp3320.isChecked = mp3 == 320
+        a.rMp3256.isChecked = mp3 == 256
+        a.rMp3192.isChecked = mp3 == 192
+        a.rMp3128.isChecked = mp3 == 128
+        val best = FormatPrefs.m4aPick(ctx) == FormatPrefs.PICK_BEST
+        a.rM4aBest.isChecked = best
+        a.rM4aSmall.isChecked = !best
+        val v = binding.pageVideo
+        val h = FormatPrefs.videoDefaultHeight(ctx)
+        v.rV2160.isChecked = h == 2160
+        v.rV1440.isChecked = h == 1440
+        v.rV1080.isChecked = h == 1080
+        v.rV720.isChecked = h == 720
+        v.rV480.isChecked = h == 480
+        v.rV360.isChecked = h == 360
     }
 
     // ---------- Player ----------

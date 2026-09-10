@@ -1,25 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v0.19.9: página "Áudio" das Configurações (estilo YouTube LITERAL —
-     a pasta da lista principal abre esta tela). Qualidades como linhas que
-     abrem diálogo de escolha única, como "Idiomas" nas configs do YouTube. -->
+<!-- v0.19.10: página "Áudio" com as opções VISÍVEIS na tela (pedido:
+     "só aparece o que cada config faz" — acabou). Igual às configs do
+     YouTube de verdade: linha com título + sub + bolinha de seleção,
+     toque escolhe na hora e salva — SEM diálogo, SEM explain-text.
+     As linhas antigas que abriam diálogo (rowMp3/rowM4a) saíram. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <!-- Qualidade do MP3: toque abre diálogo de escolha única -->
+    <TextView
+        style="@style/SettingsSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/set_row_mp3" />
+
+    <!-- 320 kbps -->
     <LinearLayout
-        android:id="@+id/rowMp3"
+        android:id="@+id/rowMp3320"
         style="@style/SettingsRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
-
-        <ImageView
-            style="@style/SettingsRowIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_music_note" />
 
         <LinearLayout
             style="@style/SettingsRowTexts"
@@ -31,29 +32,28 @@
                 style="@style/SettingsRowTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/set_row_mp3" />
+                android:text="@string/q_mp3_320" />
 
             <TextView
-                android:id="@+id/tvMp3Sub"
                 style="@style/SettingsRowSub"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:text="@string/q_sub_320" />
         </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rMp3320"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
     </LinearLayout>
 
-    <!-- Qualidade do M4A -->
+    <!-- 256 kbps -->
     <LinearLayout
-        android:id="@+id/rowM4a"
+        android:id="@+id/rowMp3256"
         style="@style/SettingsRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
-
-        <ImageView
-            style="@style/SettingsRowIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_library_music" />
 
         <LinearLayout
             style="@style/SettingsRowTexts"
@@ -65,13 +65,157 @@
                 style="@style/SettingsRowTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/set_row_m4a" />
+                android:text="@string/q_mp3_256" />
 
             <TextView
-                android:id="@+id/tvM4aSub"
                 style="@style/SettingsRowSub"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:text="@string/q_sub_256" />
         </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rMp3256"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- 192 kbps -->
+    <LinearLayout
+        android:id="@+id/rowMp3192"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_mp3_192" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_sub_192" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rMp3192"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- 128 kbps -->
+    <LinearLayout
+        android:id="@+id/rowMp3128"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_mp3_128" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_sub_128" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rMp3128"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <TextView
+        style="@style/SettingsSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/set_row_m4a" />
+
+    <!-- Melhor -->
+    <LinearLayout
+        android:id="@+id/rowM4aBest"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_best" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_sub_best" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rM4aBest"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- Menor arquivo -->
+    <LinearLayout
+        android:id="@+id/rowM4aSmall"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_smallest" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_sub_small" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rM4aSmall"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
     </LinearLayout>
 </LinearLayout>

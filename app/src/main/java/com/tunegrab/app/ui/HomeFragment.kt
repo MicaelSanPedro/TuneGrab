@@ -197,7 +197,7 @@ class HomeFragment : Fragment() {
                     verified.audio,
                     verified.video
                 ) { request ->
-                    ensurePermissionsThen { start(request) }
+                    ensurePermissionsThen { confirmMeteredThen { start(request) } }
                 }.show()
             } catch (t: Throwable) {
                 // bot-check persistente (NewPipe+PoToken bloqueados)? Resgate
@@ -380,6 +380,29 @@ class HomeFragment : Fragment() {
     }
 
     /**
+     * Aviso de dados móveis (v0.19.10): se o switch "Avisar antes de baixar
+     * em 4G/5G" das Configurações > Downloads está LIGADO e o aparelho está
+     * numa rede limitada (sem Wi-Fi), pergunta ANTES de começar. O switch é
+     * o freio de mão — desligou, baixa direto como sempre. Só toca na
+     * ENTRADA dos fluxos (único, playlist, resgate) — o motor de download
+     * continua intacto e a fila da playlist não spamma diálogo: a pergunta
+     * acontece UMA vez antes da fila começar.
+     */
+    private fun confirmMeteredThen(then: () -> Unit) {
+        val ctx = context ?: run { then(); return }
+        if (!FormatPrefs.meteredWarningOn(ctx) || !UpdateInstaller.isOnMetered(ctx)) {
+            then()
+            return
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.dl_metered_title)
+            .setMessage(R.string.dl_metered_msg)
+            .setPositiveButton(R.string.dl_metered_yes) { _, _ -> then() }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /**
      * Monta o intent do DownloadService para um pedido — MESMOS parâmetros
      * de sempre (o motor de download não mudou NADA). Usa contexto do APP,
      * não da aba: a fila da playlist roda fora do ciclo de vida do fragment
@@ -526,7 +549,7 @@ class HomeFragment : Fragment() {
                     val ctx = context ?: return@ensurePermissionsThen
                     var sheet: PlaylistSheet? = null
                     sheet = PlaylistSheet(ctx, pl) { format, quality ->
-                        sheet?.let { runPlaylist(pl, format, quality, it) }
+                        sheet?.let { s -> confirmMeteredThen { runPlaylist(pl, format, quality, s) } }
                     }
                     sheet.show()
                 }
@@ -705,7 +728,7 @@ class HomeFragment : Fragment() {
         val ctx = context ?: return
         setStatus(getString(R.string.status_pick_format))
         DlpPickerSheet(ctx, meta) { format, quality ->
-            ensurePermissionsThen { startDlp(meta, format, quality) }
+            ensurePermissionsThen { confirmMeteredThen { startDlp(meta, format, quality) } }
         }.show()
     }
 
@@ -778,7 +801,7 @@ class HomeFragment : Fragment() {
             val ctx = context ?: return@ensurePermissionsThen
             var sheet: PlaylistSheet? = null
             sheet = PlaylistSheet(ctx, pl) { format, quality ->
-                sheet?.let { runPlaylist(pl, format, quality, it) }
+                sheet?.let { s -> confirmMeteredThen { runPlaylist(pl, format, quality, s) } }
             }
             sheet.show()
         }

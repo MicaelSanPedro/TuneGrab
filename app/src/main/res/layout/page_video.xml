@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v0.19.9: página "Vídeo" das Configurações (estilo YouTube LITERAL) —
-     qualidade padrão do seletor como linha que abre diálogo de escolha. -->
+<!-- v0.19.10: página "Vídeo" com a escada COMPLETA visível na tela
+     (4K → 360p, igual à do seletor — antes eram só 4 numa diálogo).
+     Toque escolhe e salva na hora, bolinha roxa marca a escolhida. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
+    <TextView
+        style="@style/SettingsSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/set_row_video" />
+
+    <!-- 4K -->
     <LinearLayout
-        android:id="@+id/rowVideo"
+        android:id="@+id/rowV2160"
         style="@style/SettingsRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
-
-        <ImageView
-            style="@style/SettingsRowIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:contentDescription="@null"
-            android:src="@drawable/ic_movie" />
 
         <LinearLayout
             style="@style/SettingsRowTexts"
@@ -29,13 +30,195 @@
                 style="@style/SettingsRowTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/set_row_video" />
+                android:text="@string/q_video_2160" />
 
             <TextView
-                android:id="@+id/tvVideoSub"
                 style="@style/SettingsRowSub"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:text="@string/v_sub_2160" />
         </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rV2160"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
     </LinearLayout>
+
+    <!-- 1440p -->
+    <LinearLayout
+        android:id="@+id/rowV1440"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_video_1440" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/v_sub_1440" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rV1440"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- 1080p -->
+    <LinearLayout
+        android:id="@+id/rowV1080"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_video_1080" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/v_sub_1080" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rV1080"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- 720p -->
+    <LinearLayout
+        android:id="@+id/rowV720"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_video_720" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/v_sub_720" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rV720"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- 480p -->
+    <LinearLayout
+        android:id="@+id/rowV480"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_video_480" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/v_sub_480" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rV480"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- 360p -->
+    <LinearLayout
+        android:id="@+id/rowV360"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/q_video_360" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/v_sub_360" />
+        </LinearLayout>
+
+        <com.google.android.material.radiobutton.MaterialRadioButton
+            android:id="@+id/rV360"
+            style="@style/SettingsRadio"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    </LinearLayout>
+
+    <!-- Nota curta no rodapé (a explicação longa da v0.19.8 saiu) -->
+    <TextView
+        style="@style/SettingsRowSub"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="16dp"
+        android:text="@string/set_video_note" />
 </LinearLayout>

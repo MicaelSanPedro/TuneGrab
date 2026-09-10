@@ -70,4 +70,45 @@
                 android:text="@string/settings_reset_folder" />
         </LinearLayout>
     </LinearLayout>
+
+    <!-- v0.19.10: aviso de dados móveis — o download pergunta antes de
+         gastar 4G/5G. Toque na linha também alterna (como no Player). -->
+    <LinearLayout
+        android:id="@+id/rowMetered"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            style="@style/SettingsRowIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_download" />
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/set_row_metered" />
+
+            <TextView
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/set_sub_metered" />
+        </LinearLayout>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/swMetered"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp" />
+    </LinearLayout>
 </LinearLayout>

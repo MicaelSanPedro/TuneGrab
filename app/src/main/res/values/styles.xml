@@ -138,4 +138,25 @@
         <item name="android:textColor">@color/on_surface_variant</item>
         <item name="android:layout_marginTop">2dp</item>
     </style>
+
+    <!-- ══ Opções INLINE (v0.19.10 — "só aparece o que cada config faz",
+         pedido do autor): título de grupo dentro da página, como as seções
+         das configs do YouTube de verdade ══ -->
+    <style name="SettingsSection">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/on_background</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingTop">20dp</item>
+        <item name="android:paddingBottom">2dp</item>
+    </style>
+
+    <!-- Bolinha de seleção das linhas de opção: SÓ VISUAL — quem responde ao
+         toque é a linha inteira (como no YouTube), o radio é decorativo -->
+    <style name="SettingsRadio">
+        <item name="android:clickable">false</item>
+        <item name="android:focusable">false</item>
+        <item name="android:layout_marginStart">12dp</item>
+        <item name="buttonTint">@color/primary</item>
+    </style>
 </resources>

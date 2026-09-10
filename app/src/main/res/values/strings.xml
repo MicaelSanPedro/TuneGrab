@@ -120,9 +120,6 @@
     <!-- Configurações -->
     <string name="settings_title">Configurações</string>
     <string name="settings_sub">Padrão de qualidade para cada formato. Você ainda pode trocar na hora de baixar.</string>
-    <string name="settings_mp3_hint">A fonte do YouTube tem até ~160 kbps; bitrates maiores preservam a qualidade sem adicioná-la.</string>
-    <string name="set_dialog_m4a_msg">O M4A é o áudio original do YouTube, sem conversão — mais rápido e sem perda.</string>
-    <string name="settings_mp4_hint">Até 1080p sai em MP4/H.264; 1440p e 4K saem em MKV (contêiner nativo do YouTube nessas resoluções — VP9/AV1 em MP4 ficaria ilegível). Vídeo e áudio são baixados separados e juntos com o ffmpeg embutido, sem perder qualidade. Se cair para o motor reserva, o limite é 720p.</string>
 
     <!-- Configurações por categoria (v0.19.9 — estilo YouTube LITERAL:
          a lista principal são PASTAS clicáveis; tocar abre a página só
@@ -147,10 +144,31 @@
     <string name="set_row_mp3">Qualidade do MP3</string>
     <string name="set_row_m4a">Qualidade do M4A</string>
     <string name="set_row_video">Qualidade dos vídeos</string>
-    <string name="set_sub_mp3_fmt">%1$d kbps</string>
-    <string name="set_sub_video_fmt">%1$dp</string>
     <string name="set_row_visualizer">Barrinhas de áudio no player</string>
     <string name="set_sub_visualizer">Espectro real do som tocando, espelhado como mesa de DJ</string>
+
+    <!-- v0.19.10: opções INLINE (bolinha na própria linha — toque escolhe
+         e salva na hora, sem diálogo) + aviso de dados móveis -->
+    <string name="q_sub_320">A melhor — arquivo maior</string>
+    <string name="q_sub_256">Ótima</string>
+    <string name="q_sub_192">Equilibrada</string>
+    <string name="q_sub_128">Pra economizar espaço</string>
+    <string name="q_sub_best">Como o YouTube entrega, sem conversão</string>
+    <string name="q_sub_small">Menos espaço no celular</string>
+    <string name="q_video_1440">1440p</string>
+    <string name="q_video_360">360p</string>
+    <string name="v_sub_2160">A mais alta — sai em MKV</string>
+    <string name="v_sub_1440">Bem alta — sai em MKV</string>
+    <string name="v_sub_1080">A mais pedida — sai em MP4</string>
+    <string name="v_sub_720">Sai em MP4</string>
+    <string name="v_sub_480">Sai em MP4, gasta menos espaço</string>
+    <string name="v_sub_360">A menor de todas</string>
+    <string name="set_video_note">O vídeo não tem a qualidade escolhida? O TuneGrab baixa na mais próxima que existir.</string>
+    <string name="set_row_metered">Avisar antes de baixar em 4G/5G</string>
+    <string name="set_sub_metered">Pergunta antes de gastar seus dados móveis</string>
+    <string name="dl_metered_title">Baixar usando seus dados?</string>
+    <string name="dl_metered_msg">Você não está no Wi-Fi. Esse download vai gastar dados móveis.</string>
+    <string name="dl_metered_yes">Baixar assim mesmo</string>
     <string name="set_row_account">Conta do YouTube</string>
     <string name="set_sub_account_on">Conectada ✓ — os downloads usam a sua sessão (menos anti-bot)</string>
     <string name="set_sub_account_off">Não conectada — toque pra entrar pela aba YouTube</string>
@@ -168,7 +186,6 @@
     <string name="q_video_1080">1080p (Full HD)</string>
     <string name="q_video_720">720p (HD)</string>
     <string name="q_video_480">480p (leve)</string>
-
     <!-- Atualização manual + Sobre (v0.19.3) -->
     <string name="update_check_btn">Verificar atualizações</string>
     <string name="update_checking">Verificando…</string>
@@ -181,7 +198,7 @@
     <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>
     <string name="q_mp3_192">192 kbps</string>
-    <string name="q_mp3_128">128 kbps (menor arquivo)</string>
+    <string name="q_mp3_128">128 kbps</string>
     <string name="q_best">Melhor disponível</string>
     <string name="q_smallest">Menor arquivo</string>
 

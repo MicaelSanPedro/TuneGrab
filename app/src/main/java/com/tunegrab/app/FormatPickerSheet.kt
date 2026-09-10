@@ -100,6 +100,15 @@ object FormatPrefs {
     fun setVisualizerOn(ctx: Context, on: Boolean) {
         prefs(ctx).edit().putBoolean(KEY_VISUALIZER, on).apply()
     }
+
+    /** Aviso de dados móveis (v0.19.10): antes de começar QUALQUER download
+     *  (único, playlist ou resgate) sem Wi-Fi, pergunta se pode gastar os
+     *  dados. Padrão LIGADO — a gente protege a franquia do usuário. */
+    const val KEY_METERED_WARN = "metered_warn"
+    fun meteredWarningOn(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_METERED_WARN, true)
+    fun setMeteredWarningOn(ctx: Context, on: Boolean) {
+        prefs(ctx).edit().putBoolean(KEY_METERED_WARN, on).apply()
+    }
 }
 
 /**
