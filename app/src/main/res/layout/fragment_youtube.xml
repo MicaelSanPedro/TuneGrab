@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Aba YOUTUBE (v0.19.2, pedido do autor): navegador embutido abrindo o
+     YouTube pra pegar as músicas DE LÁ mesmo — quando o usuário está num
+     vídeo (watch/shorts/youtu.be), o botão BAIXAR aparece flutuando no canto
+     e manda o link pro mesmo fluxo de download da aba Início -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <WebView
+        android:id="@+id/webYt"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/background" />
+
+    <!-- Barra de progresso da página (3dp no topo, some quando carrega) -->
+    <ProgressBar
+        android:id="@+id/progressYt"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_gravity="top"
+        android:indeterminate="false"
+        android:max="100"
+        android:progressTint="@color/primary"
+        android:progressBackgroundTint="@android:color/transparent"
+        android:visibility="gone" />
+
+    <!-- Botão BAIXAR (só existe em página de vídeo): mesmo roxo do app,
+         canto inferior direito, flutuando sobre a página -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnGrab"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="14dp"
+        android:backgroundTint="@color/primary"
+        android:contentDescription="@string/yt_grab"
+        android:elevation="6dp"
+        android:insetTop="0dp"
+        android:insetBottom="0dp"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:text="@string/yt_grab"
+        android:textColor="@color/background"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:cornerRadius="22dp"
+        app:icon="@drawable/ic_download"
+        app:iconGravity="textStart"
+        app:iconTint="@color/background" />
+</FrameLayout>

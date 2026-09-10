@@ -35,8 +35,8 @@
     <string name="status_opening_player">Abrindo o player…</string>
     <string name="status_pick_format">Escolha o formato e a qualidade 👇</string>
     <string name="status_rescue">O YouTube bloqueou a extração normal — usando o motor de resgate (yt-dlp)…</string>
-    <string name="status_downloading">Baixando… acompanhe pela notificação. O arquivo é salvo em Downloads/TuneGrab.</string>
-    <string name="status_converting">Baixando e convertendo para MP3 %1$s… acompanhe pela notificação.</string>
+    <string name="status_downloading">Baixando… acompanhe na Central de Downloads. O arquivo é salvo em Downloads/TuneGrab.</string>
+    <string name="status_converting">Baixando e convertendo para MP3 %1$s… acompanhe na Central de Downloads.</string>
 
     <string name="hint_mp3">MP3 no bitrate escolhido — o app confere o arquivo salvo e garante o bitrate (320 kbps CBR de verdade no arquivo). Fonte: o áudio original do YouTube, como no yt-dlp do PC</string>
     <string name="hint_m4a">Original do YouTube (~128 kbps AAC) copiado sem reconversão — compatível com tudo</string>
@@ -169,6 +169,9 @@
 
     <!-- Navegação inferior -->
     <string name="nav_home">Início</string>
+    <string name="nav_youtube">YouTube</string>
+    <!-- Botão flutuante do navegador do YouTube (v0.19.2) -->
+    <string name="yt_grab">Baixar</string>
     <string name="nav_downloads">Downloads</string>
     <string name="nav_library">Biblioteca</string>
     <string name="nav_settings">Config.</string>

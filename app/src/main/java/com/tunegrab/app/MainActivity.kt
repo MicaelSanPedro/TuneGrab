@@ -9,9 +9,10 @@ import com.tunegrab.app.ui.BottomNav
 import com.tunegrab.app.ui.HomeFragment
 
 /**
- * Hospedeiro das 4 abas (Início · Downloads · Músicas · Configurações).
- * Só cuida da barra de navegação e dos intents de COMPARTILHAR/ABRIR link
- * do YouTube (que caem sempre na aba Início). Todo o resto vive nos fragments.
+ * Hospedeiro das 5 abas (Início · YouTube · Downloads · Músicas ·
+ * Configurações). Só cuida da barra de navegação e dos intents de
+ * COMPARTILHAR/ABRIR link do YouTube (que caem sempre na aba Início).
+ * Todo o resto vive nos fragments.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -56,5 +57,20 @@ class MainActivity : AppCompatActivity() {
         if (binding.navBar.bottomNav.selectedItemId != itemId) {
             binding.navBar.bottomNav.selectedItemId = itemId
         }
+    }
+
+    /**
+     * PEGAR DO NAVEGADOR (v0.19.2): o botão "Baixar" da aba YouTube manda o
+     * link aqui — cai no MESMO fluxo da aba Início (campo preenchido + busca
+     * + seletor de formato + download que leva pra Central sozinho).
+     */
+    fun openDownloadFor(url: String) {
+        val current = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
+        if (current is HomeFragment && current.isAdded) {
+            current.handleSharedUrl(url)
+            return
+        }
+        pendingSharedUrl = url
+        openTab(R.id.navHome)
     }
 }

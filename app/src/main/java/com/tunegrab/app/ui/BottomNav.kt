@@ -6,10 +6,12 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.tunegrab.app.R
 
 /**
- * Barra de navegação inferior (Início · Downloads · Músicas · Configurações).
+ * Barra de navegação inferior (Início · YouTube · Downloads · Músicas ·
+ * Configurações).
  *
- * PADRÃO SINGLE-ACTIVITY: as 4 abas são fragments dentro da MainActivity e a
- * troca é um replace() sem animação — instantânea, sem recriar a janela. Foi
+ * PADRÃO SINGLE-ACTIVITY: as 5 abas são fragments dentro da MainActivity e a
+ * troca é um replace() com um FADE curtinho (v0.19.2, pedido do autor — a
+ * troca seca virou cruzamento de 140ms), sem recriar a janela. Foi
  * exatamente a recriação da activity (multi-activity antigo) que dava aquele
  * "redimensionar + chacoalhar" ao trocar de aba.
  */
@@ -32,6 +34,7 @@ object BottomNav {
     private fun navigate(activity: AppCompatActivity, nav: BottomNavigationView, containerId: Int, itemId: Int) {
         val tag = when (itemId) {
             R.id.navHome -> "home"
+            R.id.navYouTube -> "youtube"
             R.id.navDownloads -> "downloads"
             R.id.navLibrary -> "library"
             R.id.navSettings -> "settings"
@@ -48,12 +51,17 @@ object BottomNav {
 
         val fragment = when (itemId) {
             R.id.navHome -> HomeFragment()
+            R.id.navYouTube -> YoutubeFragment()
             R.id.navDownloads -> DownloadsFragment()
             R.id.navLibrary -> LibraryFragment()
             R.id.navSettings -> SettingsFragment()
             else -> return
         }
         fm.beginTransaction()
+            .setReorderingAllowed(true)
+            // FADE RÁPIDO entre abas (v0.19.2): 140ms de cruzamento — só pra
+            // não ficar seco, sem atrapalhar quem troca de aba em sequência
+            .setCustomAnimations(R.anim.fade_in, R.anim.fade_out)
             .replace(containerId, fragment, tag)
             .commit()
     }

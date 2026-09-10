@@ -4,6 +4,12 @@
         android:id="@+id/navHome"
         android:icon="@drawable/ic_nav_home"
         android:title="@string/nav_home" />
+    <!-- YouTube (v0.19.2, pedido do autor): navegador embutido pra pegar as
+         músicas DE LÁ mesmo — botão "Baixar" aparece no vídeo -->
+    <item
+        android:id="@+id/navYouTube"
+        android:icon="@drawable/ic_youtube"
+        android:title="@string/nav_youtube" />
     <item
         android:id="@+id/navDownloads"
         android:icon="@drawable/ic_nav_downloads"

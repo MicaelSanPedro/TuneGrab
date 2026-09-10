@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Transição de abas (v0.19.2): fade de SAÍDA no mesmo ritmo da entrada —
+     cruzamento suave e curtinho entre as abas -->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:duration="140"
+    android:fromAlpha="1.0"
+    android:toAlpha="0.0"
+    android:interpolator="@android:interpolator/accelerate_quad" />

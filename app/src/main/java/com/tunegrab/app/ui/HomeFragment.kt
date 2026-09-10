@@ -517,6 +517,15 @@ class HomeFragment : Fragment() {
         } else {
             c.startService(intent)
         }
+        // CENTRAL DE DOWNLOADS (v0.19.2, pedido do autor: "quando algum
+        // download começar, ele já deve me levar pra central de downloads
+        // automaticamente") — acabou o tempo de "acompanhe pela notificação".
+        // Todo download passa por aqui (único, resgate e fila da playlist):
+        // o 1º item da fila já troca a aba; os seguintes caem fora (fragment
+        // desanexado = isAdded false) e a Central fica aberta acompanhando.
+        if (isAdded) {
+            (activity as? MainActivity)?.openTab(R.id.navDownloads)
+        }
     }
 
     // ---------- playlist (v0.13.0) ----------
