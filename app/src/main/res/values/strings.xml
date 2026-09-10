@@ -124,14 +124,26 @@
     <string name="set_dialog_m4a_msg">O M4A é o áudio original do YouTube, sem conversão — mais rápido e sem perda.</string>
     <string name="settings_mp4_hint">Até 1080p sai em MP4/H.264; 1440p e 4K saem em MKV (contêiner nativo do YouTube nessas resoluções — VP9/AV1 em MP4 ficaria ilegível). Vídeo e áudio são baixados separados e juntos com o ffmpeg embutido, sem perder qualidade. Se cair para o motor reserva, o limite é 720p.</string>
 
-    <!-- Configurações por categoria (v0.19.8 — lista estilo YouTube, pedido
-         do autor: organizada por Downloads/Player/YouTube/Ajuda/Atualização) -->
+    <!-- Configurações por categoria (v0.19.9 — estilo YouTube LITERAL:
+         a lista principal são PASTAS clicáveis; tocar abre a página só
+         daquele assunto, com botão de voltar no cabeçalho) -->
     <string name="set_cat_downloads">Downloads</string>
+    <string name="set_cat_audio">Áudio</string>
+    <string name="set_cat_video">Vídeo</string>
     <string name="set_cat_player">Player</string>
     <string name="set_cat_youtube">YouTube</string>
     <string name="set_cat_help">Ajuda</string>
     <string name="set_cat_update">Atualização</string>
     <string name="set_cat_about">Sobre</string>
+    <!-- Subtítulos das pastas na lista principal -->
+    <string name="set_sub_cat_downloads">Pasta onde suas músicas e vídeos são salvos</string>
+    <string name="set_sub_cat_audio">Formato e qualidade das músicas</string>
+    <string name="set_sub_cat_video">Qualidade padrão dos vídeos</string>
+    <string name="set_sub_cat_player">Barrinhas de áudio no player</string>
+    <string name="set_sub_cat_help">Tutorial e como usar</string>
+    <string name="set_sub_cat_update">Verificar se saiu versão nova</string>
+    <string name="set_sub_cat_about">Versão, motores e créditos</string>
+
     <string name="set_row_mp3">Qualidade do MP3</string>
     <string name="set_row_m4a">Qualidade do M4A</string>
     <string name="set_row_video">Qualidade dos vídeos</string>
@@ -142,9 +154,7 @@
     <string name="set_row_account">Conta do YouTube</string>
     <string name="set_sub_account_on">Conectada ✓ — os downloads usam a sua sessão (menos anti-bot)</string>
     <string name="set_sub_account_off">Não conectada — toque pra entrar pela aba YouTube</string>
-    <string name="set_sub_update">A versão nova chega pela Central de Downloads</string>
-    <string name="set_row_github">Repositório no GitHub</string>
-    <string name="set_sub_github">Código-fonte aberto — um projeto do Micael San</string>
+    <string name="set_sub_update">Toque pra verificar se saiu versão nova</string>
     <string name="acc_toast_on">Conta do YouTube conectada! Os downloads agora usam a sua sessão.</string>
     <string name="acc_toast_off">Sessão do YouTube encerrada — o app voltou ao acesso anônimo.</string>
     <string name="acc_dialog_title">Conta do YouTube</string>
@@ -163,12 +173,10 @@
     <string name="update_check_btn">Verificar atualizações</string>
     <string name="update_checking">Verificando…</string>
     <string name="update_uptodate">Você já está na versão mais recente (v%1$s)</string>
-    <string name="update_available">Nova versão v%1$s disponível! Abrindo a Central de Downloads…</string>
+    <string name="update_available">Nova versão v%1$s disponível! Abrindo o Início…</string>
     <string name="about_version_fmt">TuneGrab v%1$s</string>
     <string name="about_made_by">feito por Micael San</string>
     <string name="about_engines">Motor de download: yt-dlp + NewPipe Extractor · Player: ExoPlayer</string>
-    <string name="about_github_btn">Ver no GitHub</string>
-    <string name="about_no_browser">Nenhum navegador encontrado pra abrir o link.</string>
 
     <string name="q_mp3_320">320 kbps</string>
     <string name="q_mp3_256">256 kbps</string>
@@ -286,17 +294,21 @@
     <string name="notif_channel_playback_desc">Controles da música que está tocando em segundo plano</string>
     <string name="dl_not_found">Arquivo não encontrado para compartilhar — confira na aba Biblioteca.</string>
 
-    <!-- Atualização (Fase 1 do auto-update: aviso + link da release) -->
+    <!-- Atualização (v0.19.9: o card vive no INÍCIO; toque abre o que
+         veio de novo e de lá a pessoa atualiza — zero links externos) -->
     <string name="upd_available">TuneGrab %s disponível 🎉</string>
-    <string name="upd_open">Ver no GitHub</string>
     <string name="upd_no_notes">Sem notas de versão.</string>
     <string name="cd_close_update">Dispensar aviso de atualização</string>
+    <string name="upd_tap_see">Toque pra ver o que veio de novo</string>
+    <string name="upd_tap_install">Toque pra instalar a atualização</string>
+    <string name="upd_what_title">O que veio de novo?</string>
+    <string name="upd_what_later">Mais tarde</string>
+    <string name="upd_cta_update">Atualizar agora</string>
+    <string name="cd_back">Voltar</string>
 
     <!-- Atualização (Fase 2: baixar e instalar dentro do app) -->
-    <string name="upd_download">Baixar atualização</string>
-    <string name="upd_install">Instalar agora</string>
     <string name="upd_downloading">Baixando… %1$d%%</string>
-    <string name="upd_ready_toast">Atualização baixada — toque em Instalar agora ✓</string>
+    <string name="upd_ready_toast">Atualização baixada! Toque no aviso pra instalar ✓</string>
     <string name="upd_err_download">Falha ao baixar a atualização. Tenta de novo.</string>
     <string name="upd_err_install">Não foi possível iniciar a instalação.</string>
     <string name="upd_need_permission">Autorize o TuneGrab a instalar apps (Ajustes) e toque em Instalar de novo.</string>

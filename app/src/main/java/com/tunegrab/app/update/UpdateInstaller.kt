@@ -44,6 +44,18 @@ object UpdateInstaller {
     fun apkFile(context: Context, info: UpdateChecker.UpdateInfo): File =
         File(File(context.getExternalFilesDir(null), "updates"), "tunegrab-${info.version}.apk")
 
+    /**
+     * Limpeza: APKs de versões ANTIGAS saem da pasta de updates quando um
+     * download novo começa (a pasta fica só com o APK corrente — nunca
+     * acumula ~100MB por versão). A pasta INTEIRA é app-specific
+     * (Android/data/…/files/updates): o Android apaga tudo quando o app é
+     * desinstalado, como o autor exigiu.
+     */
+    private fun cleanOldApks(keep: File) {
+        val dir = keep.parentFile ?: return
+        dir.listFiles()?.forEach { f -> if (f.isFile && f != keep) f.delete() }
+    }
+
     /** Já tem o APK desta versão baixado e completo? */
     fun isReady(context: Context, info: UpdateChecker.UpdateInfo): Boolean {
         val f = apkFile(context, info)
@@ -71,6 +83,7 @@ object UpdateInstaller {
         if (info.apkUrl.isBlank()) throw IOException("release sem APK")
         val target = apkFile(context, info)
         target.parentFile?.mkdirs() ?: throw IOException("pasta de update indisponível")
+        cleanOldApks(target)
         try {
             val response = http.newCall(Request.Builder().url(info.apkUrl).build()).execute()
             response.use { resp ->

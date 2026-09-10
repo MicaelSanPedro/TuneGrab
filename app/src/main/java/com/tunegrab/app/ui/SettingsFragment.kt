@@ -1,13 +1,14 @@
 package com.tunegrab.app.ui
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
@@ -25,23 +26,25 @@ import com.tunegrab.app.update.UpdateChecker
 import kotlinx.coroutines.launch
 
 /**
- * Configurações (v0.19.8 — "organizadas por categoria, parecido com a foto",
- * pedido do autor): lista estilo YouTube — cabeçalho de categoria em
- * negrito e linhas de ícone + título + subtítulo.
+ * Configurações (v0.19.9 — "devem ser LITERALMENTE do jeito que está no
+ * YouTube, ou seja, como se fosse em pastas", pedido do autor): a lista
+ * principal são PASTAS clicáveis e tocar num assunto abre a página só
+ * daquele tópico, com botão de voltar no cabeçalho (e o back do sistema
+ * retorna pra lista em vez de sair do app).
  *
- *  - DOWNLOADS: pasta (SAF), MP3, M4A e vídeo — as qualidades viraram
- *    linhas que abrem diálogo de escolha única (como "Idiomas" no YouTube).
+ *  - DOWNLOADS: pasta de salvamento (SAF) + voltar ao padrão.
+ *  - ÁUDIO: qualidade do MP3 e do M4A — linhas que abrem diálogo de
+ *    escolha única (como "Idiomas" no YouTube).
+ *  - VÍDEO: qualidade padrão (4K/1080p/720p/480p).
  *  - PLAYER: barrinhas de áudio (switch inline na própria linha).
- *  - YOUTUBE: status da conta — o LOGIN agora é automático na aba YouTube
- *    (a sessão é capturada sozinha pelo [YoutubeFragment]); daqui o usuário
- *    só vê se está conectado, abre a aba pra logar ou desconecta. A antiga
- *    seção de cookies (login manual + importar cookies.txt + remover)
- *    SAIU — "isso é patético, ninguém sabe mexer nisso", e agora ninguém
- *    precisa mexer em nada.
+ *  - YOUTUBE: status da conta — o LOGIN é automático na aba YouTube
+ *    (capturado pelo [YoutubeFragment]); daqui só se vê, abre a aba ou
+ *    desconecta.
  *  - AJUDA: reabrir o tutorial de primeira abertura.
- *  - ATUALIZAÇÃO: verificação manual — achou versão nova? Leva pra Central
- *    de Downloads, onde vive o card de instalação.
- *  - SOBRE: versão, motores e repositório.
+ *  - ATUALIZAÇÃO: verificação manual — achou versão nova? Leva pro
+ *    INÍCIO, onde o card de instalação vive (v0.19.9).
+ *  - SOBRE: versão e motores — SEM link externo ("não deixe rastros de
+ *    que esse app foi feito no github").
  */
 class SettingsFragment : Fragment() {
 
@@ -64,6 +67,13 @@ class SettingsFragment : Fragment() {
             refreshFolderUi()
         }
 
+    /** Back do sistema dentro de uma página = volta pra lista de pastas. */
+    private val backToRoot = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            if (_binding != null) showRoot()
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -75,6 +85,8 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backToRoot)
+        bindCategories()
         bindFolder()
         bindQualities()
         bindVisualizer()
@@ -98,43 +110,124 @@ class SettingsFragment : Fragment() {
         _binding = null
     }
 
+    // ---------- Navegação por pastas (estilo YouTube) ----------
+
+    private companion object {
+        const val PAGE_DOWNLOADS = 0
+        const val PAGE_AUDIO = 1
+        const val PAGE_VIDEO = 2
+        const val PAGE_PLAYER = 3
+        const val PAGE_YOUTUBE = 4
+        const val PAGE_HELP = 5
+        const val PAGE_UPDATE = 6
+        const val PAGE_ABOUT = 7
+    }
+
+    private fun bindCategories() {
+        binding.catDownloads.setOnClickListener { openCategory(PAGE_DOWNLOADS) }
+        binding.catAudio.setOnClickListener { openCategory(PAGE_AUDIO) }
+        binding.catVideo.setOnClickListener { openCategory(PAGE_VIDEO) }
+        binding.catPlayer.setOnClickListener { openCategory(PAGE_PLAYER) }
+        binding.catYoutube.setOnClickListener { openCategory(PAGE_YOUTUBE) }
+        binding.catHelp.setOnClickListener { openCategory(PAGE_HELP) }
+        binding.catUpdate.setOnClickListener { openCategory(PAGE_UPDATE) }
+        binding.catAbout.setOnClickListener { openCategory(PAGE_ABOUT) }
+        binding.btnBack.setOnClickListener { showRoot() }
+    }
+
+    /** Toca numa pasta: cabeçalho vira "voltar + título", o conteúdo da
+     *  lista sai e a página do assunto ENTRA deslizando (como no YouTube). */
+    private fun openCategory(page: Int) {
+        val b = _binding ?: return
+        b.headerRoot.visibility = View.GONE
+        b.pageRoot.visibility = View.GONE
+        b.headerDetail.visibility = View.VISIBLE
+        b.tvPageTitle.setText(
+            when (page) {
+                PAGE_DOWNLOADS -> R.string.set_cat_downloads
+                PAGE_AUDIO -> R.string.set_cat_audio
+                PAGE_VIDEO -> R.string.set_cat_video
+                PAGE_PLAYER -> R.string.set_cat_player
+                PAGE_YOUTUBE -> R.string.set_cat_youtube
+                PAGE_HELP -> R.string.set_cat_help
+                PAGE_UPDATE -> R.string.set_cat_update
+                else -> R.string.set_cat_about
+            }
+        )
+        // só a página do assunto fica visível; as outras dormem
+        b.pageDownloads.root.visibility = if (page == PAGE_DOWNLOADS) View.VISIBLE else View.GONE
+        b.pageAudio.root.visibility = if (page == PAGE_AUDIO) View.VISIBLE else View.GONE
+        b.pageVideo.root.visibility = if (page == PAGE_VIDEO) View.VISIBLE else View.GONE
+        b.pagePlayer.root.visibility = if (page == PAGE_PLAYER) View.VISIBLE else View.GONE
+        b.pageYoutube.root.visibility = if (page == PAGE_YOUTUBE) View.VISIBLE else View.GONE
+        b.pageHelp.root.visibility = if (page == PAGE_HELP) View.VISIBLE else View.GONE
+        b.pageUpdate.root.visibility = if (page == PAGE_UPDATE) View.VISIBLE else View.GONE
+        b.pageAbout.root.visibility = if (page == PAGE_ABOUT) View.VISIBLE else View.GONE
+        b.pageDetail.alpha = 0f
+        b.pageDetail.translationX = 64f
+        b.pageDetail.visibility = View.VISIBLE
+        b.pageDetail.animate().alpha(1f).translationX(0f)
+            .setDuration(220L).setInterpolator(DecelerateInterpolator(1.6f)).start()
+        b.pageDetail.scrollTo(0, 0)
+        backToRoot.isEnabled = true
+    }
+
+    /** Volta pra lista de pastas (botão do cabeçalho ou back do sistema). */
+    private fun showRoot() {
+        val b = _binding ?: return
+        b.pageDetail.visibility = View.GONE
+        b.headerDetail.visibility = View.GONE
+        b.headerRoot.visibility = View.VISIBLE
+        b.pageRoot.alpha = 0f
+        b.pageRoot.visibility = View.VISIBLE
+        b.pageRoot.animate().alpha(1f).setDuration(180L).start()
+        backToRoot.isEnabled = false
+    }
+
     // ---------- Downloads ----------
 
     private fun bindFolder() {
-        binding.rowFolder.setOnClickListener { pickFolder.launch(null) }
-        binding.rowFolderReset.setOnClickListener {
+        binding.pageDownloads.rowFolder.setOnClickListener { pickFolder.launch(null) }
+        binding.pageDownloads.rowFolderReset.setOnClickListener {
             SaveLocation.setCustomTree(requireContext(), null)
             refreshFolderUi()
         }
     }
 
+    /** Atualiza o subtítulo da linha E da pasta na lista principal. */
     private fun refreshFolderUi() {
         val ctx = context ?: return
         val tree = SaveLocation.customTree(ctx)
+        val text: String
+        val resetVisible: Boolean
         if (tree == null) {
-            binding.tvFolderCurrent.text = getString(R.string.settings_folder_default)
-            binding.rowFolderReset.visibility = View.GONE
+            text = getString(R.string.settings_folder_default)
+            resetVisible = false
         } else {
             val name = try {
                 DocumentFile.fromTreeUri(ctx, tree)?.name
             } catch (t: Throwable) {
                 null
             }
-            binding.tvFolderCurrent.text = getString(
+            text = getString(
                 R.string.settings_folder_custom,
                 name ?: getString(R.string.lib_folder_unknown)
             )
-            binding.rowFolderReset.visibility = View.VISIBLE
+            resetVisible = true
         }
+        binding.pageDownloads.tvFolderCurrent.text = text
+        binding.pageDownloads.rowFolderReset.visibility =
+            if (resetVisible) View.VISIBLE else View.GONE
+        binding.tvCatDownloadsSub.text = text
     }
 
     /** MP3 / M4A / vídeo: linhas que abrem DIALOG de escolha única — o
      *  padrão das configurações do YouTube pra opções curtas (e o subtítulo
      *  da linha mostra o valor corrente, igual "Idiomas > Português"). */
     private fun bindQualities() {
-        binding.rowMp3.setOnClickListener { askMp3() }
-        binding.rowM4a.setOnClickListener { askM4a() }
-        binding.rowVideo.setOnClickListener { askVideo() }
+        binding.pageAudio.rowMp3.setOnClickListener { askMp3() }
+        binding.pageAudio.rowM4a.setOnClickListener { askM4a() }
+        binding.pageVideo.rowVideo.setOnClickListener { askVideo() }
     }
 
     private fun askMp3() {
@@ -214,13 +307,13 @@ class SettingsFragment : Fragment() {
 
     private fun refreshQualities() {
         val ctx = context ?: return
-        binding.tvMp3Sub.text =
+        binding.pageAudio.tvMp3Sub.text =
             getString(R.string.set_sub_mp3_fmt, FormatPrefs.mp3DefaultBitrate(ctx))
-        binding.tvM4aSub.setText(
+        binding.pageAudio.tvM4aSub.setText(
             if (FormatPrefs.m4aPick(ctx) == FormatPrefs.PICK_SMALL) R.string.q_smallest
             else R.string.q_best
         )
-        binding.tvVideoSub.text =
+        binding.pageVideo.tvVideoSub.text =
             getString(R.string.set_sub_video_fmt, FormatPrefs.videoDefaultHeight(ctx))
     }
 
@@ -230,22 +323,22 @@ class SettingsFragment : Fragment() {
      *  player — SEM permissão nenhuma (o espectro é lido por dentro do
      *  próprio player). Toque na linha inteira também alterna. */
     private fun bindVisualizer() {
-        binding.swVisualizer.isChecked = FormatPrefs.visualizerOn(requireContext())
-        binding.swVisualizer.setOnCheckedChangeListener { _, checked ->
+        binding.pagePlayer.swVisualizer.isChecked = FormatPrefs.visualizerOn(requireContext())
+        binding.pagePlayer.swVisualizer.setOnCheckedChangeListener { _, checked ->
             FormatPrefs.setVisualizerOn(requireContext(), checked)
         }
-        binding.rowVisualizer.setOnClickListener {
-            binding.swVisualizer.toggle()
+        binding.pagePlayer.rowVisualizer.setOnClickListener {
+            binding.pagePlayer.swVisualizer.toggle()
         }
     }
 
-    // ---------- YouTube (conta, v0.19.8) ----------
+    // ---------- YouTube (conta) ----------
 
     /** A linha NÃO loga por aqui: mostra o status e manda pra aba YouTube —
      *  é LÁ que o login acontece, e a captura da sessão é automática. Com
      *  conta conectada, o toque abre o diálogo de gerenciamento. */
     private fun bindAccount() {
-        binding.rowAccount.setOnClickListener {
+        binding.pageYoutube.rowAccount.setOnClickListener {
             val ctx = requireContext()
             if (YtCookies.has(ctx)) {
                 MaterialAlertDialogBuilder(ctx)
@@ -270,11 +363,12 @@ class SettingsFragment : Fragment() {
         (activity as? MainActivity)?.openTab(R.id.navYouTube)
     }
 
+    /** Status na página E na pasta da lista principal. */
     private fun refreshAccountUi() {
         val ctx = context ?: return
-        binding.tvAccountSub.setText(
-            if (YtCookies.has(ctx)) R.string.set_sub_account_on else R.string.set_sub_account_off
-        )
+        val res = if (YtCookies.has(ctx)) R.string.set_sub_account_on else R.string.set_sub_account_off
+        binding.pageYoutube.tvAccountSub.setText(res)
+        binding.tvCatYoutubeSub.setText(res)
     }
 
     // ---------- Ajuda ----------
@@ -283,7 +377,7 @@ class SettingsFragment : Fragment() {
      *  (EXTRA_FROM_SETTINGS: ao terminar ele só fecha, sem abrir a Main
      *  de novo — ela já está atrás). */
     private fun bindTutorial() {
-        binding.rowTutorial.setOnClickListener {
+        binding.pageHelp.rowTutorial.setOnClickListener {
             startActivity(
                 Intent(requireContext(), OnboardingActivity::class.java)
                     .putExtra(OnboardingActivity.EXTRA_FROM_SETTINGS, true)
@@ -293,25 +387,24 @@ class SettingsFragment : Fragment() {
 
     // ---------- Atualização ----------
 
-    /** Atualização manual (v0.19.3): chama o MESMO UpdateChecker da Central
-     *  (mesmo cache/throttle — verificar aqui não martela a API do GitHub).
-     *  Achou versão nova? Leva o usuário pra Central de Downloads, onde o
-     *  card de baixar/instalar já está esperando. */
+    /** Atualização manual: chama o MESMO UpdateChecker do card do Início
+     *  (mesmo cache/throttle). Achou versão nova? Leva pro INÍCIO do app,
+     *  onde o card de baixar/instalar já está esperando (v0.19.9). */
     private fun bindUpdate() {
-        binding.rowUpdate.setOnClickListener {
+        binding.pageUpdate.rowUpdate.setOnClickListener {
             val ctx = requireContext()
-            binding.rowUpdate.isEnabled = false
-            binding.tvUpdateStatus.setText(R.string.update_checking)
+            binding.pageUpdate.rowUpdate.isEnabled = false
+            binding.pageUpdate.tvUpdateStatus.setText(R.string.update_checking)
             viewLifecycleOwner.lifecycleScope.launch {
                 val info = UpdateChecker.check(ctx)
                 if (_binding == null) return@launch // a aba saiu da tela no meio
-                binding.rowUpdate.isEnabled = true
+                binding.pageUpdate.rowUpdate.isEnabled = true
                 if (info != null) {
-                    binding.tvUpdateStatus.text =
+                    binding.pageUpdate.tvUpdateStatus.text =
                         getString(R.string.update_available, info.version)
-                    (activity as? MainActivity)?.openTab(R.id.navDownloads)
+                    (activity as? MainActivity)?.openTab(R.id.navHome)
                 } else {
-                    binding.tvUpdateStatus.text =
+                    binding.pageUpdate.tvUpdateStatus.text =
                         getString(R.string.update_uptodate, BuildConfig.VERSION_NAME)
                 }
             }
@@ -320,23 +413,10 @@ class SettingsFragment : Fragment() {
 
     // ---------- Sobre ----------
 
-    /** Sobre: versão + assinatura + repositório (abre no navegador do
-     *  sistema — a aba YouTube é PRESA ao YouTube de propósito). */
+    /** Sobre: versão + assinatura. Sem GitHub, sem link externo. */
     private fun bindAbout() {
-        binding.tvAboutVersion.text =
+        binding.pageAbout.tvAboutVersion.text =
             getString(R.string.about_version_fmt, BuildConfig.VERSION_NAME) +
                 "  ·  " + getString(R.string.about_made_by)
-        binding.rowGithub.setOnClickListener {
-            try {
-                startActivity(
-                    Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.parse("https://github.com/MicaelSanPedro/TuneGrab")
-                    )
-                )
-            } catch (_: ActivityNotFoundException) {
-                Toast.makeText(requireContext(), R.string.about_no_browser, Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 }

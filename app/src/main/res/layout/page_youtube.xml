@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v0.19.9: página "YouTube" das Configurações (estilo YouTube LITERAL) —
+     status da conta; o login acontece DENTRO da aba YouTube e é detectado
+     sozinho (v0.19.8). Daqui só se VÊ o status e se desconecta. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/rowAccount"
+        style="@style/SettingsRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            style="@style/SettingsRowIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_youtube" />
+
+        <LinearLayout
+            style="@style/SettingsRowTexts"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <TextView
+                style="@style/SettingsRowTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/set_row_account" />
+
+            <TextView
+                android:id="@+id/tvAccountSub"
+                style="@style/SettingsRowSub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

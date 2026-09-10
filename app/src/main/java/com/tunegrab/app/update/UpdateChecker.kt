@@ -124,6 +124,23 @@ object UpdateChecker {
             .edit().putString(KEY_DISMISSED, version).apply()
     }
 
+    /**
+     * Notas da versão em texto LEIGO, direto pro diálogo "O que veio de
+     * novo?": tira a maquiagem do markdown da release (cabeçalhos, negrito,
+     * itálico, código e links ficam só com o texto) e transforma os itens
+     * de lista em bolinha — quem não é técnico lê sem esbarrar em símbolos.
+     */
+    fun cleanNotes(raw: String): String = raw
+        .replace(Regex("^#{1,6}\\s*", RegexOption.MULTILINE), "")
+        .replace(Regex("\\*\\*([^*]+)\\*\\*"), "$1")
+        .replace(Regex("\\*([^*]+)\\*"), "$1")
+        .replace(Regex("__([^_]+)__"), "$1")
+        .replace(Regex("`([^`]*)`"), "$1")
+        .replace(Regex("\\[([^]]+)]\\([^)]*\\)"), "$1")
+        .replace(Regex("^\\s*[-*+]\\s+", RegexOption.MULTILINE), "• ")
+        .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+
     private fun readCache(prefs: android.content.SharedPreferences): UpdateInfo? {
         val raw = prefs.getString(KEY_CACHE, null) ?: return null
         val dismissed = prefs.getString(KEY_DISMISSED, null)

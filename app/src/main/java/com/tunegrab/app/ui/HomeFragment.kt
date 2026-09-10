@@ -19,8 +19,10 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.tunegrab.app.DlpMetadata
 import com.tunegrab.app.DlpPickerSheet
 import com.tunegrab.app.BuildConfig
@@ -34,6 +36,8 @@ import com.tunegrab.app.R
 import com.tunegrab.app.TuneGrabApp
 import com.tunegrab.app.databinding.FragmentHomeBinding
 import com.tunegrab.app.download.DownloadService
+import com.tunegrab.app.update.UpdateChecker
+import com.tunegrab.app.update.UpdateInstaller
 import com.tunegrab.app.yt.YtExtractor
 import com.tunegrab.app.yt.potoken.PoTokenManager
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +100,15 @@ class HomeFragment : Fragment() {
         bindFooter()
         // link compartilhado que chegou antes desta aba existir
         (activity as? MainActivity)?.consumePendingSharedUrl()?.let { handleSharedUrl(it) }
+        // Atualização (v0.19.9): o card de versão nova agora vive NO INÍCIO
+        // (era na Central). Consulta a release mais recente com o mesmo
+        // cache/throttle de sempre (abertura fria consulta; falha é
+        // silenciosa). Fora de listeners de ciclo: 1 consulta por criação
+        // da aba, não 1 por frame de STARTED.
+        viewLifecycleOwner.lifecycleScope.launch {
+            val info = UpdateChecker.check(requireContext())
+            if (info != null && _binding != null) showUpdateCard(info)
+        }
     }
 
     /**
@@ -897,6 +910,149 @@ class HomeFragment : Fragment() {
             return
         }
         binding.inputUrl.setText(text.trim())
+    }
+
+    // ---------- Atualização (v0.19.9: card no INÍCIO) ----------
+
+    // Estado do card de atualização: versão nova? baixando? % atual?
+    private var updateInfo: UpdateChecker.UpdateInfo? = null
+    private var updateDownloading = false
+    private var updatePercent = 0
+
+    /** Card "nova versão disponível": compacto — o TOQUE abre o que veio
+     *  de novo e de lá a pessoa atualiza. Nada de link externo (sem GitHub,
+     *  pedido do autor): baixar e instalar acontecem dentro do app. */
+    private fun showUpdateCard(info: UpdateChecker.UpdateInfo) {
+        val b = _binding ?: return
+        updateInfo = info
+        b.cardUpdate.isVisible = true
+        b.tvUpdateTitle.text = getString(R.string.upd_available, info.version)
+        b.btnCloseUpdate.setOnClickListener {
+            b.cardUpdate.isVisible = false
+            UpdateChecker.dismiss(requireContext(), info.version)
+        }
+        b.cardUpdate.setOnClickListener { onUpdateCardTapped(info) }
+        refreshUpdateCard()
+    }
+
+    /** Texto/barra do card conforme o estado: "toque pra ver o que veio
+     *  de novo" → "Baixando… %" → "toque pra instalar". */
+    private fun refreshUpdateCard() {
+        val b = _binding ?: return
+        val info = updateInfo ?: return
+        val ctx = context ?: return
+        when {
+            updateDownloading -> {
+                b.tvUpdateNotes.text = getString(R.string.upd_downloading, updatePercent)
+                b.progressUpdate.isVisible = true
+                b.progressUpdate.progress = updatePercent
+                b.btnCloseUpdate.isVisible = false
+            }
+            UpdateInstaller.isReady(ctx, info) -> {
+                b.tvUpdateNotes.text = getString(R.string.upd_tap_install)
+                b.progressUpdate.isVisible = false
+                b.btnCloseUpdate.isVisible = true
+            }
+            else -> {
+                b.tvUpdateNotes.text = getString(R.string.upd_tap_see)
+                b.progressUpdate.isVisible = false
+                b.btnCloseUpdate.isVisible = true
+            }
+        }
+    }
+
+    /** Toque no card: APK pronto = instala direto; senão abre "O que veio
+     *  de novo?" com as notas da versão em texto LEIGO (sem markdown —
+     *  [UpdateChecker.cleanNotes] limpa os símbolos da release). */
+    private fun onUpdateCardTapped(info: UpdateChecker.UpdateInfo) {
+        val ctx = context ?: return
+        if (updateDownloading) return
+        if (UpdateInstaller.isReady(ctx, info)) {
+            installUpdate(info)
+            return
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.upd_what_title)
+            .setMessage(
+                UpdateChecker.cleanNotes(info.notes).ifBlank {
+                    getString(R.string.upd_no_notes)
+                }
+            )
+            .setNegativeButton(R.string.upd_what_later, null)
+            .setPositiveButton(R.string.upd_cta_update) { _, _ ->
+                maybeStartUpdateDownload(info)
+            }
+            .show()
+    }
+
+    /** Rede móvel = dados cobrados: confirma antes de baixar ~100MB. */
+    private fun maybeStartUpdateDownload(info: UpdateChecker.UpdateInfo) {
+        val ctx = context ?: return
+        if (UpdateInstaller.isOnMetered(ctx)) {
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle(R.string.upd_metered_title)
+                .setMessage(
+                    ctx.getString(
+                        R.string.upd_metered_msg,
+                        UpdateInstaller.formatSize(ctx, info.apkSize)
+                    )
+                )
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.upd_metered_yes) { _, _ ->
+                    startUpdateDownload(info)
+                }
+                .show()
+        } else {
+            startUpdateDownload(info)
+        }
+    }
+
+    /** Baixa o APK pra pasta PRIVADA do app (Android/data/…/files/updates —
+     *  apagada junto com o TuneGrab na desinstalação) com % no card. */
+    private fun startUpdateDownload(info: UpdateChecker.UpdateInfo) {
+        val ctx = context ?: return
+        updateDownloading = true
+        updatePercent = 0
+        refreshUpdateCard()
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                UpdateInstaller.download(ctx.applicationContext, info) { pct ->
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        updatePercent = pct
+                        val b = _binding ?: return@launch
+                        b.progressUpdate.progress = pct
+                        b.tvUpdateNotes.text = getString(R.string.upd_downloading, pct)
+                    }
+                }
+                updateDownloading = false
+                refreshUpdateCard()
+                Toast.makeText(ctx, R.string.upd_ready_toast, Toast.LENGTH_SHORT).show()
+            } catch (t: Throwable) {
+                updateDownloading = false
+                refreshUpdateCard()
+                Toast.makeText(ctx, R.string.upd_err_download, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /** Instala via instalador do SISTEMA (a confirmação final do Android é
+     *  inescapável por design). Sem autorização de fontes desconhecidas,
+     *  manda pro ajuste certo e o toque de novo funciona. */
+    private fun installUpdate(info: UpdateChecker.UpdateInfo) {
+        val ctx = context ?: return
+        if (UpdateInstaller.needsInstallPermission(ctx)) {
+            Toast.makeText(ctx, R.string.upd_need_permission, Toast.LENGTH_LONG).show()
+            try {
+                ctx.startActivity(UpdateInstaller.unknownSourcesScreen(ctx))
+            } catch (t: Throwable) {
+            }
+            return
+        }
+        try {
+            ctx.startActivity(UpdateInstaller.installIntent(ctx, info))
+        } catch (t: Throwable) {
+            Toast.makeText(ctx, R.string.upd_err_install, Toast.LENGTH_SHORT).show()
+        }
     }
 
     companion object {

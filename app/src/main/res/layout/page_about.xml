@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v0.19.9: página "Sobre" das Configurações (estilo YouTube LITERAL) —
+     versão + motores. SEM link externo (pedido: "não deixe rastros de que
+     esse app foi feito no github" — a linha do repositório saiu). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/tvAboutVersion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="14dp"
+        android:paddingTop="10dp"
+        android:textColor="@color/on_background"
+        android:textSize="13sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="14dp"
+        android:paddingTop="4dp"
+        android:text="@string/about_engines"
+        android:textColor="@color/on_surface_variant"
+        android:textSize="11sp" />
+</LinearLayout>

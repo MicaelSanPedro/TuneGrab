@@ -1,18 +1,82 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v0.19.8: Configurações organizadas POR CATEGORIA (pedido do autor:
-     "deixa as configurações organizadas por categoria, tipo downloads,
-     armazenamento… deixa parecido com a foto") — a foto era as
-     configurações do YouTube: cabeçalho de categoria em negrito e linhas
-     de ícone + título + subtítulo. A seção de cookies/manual saiu (o login
-     agora é automático na aba YouTube) e as escolhas de qualidade viraram
-     linhas que abrem diálogo, como "Idiomas" nas configs do YouTube. -->
+<!-- v0.19.9: Configurações estilo YouTube LITERAL (pedido do autor: "devem
+     ser LITERALMENTE do jeito que está no YouTube, ou seja, como se fosse
+     em pastas. Por exemplo: quando eu abrir o app, lá vai ter uma seção
+     clicável só de configurações de áudio, e outra de vídeo, aí quando eu
+     clicar, aparece as opções").
+
+     Estrutura: lista principal com PASTAS clicáveis (ícone + título +
+     subtítulo + seta) e a área de detalhe com as 8 páginas (um include
+     por assunto, só um visível por vez). Voltar = botão do cabeçalho OU
+     o back do sistema (OnBackPressedCallback no SettingsFragment). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <!-- ══════ Cabeçalho RAIZ: título + subtítulo ══════ -->
+    <LinearLayout
+        android:id="@+id/headerRoot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_title"
+            android:textColor="@color/on_background"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/settings_sub"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- ══════ Cabeçalho DETALHE: voltar + nome da página (gone na raiz) ══════ -->
+    <LinearLayout
+        android:id="@+id/headerDetail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingEnd="24dp"
+        android:paddingStart="12dp"
+        android:paddingTop="12dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/cd_back"
+            android:src="@drawable/ic_back"
+            app:tint="@color/on_surface_variant" />
+
+        <TextView
+            android:id="@+id/tvPageTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:textColor="@color/on_background"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- ══════ LISTA PRINCIPAL: pastas clicáveis ══════ -->
     <ScrollView
+        android:id="@+id/pageRoot"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
@@ -25,36 +89,11 @@
             android:paddingBottom="16dp"
             android:paddingEnd="10dp"
             android:paddingStart="10dp"
-            android:paddingTop="20dp">
+            android:paddingTop="10dp">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingStart="14dp"
-                android:text="@string/settings_title"
-                android:textColor="@color/on_background"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:paddingStart="14dp"
-                android:text="@string/settings_sub"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="13sp" />
-
-            <!-- ══════════════ CATEGORIA: DOWNLOADS ══════════════ -->
-            <TextView
-                style="@style/SettingsCategory"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/set_cat_downloads" />
-
-            <!-- Pasta de download: subtítulo = pasta atual; toque abre o SAF -->
+            <!-- Pasta: DOWNLOADS -->
             <LinearLayout
-                android:id="@+id/rowFolder"
+                android:id="@+id/catDownloads"
                 style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -76,49 +115,27 @@
                         style="@style/SettingsRowTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/settings_folder" />
+                        android:text="@string/set_cat_downloads" />
 
                     <TextView
-                        android:id="@+id/tvFolderCurrent"
+                        android:id="@+id/tvCatDownloadsSub"
                         style="@style/SettingsRowSub"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/settings_folder_default" />
+                        android:text="@string/set_sub_cat_downloads" />
                 </LinearLayout>
-            </LinearLayout>
-
-            <!-- Só aparece com pasta personalizada ativa -->
-            <LinearLayout
-                android:id="@+id/rowFolderReset"
-                style="@style/SettingsRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone">
 
                 <ImageView
-                    style="@style/SettingsRowIcon"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_refresh" />
-
-                <LinearLayout
-                    style="@style/SettingsRowTexts"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1">
-
-                    <TextView
-                        style="@style/SettingsRowTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings_reset_folder" />
-                </LinearLayout>
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
-            <!-- Qualidade do MP3: toque abre diálogo de escolha única -->
+            <!-- Pasta: ÁUDIO -->
             <LinearLayout
-                android:id="@+id/rowMp3"
+                android:id="@+id/catAudio"
                 style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -140,53 +157,26 @@
                         style="@style/SettingsRowTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/set_row_mp3" />
+                        android:text="@string/set_cat_audio" />
 
                     <TextView
-                        android:id="@+id/tvMp3Sub"
                         style="@style/SettingsRowSub"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_sub_cat_audio" />
                 </LinearLayout>
-            </LinearLayout>
-
-            <!-- Qualidade do M4A -->
-            <LinearLayout
-                android:id="@+id/rowM4a"
-                style="@style/SettingsRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
 
                 <ImageView
-                    style="@style/SettingsRowIcon"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_library_music" />
-
-                <LinearLayout
-                    style="@style/SettingsRowTexts"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1">
-
-                    <TextView
-                        style="@style/SettingsRowTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/set_row_m4a" />
-
-                    <TextView
-                        android:id="@+id/tvM4aSub"
-                        style="@style/SettingsRowSub"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
-            <!-- Qualidade dos vídeos -->
+            <!-- Pasta: VÍDEO -->
             <LinearLayout
-                android:id="@+id/rowVideo"
+                android:id="@+id/catVideo"
                 style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -208,26 +198,26 @@
                         style="@style/SettingsRowTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/set_row_video" />
+                        android:text="@string/set_cat_video" />
 
                     <TextView
-                        android:id="@+id/tvVideoSub"
                         style="@style/SettingsRowSub"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_sub_cat_video" />
                 </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
-            <!-- ══════════════ CATEGORIA: PLAYER ══════════════ -->
-            <TextView
-                style="@style/SettingsCategory"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/set_cat_player" />
-
-            <!-- Barrinhas de áudio: switch inline na própria linha -->
+            <!-- Pasta: PLAYER -->
             <LinearLayout
-                android:id="@+id/rowVisualizer"
+                android:id="@+id/catPlayer"
                 style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -249,34 +239,26 @@
                         style="@style/SettingsRowTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/set_row_visualizer" />
+                        android:text="@string/set_cat_player" />
 
                     <TextView
                         style="@style/SettingsRowSub"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/set_sub_visualizer" />
+                        android:text="@string/set_sub_cat_player" />
                 </LinearLayout>
 
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/swVisualizer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp" />
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
-            <!-- ══════════════ CATEGORIA: YOUTUBE ══════════════ -->
-            <TextView
-                style="@style/SettingsCategory"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/set_cat_youtube" />
-
-            <!-- Conta do YouTube (v0.19.8): o login acontece DENTRO da aba
-                 YouTube e é detectado sozinho — daqui o usuário só VÊ o
-                 status (e desconecta, se quiser). Nada de cookies.txt. -->
+            <!-- Pasta: YOUTUBE (subtítulo = status da conta, dinâmico) -->
             <LinearLayout
-                android:id="@+id/rowAccount"
+                android:id="@+id/catYoutube"
                 style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -298,25 +280,27 @@
                         style="@style/SettingsRowTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/set_row_account" />
+                        android:text="@string/set_cat_youtube" />
 
                     <TextView
-                        android:id="@+id/tvAccountSub"
+                        android:id="@+id/tvCatYoutubeSub"
                         style="@style/SettingsRowSub"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_sub_account_off" />
                 </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
-            <!-- ══════════════ CATEGORIA: AJUDA ══════════════ -->
-            <TextView
-                style="@style/SettingsCategory"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/set_cat_help" />
-
+            <!-- Pasta: AJUDA -->
             <LinearLayout
-                android:id="@+id/rowTutorial"
+                android:id="@+id/catHelp"
                 style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -338,25 +322,26 @@
                         style="@style/SettingsRowTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/settings_tutorial_btn" />
+                        android:text="@string/set_cat_help" />
 
                     <TextView
                         style="@style/SettingsRowSub"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/settings_tutorial_hint" />
+                        android:text="@string/set_sub_cat_help" />
                 </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
-            <!-- ══════════════ CATEGORIA: ATUALIZAÇÃO ══════════════ -->
-            <TextView
-                style="@style/SettingsCategory"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/set_cat_update" />
-
+            <!-- Pasta: ATUALIZAÇÃO -->
             <LinearLayout
-                android:id="@+id/rowUpdate"
+                android:id="@+id/catUpdate"
                 style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -378,44 +363,26 @@
                         style="@style/SettingsRowTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/update_check_btn" />
+                        android:text="@string/set_cat_update" />
 
                     <TextView
-                        android:id="@+id/tvUpdateStatus"
                         style="@style/SettingsRowSub"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/set_sub_update" />
+                        android:text="@string/set_sub_cat_update" />
                 </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
-            <!-- ══════════════ CATEGORIA: SOBRE ══════════════ -->
-            <TextView
-                style="@style/SettingsCategory"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/set_cat_about" />
-
-            <TextView
-                android:id="@+id/tvAboutVersion"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingStart="14dp"
-                android:paddingTop="6dp"
-                android:textColor="@color/on_background"
-                android:textSize="13sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingStart="14dp"
-                android:paddingTop="2dp"
-                android:text="@string/about_engines"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="11sp" />
-
+            <!-- Pasta: SOBRE (sem GitHub — pedido do autor) -->
             <LinearLayout
-                android:id="@+id/rowGithub"
+                android:id="@+id/catAbout"
                 style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
@@ -425,7 +392,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:contentDescription="@null"
-                    android:src="@drawable/ic_github" />
+                    android:src="@drawable/ic_info" />
 
                 <LinearLayout
                     style="@style/SettingsRowTexts"
@@ -437,15 +404,75 @@
                         style="@style/SettingsRowTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/set_row_github" />
+                        android:text="@string/set_cat_about" />
 
                     <TextView
                         style="@style/SettingsRowSub"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/set_sub_github" />
+                        android:text="@string/set_sub_cat_about" />
                 </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_chevron_right"
+                    app:tint="@color/on_surface_variant" />
             </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- ══════ ÁREA DE DETALHE: a página do assunto (gone na raiz) —
+         só UM include visível por vez (openCategory controla) ══════ -->
+    <ScrollView
+        android:id="@+id/pageDetail"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="16dp"
+            android:paddingEnd="10dp"
+            android:paddingStart="10dp"
+            android:paddingTop="10dp">
+
+            <include
+                android:id="@+id/pageDownloads"
+                layout="@layout/page_downloads" />
+
+            <include
+                android:id="@+id/pageAudio"
+                layout="@layout/page_audio" />
+
+            <include
+                android:id="@+id/pageVideo"
+                layout="@layout/page_video" />
+
+            <include
+                android:id="@+id/pagePlayer"
+                layout="@layout/page_player" />
+
+            <include
+                android:id="@+id/pageYoutube"
+                layout="@layout/page_youtube" />
+
+            <include
+                android:id="@+id/pageHelp"
+                layout="@layout/page_help" />
+
+            <include
+                android:id="@+id/pageUpdate"
+                layout="@layout/page_update" />
+
+            <include
+                android:id="@+id/pageAbout"
+                layout="@layout/page_about" />
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
