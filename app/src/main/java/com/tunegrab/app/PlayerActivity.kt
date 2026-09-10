@@ -168,10 +168,10 @@ class PlayerActivity : AppCompatActivity() {
         queueIndex = intent.getIntExtra(PlaybackService.EXTRA_QUEUE_INDEX, -1)
         binding.tvTitle.text = title
 
-        binding.btnClose.setOnClickListener { finish() }
+        binding.btnClose.setOnClickListener { closePlayer() }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (fullscreen) setFullscreen(false) else finish()
+                if (fullscreen) setFullscreen(false) else closePlayer()
             }
         })
 
@@ -190,6 +190,24 @@ class PlayerActivity : AppCompatActivity() {
         if (isVideo) {
             pipToggleHook = { togglePipPlayback() }
         }
+    }
+
+    /**
+     * FECHAR O PLAYER (v0.19.1, pedido do autor: "quando eu clico na seta de
+     * voltar estando no player de áudio, a música continua tocando"): a seta
+     * do player e o gesto/botão de voltar do sistema agora ENCERRAM o som do
+     * player de música — PlaybackService.stopNow() para o ExoPlayer, tira a
+     * notificação e encerra o foreground service. O resto do miniplayer NÃO
+     * muda: apertar Home/trocar de app com o player aberto continua tocando
+     * em 2º plano (é o propósito dele) — o pedido é sobre FECHAR o player.
+     * VÍDEO: só finish() — o som do vídeo já morre com a activity (o handoff
+     * pro serviço ignora activity em isFinishing, nada de som fantasma).
+     */
+    private fun closePlayer() {
+        if (!isVideo) {
+            PlaybackService.stopNow(this)
+        }
+        finish()
     }
 
     // ---------- vídeo ----------

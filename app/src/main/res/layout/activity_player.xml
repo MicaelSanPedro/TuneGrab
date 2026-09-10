@@ -45,16 +45,19 @@
             android:layout_width="220dp"
             android:layout_height="220dp">
 
-            <!-- CAPA da música (v0.19.0): quando o arquivo tem capa embutida
-                 (pedido do autor: áudios baixam com capa), o bitmap cobre o
-                 cartão inteiro — clipToOutline usa o contorno arredondado do
-                 bg_album_art. Sem capa: o gradiente violeta de sempre -->
+            <!-- CAPA da música (v0.19.0; centerCrop v0.19.1): quando o
+                 arquivo tem capa embutida, o bitmap COBRE o cartão inteiro —
+                 centerCrop recorta a capa pra NADA do fundo violeta aparecer
+                 (autor: a capa SUBSTITUI o ícone, não fica em cima dele);
+                 clipToOutline usa o contorno arredondado do bg_album_art.
+                 Sem capa: o gradiente violeta de sempre -->
             <ImageView
                 android:id="@+id/imgArt"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_album_art"
-                android:contentDescription="@null" />
+                android:contentDescription="@null"
+                android:scaleType="centerCrop" />
 
             <ImageView
                 android:id="@+id/imgArtIcon"
