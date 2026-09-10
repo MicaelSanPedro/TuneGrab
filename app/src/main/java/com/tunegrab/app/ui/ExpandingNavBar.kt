@@ -11,8 +11,7 @@ import android.util.AttributeSet
 import android.view.Gravity
 import android.view.View
 import android.view.View.MeasureSpec
-import android.view.animation.AccelerateInterpolator
-import android.view.animation.DecelerateInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -71,6 +70,11 @@ class ExpandingNavBar @JvmOverloads constructor(
     private val colorIdle = ContextCompat.getColor(context, R.color.on_surface_variant)
     private val argb = ArgbEvaluator()
 
+    /** Deslize lateral do nome (v0.19.4): o texto SÓ anda pra frente/trás na
+     * horizontal — nunca nasce de cima pra baixo (o singleLine do label mata
+     * a quebra de linha que fazia o texto "subir" durante a abertura). */
+    private val labelSlide = dp(10)
+
     init {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER
@@ -98,10 +102,15 @@ class ExpandingNavBar @JvmOverloads constructor(
             textSize = 12.5f
             setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD))
             setTextColor(colorActive)
+            // v0.19.4: SEM quebra de linha — com a largura animando de 0, um
+            // TextView multilinha empilhava o texto e "desmontava de cima pra
+            // baixo" durante a abertura (o bug que o autor filmou). Uma linha,
+            // altura constante, o movimento vira 100% horizontal.
+            isSingleLine = true
             alpha = 0f
             layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT)
         }
-        item.addView(icon, LayoutParams(dp(20), dp(20)))
+        item.addView(icon, LayoutParams(dp(22), dp(22)))
         item.addView(label)
         addView(
             item,
@@ -119,8 +128,13 @@ class ExpandingNavBar @JvmOverloads constructor(
                 icon,
                 label,
                 label.measuredWidth,
-                dp(6),
-                ContextCompat.getDrawable(context, R.drawable.bg_nav_item)
+                // v0.19.4: gap 6→10dp — com 6dp o nome nascia colado no ícone
+                // (o logo do YouTube encosta na borda da caixa, os glifos do
+                // Material Symbols têm folga própria); 10dp nivela todos.
+                dp(10),
+                // mutate(): instância própria por aba — a pill do fecho anima
+                // alpha individual enquanto a do outro lado nasce opaca
+                ContextCompat.getDrawable(context, R.drawable.bg_nav_item)?.mutate()
             )
         )
     }
@@ -166,17 +180,23 @@ class ExpandingNavBar @JvmOverloads constructor(
         (tab.label.layoutParams as LayoutParams).marginStart =
             if (selected) tab.labelGap else 0
         tab.label.alpha = if (selected) 1f else 0f
+        tab.label.translationX = if (selected) 0f else -labelSlide
+        tab.pill?.alpha = 255
         tab.item.background = if (selected) tab.pill else null
         tab.icon.setColorFilter(if (selected) colorActive else colorIdle)
         tab.item.requestLayout()
     }
 
     /**
-     * O EMPURRÃO: a largura do label anima (0 ↔ medida do texto) e o
-     * requestLayout a cada frame reflowa o LinearLayout — os vizinhos
-     * deslizam suave. Abrir dura um pouco mais que fechar (a entrada pede
-     * presença; a saída é só recuo). A cor do ícone acompanha (idle →
-     * ativo) e a pill já nasce junto com o crescimento.
+     * O EMPURRÃO (v0.19.4): a largura do label anima (0 ↔ medida do texto) e
+     * o requestLayout a cada frame reflowa o LinearLayout — os vizinhos
+     * deslizam suave. O NOME SÓ ANDA PRA LADO: singleLine + translationX de
+     * -10dp → 0 abrindo (o texto desliza pra fora do ícone) e 0 → -10dp
+     * fechando, sem NENHUMA componente vertical. Mais lento e mais redondo
+     * que antes (420ms/300ms com as curvas "emphasized" do Material 3: abrir
+     * desacelera no fim, fechar acelera e sai) — a pill acompanha os DOIS
+     * sentidos (nasce crescendo, morre encolhendo com fade) em vez de sumir
+     * seca no primeiro frame do fecho.
      */
     private fun animateTab(tab: Tab, open: Boolean) {
         tab.animator?.cancel()
@@ -187,19 +207,28 @@ class ExpandingNavBar @JvmOverloads constructor(
         val toGap = if (open) tab.labelGap else 0
         val fromAlpha = tab.label.alpha
         val toAlpha = if (open) 1f else 0f
+        val fromTx = tab.label.translationX
+        val toTx = if (open) 0f else -labelSlide
         val fromColor = if (open) colorIdle else colorActive
         val toColor = if (open) colorActive else colorIdle
-        tab.item.background = if (open) tab.pill else null
+        val fromPill = tab.pill?.alpha ?: 255
+        val toPill = if (open) 255 else 0
+        // abrindo: pill entra já no primeiro frame (cresce junto); fechando:
+        // ela PERMANECE e encolhe com o item — sai só no fim da animação
+        if (open) tab.item.background = tab.pill
         val anim = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = if (open) 240L else 180L
+            duration = if (open) 420L else 300L
             interpolator =
-                if (open) DecelerateInterpolator(1.6f) else AccelerateInterpolator(1.2f)
+                if (open) PathInterpolator(0.05f, 0.7f, 0.1f, 1f)
+                else PathInterpolator(0.3f, 0f, 0.8f, 0.15f)
             addUpdateListener { v ->
                 val f = v.animatedValue as Float
                 lp.width = fromWidth + ((toWidth - fromWidth) * f).roundToInt()
                 lp.marginStart = fromGap + ((toGap - fromGap) * f).roundToInt()
                 tab.label.alpha = fromAlpha + (toAlpha - fromAlpha) * f
+                tab.label.translationX = fromTx + (toTx - fromTx) * f
                 tab.icon.setColorFilter(argb.evaluate(f, fromColor, toColor) as Int)
+                tab.pill?.alpha = (fromPill + (toPill - fromPill) * f).roundToInt()
                 tab.item.requestLayout()
             }
             addListener(object : AnimatorListenerAdapter() {
@@ -215,7 +244,10 @@ class ExpandingNavBar @JvmOverloads constructor(
                         lp.width = toWidth
                         lp.marginStart = toGap
                         tab.label.alpha = toAlpha
+                        tab.label.translationX = toTx
                         tab.icon.setColorFilter(toColor)
+                        tab.pill?.alpha = toPill
+                        if (!open) tab.item.background = null
                         tab.item.requestLayout()
                     }
                 }
