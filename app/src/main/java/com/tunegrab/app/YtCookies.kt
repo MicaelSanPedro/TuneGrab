@@ -17,11 +17,14 @@ import java.util.Locale
  * recomendação oficial do próprio yt-dlp wiki para "Sign in to confirm
  * you're not a bot".
  *
- * Duas formas de obter (ambas terminam no MESMO arquivo Netscape):
- *  1. WebView no app ([CookieLoginActivity]): o usuário loga no youtube.com
- *     e o app captura os cookies do android.webkit.CookieManager.
- *  2. Importar um cookies.txt exportado no PC (extensão "Get cookies.txt
- *     LOCALLY" no youtube.com) — o caminho clássico do yt-dlp.
+ * Como o login acontece (v0.19.8, pedido do autor: "quando o usuário fazer
+ * login no YouTube integrado do site, já detectar os cookies e enviar
+ * junto"): o usuário entra na aba YouTube do próprio app e loga na conta
+ * DELE — o [com.tunegrab.app.ui.YoutubeFragment] chama [captureFromWebView]
+ * a cada página carregada e a sessão (SID/HSID/SAPISID do CookieManager do
+ * sistema) é gravada no cookies.txt Netscape SEM botão, sem importação,
+ * sem tela extra. A seção de cookies das Configurações saiu de cena —
+ * "isso é patético, ninguém sabe mexer nisso", e agora ninguém precisa.
  *
  * Segurança: o arquivo vive em filesDir (privado do app, some com a
  * desinstalação), nunca vai para log, e é enviado SÓ para o processo do
@@ -36,6 +39,11 @@ object YtCookies {
     private const val PREFS = "yt_cookies"
     private const val KEY_SAVED_AT = "saved_at"
     private const val KEY_SOURCE = "source"
+
+    /** Assinatura da última sessão capturada (v0.19.8): evita REgravar o
+     *  cookies.txt a cada página do YouTube — só escreve quando os valores
+     *  dos cookies de login mudam de verdade (re-login ou rotação Google). */
+    private const val KEY_SIG = "login_sig"
 
     /** Cookies capturados valem por 1 ano na sintaxe Netscape (o yt-dlp
      *  reescreve o arquivo com renovações que o YouTube mandar de volta). */
@@ -71,7 +79,7 @@ object YtCookies {
 
     fun clear(ctx: Context) {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .remove(KEY_SAVED_AT).remove(KEY_SOURCE).apply()
+            .remove(KEY_SAVED_AT).remove(KEY_SOURCE).remove(KEY_SIG).apply()
         file(ctx).delete()
         Log.i(TAG, "cookies removidos")
     }
@@ -120,47 +128,63 @@ object YtCookies {
         return markers.any { cookieHeader.contains(it, ignoreCase = true) }
     }
 
-    // ---------- entrada 2: cookies.txt exportado no PC ----------
+    /**
+     * CAPTURA AUTOMÁTICA (v0.19.8): chamada pela aba YouTube a cada página
+     * carregada. Se o header tem sessão logada e ela é DIFERENTE da última
+     * conhecida (assinatura), grava o cookies.txt e devolve true — o aviso
+     * "Conta conectada" só aparece na transição, nunca a cada página.
+     * Header sem login = no-op total (nada é apagado aqui; a demissão é
+     * responsabilidade de [syncLoggedOut], que exige página do YouTube).
+     */
+    fun captureFromWebView(ctx: Context, header: String?): Boolean {
+        if (!headerHasLogin(header)) return false
+        val sig = loginSignature(header!!)
+        val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (prefs.getString(KEY_SIG, "") == sig) return false // mesma sessão de sempre
+        if (!saveFromWebView(ctx, header)) return false
+        prefs.edit().putString(KEY_SIG, sig).apply()
+        return true
+    }
 
     /**
-     * Importa um cookies.txt em formato Netscape (o do yt-dlp/browser
-     * extension). Mantém SÓ as linhas do youtube.com (as do google.com não
-     * são necessárias para extração — menos cookies expostos ao processo).
-     * Aceita o formato de 6 campos (sem flag de subdomínio, extensão antiga)
-     * normalizando para 7.
+     * FIM DE SESSÃO (v0.19.8): se há cookies salvos mas o jar do sistema
+     * NÃO tem mais marcadores de login, a sessão morreu no aparelho (o
+     * usuário deslogou no youtube.com da aba) — o arquivo guardado apontaria
+     * para cookies mortos. Apaga e devolve true pra avisar uma vez só.
      */
-    fun importNetscape(ctx: Context, raw: String): Boolean {
-        val out = StringBuilder()
-        out.append("# Netscape HTTP Cookie File\n")
-        out.append("# Importado pelo TuneGrab (cookies.txt do youtube.com)\n\n")
-        var kept = 0
-        for (line0 in raw.lineSequence()) {
-            val line = line0.trimEnd()
-            if (line.isBlank() || line.startsWith("#")) continue
-            val f = line.split("\t").map { it.trim() }
-            if (f.size !in 6..7) continue
-            val domain = f[0]
-            if (!domain.contains("youtube.com")) continue
-            // 7 campos: domain flag path secure expiry name value
-            // 6 campos: domain path secure expiry name value (sem flag —
-            // extensões antigas; flag deduzida do domínio)
-            val includeSub = if (f.size == 7) f[1] else if (domain.startsWith(".")) "TRUE" else "FALSE"
-            val path = if (f.size == 7) f[2] else f[1]
-            val secure = if (f.size == 7) f[3] else f[2]
-            val expiry = if (f.size == 7) f[4] else f[3]
-            val name = if (f.size == 7) f[5] else f[4]
-            val value = if (f.size == 7) f[6] else f[5]
-            if (name.isBlank() || value.isBlank()) continue
-            out.append(domain).append('\t').append(includeSub).append('\t')
-                .append(path).append('\t').append(secure).append('\t')
-                .append(expiry).append('\t').append(name).append('\t')
-                .append(value).append('\n')
-            kept++
+    fun syncLoggedOut(ctx: Context, cookieHeader: String?): Boolean {
+        if (!has(ctx)) return false
+        if (headerHasLogin(cookieHeader)) return false // ainda logado, não é fim
+        clear(ctx)
+        return true
+    }
+
+    /**
+     * Assinatura DETERMINÍSTICA da sessão: só os valores dos cookies de
+     * login (SID/HSID/SSID/SAPISID/APISID/__Secure-1PSID/__Secure-3PSID),
+     * ordenados por nome e hasheados — a ordem que o CookieManager devolve
+     * os OUTROS cookies (VISITOR_INFO1_LIVE, YSC, pretextos de consentimento)
+     * muda o tempo todo e NÃO pode disparar regravação.
+     */
+    private fun loginSignature(header: String): String {
+        val names = setOf(
+            "SID", "HSID", "SSID", "SAPISID", "APISID",
+            "__Secure-1PSID", "__Secure-3PSID"
+        )
+        val pairs = header.split(";").mapNotNull { p ->
+            val i = p.indexOf('=')
+            if (i <= 0) return@mapNotNull null
+            val name = p.substring(0, i).trim()
+            if (name !in names) null else name to p.substring(i + 1).trim()
+        }.sortedBy { it.first }
+        val seed = pairs.joinToString(";") { "${it.first}=${it.second}" }
+        return try {
+            val md = java.security.MessageDigest.getInstance("MD5")
+            md.digest(seed.toByteArray()).joinToString("") { "%02x".format(it) }
+        } catch (_: Throwable) {
+            // sem MessageDigest (improvável): o valor cru serve de assinatura
+            seed
         }
-        if (kept == 0) return false
-        val ok = writeAtomically(ctx, out.toString())
-        if (ok) markSaved(ctx, "import")
-        return ok
     }
 
     // ---------- saída: para o yt-dlp ----------

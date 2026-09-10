@@ -118,14 +118,6 @@
             android:exported="false"
             android:theme="@style/Theme.TuneGrab" />
 
-        <!-- Login do YouTube no app: WebView do youtube.com para capturar a
-             sessão (cookies) que o yt-dlp passa a usar — cura do bot-check -->
-        <activity
-            android:name=".CookieLoginActivity"
-            android:exported="false"
-            android:configChanges="orientation|screenSize"
-            android:theme="@style/Theme.TuneGrab" />
-
         <!-- Abrir/compartilhar arquivos baixados no Android 7–9 (file:// é proibido) -->
         <provider
             android:name="androidx.core.content.FileProvider"

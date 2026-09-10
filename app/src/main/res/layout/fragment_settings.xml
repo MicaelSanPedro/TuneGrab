@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v0.19.8: Configurações organizadas POR CATEGORIA (pedido do autor:
+     "deixa as configurações organizadas por categoria, tipo downloads,
+     armazenamento… deixa parecido com a foto") — a foto era as
+     configurações do YouTube: cabeçalho de categoria em negrito e linhas
+     de ícone + título + subtítulo. A seção de cookies/manual saiu (o login
+     agora é automático na aba YouTube) e as escolhas de qualidade viraram
+     linhas que abrem diálogo, como "Idiomas" nas configs do YouTube. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -15,11 +22,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:paddingBottom="16dp"
+            android:paddingEnd="10dp"
+            android:paddingStart="10dp"
+            android:paddingTop="20dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:paddingStart="14dp"
                 android:text="@string/settings_title"
                 android:textColor="@color/on_background"
                 android:textSize="20sp"
@@ -28,397 +39,413 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="6dp"
+                android:paddingStart="14dp"
                 android:text="@string/settings_sub"
                 android:textColor="@color/on_surface_variant"
                 android:textSize="13sp" />
 
-            <!-- Pasta de download -->
+            <!-- ══════════════ CATEGORIA: DOWNLOADS ══════════════ -->
             <TextView
+                style="@style/SettingsCategory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_folder"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:text="@string/set_cat_downloads" />
 
-            <TextView
-                android:id="@+id/tvFolderCurrent"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/settings_folder_default"
-                android:textColor="@color/on_background"
-                android:textSize="13sp" />
-
+            <!-- Pasta de download: subtítulo = pasta atual; toque abre o SAF -->
             <LinearLayout
+                android:id="@+id/rowFolder"
+                style="@style/SettingsRow"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="horizontal">
+                android:layout_height="wrap_content">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnChooseFolder"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_choose_folder"
-                    app:icon="@drawable/ic_folder"
-                    app:iconTint="@color/primary"
-                    app:strokeColor="@color/stroke" />
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_folder" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnResetFolder"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text="@string/settings_reset_folder"
-                    android:visibility="gone" />
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_folder" />
+
+                    <TextView
+                        android:id="@+id/tvFolderCurrent"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_folder_default" />
+                </LinearLayout>
             </LinearLayout>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/settings_folder_hint"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="11sp" />
-
-            <!-- MP3 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_mp3"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <RadioGroup
-                android:id="@+id/rgMp3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp">
-
-                <RadioButton
-                    android:id="@+id/rbMp3320"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_mp3_320"
-                    android:textSize="14sp" />
-
-                <RadioButton
-                    android:id="@+id/rbMp3256"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_mp3_256"
-                    android:textSize="14sp" />
-
-                <RadioButton
-                    android:id="@+id/rbMp3192"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_mp3_192"
-                    android:textSize="14sp" />
-
-                <RadioButton
-                    android:id="@+id/rbMp3128"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_mp3_128"
-                    android:textSize="14sp" />
-            </RadioGroup>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/settings_mp3_hint"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="11sp" />
-
-            <!-- M4A -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_m4a"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <RadioGroup
-                android:id="@+id/rgM4a"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp">
-
-                <RadioButton
-                    android:id="@+id/rbM4aBest"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_best"
-                    android:textSize="14sp" />
-
-                <RadioButton
-                    android:id="@+id/rbM4aSmall"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_smallest"
-                    android:textSize="14sp" />
-            </RadioGroup>
-
-            <!-- Vídeo (v0.19.3): a qualidade que já vem pré-selecionada no
-                 seletor — antes era 1080p FIXO (v0.10.1). O YouTube pode não
-                 ter o degrau exato; o app cai pro mais próximo disponível. -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_video"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <RadioGroup
-                android:id="@+id/rgVideo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp">
-
-                <RadioButton
-                    android:id="@+id/rbVideo2160"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_video_2160"
-                    android:textSize="14sp" />
-
-                <RadioButton
-                    android:id="@+id/rbVideo1080"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_video_1080"
-                    android:textSize="14sp" />
-
-                <RadioButton
-                    android:id="@+id/rbVideo720"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_video_720"
-                    android:textSize="14sp" />
-
-                <RadioButton
-                    android:id="@+id/rbVideo480"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="44dp"
-                    android:text="@string/q_video_480"
-                    android:textSize="14sp" />
-            </RadioGroup>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/settings_mp4_hint"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="11sp" />
-
-            <!-- Login do YouTube (cookies) — cura do anti-bot (v0.18.6) -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_cookies"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvCookieStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/cookie_status_none"
-                android:textColor="@color/on_background"
-                android:textSize="13sp" />
-
+            <!-- Só aparece com pasta personalizada ativa -->
             <LinearLayout
+                android:id="@+id/rowFolderReset"
+                style="@style/SettingsRow"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="horizontal">
+                android:visibility="gone">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnCookieLogin"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/cookie_login_btn"
-                    app:strokeColor="@color/stroke" />
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_refresh" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnCookieImport"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text="@string/cookie_import_btn" />
+                    android:layout_weight="1">
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnCookieRemove"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:text="@string/cookie_remove_btn"
-                    android:textColor="@color/state_failed"
-                    android:visibility="gone" />
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_reset_folder" />
+                </LinearLayout>
             </LinearLayout>
 
-            <TextView
+            <!-- Qualidade do MP3: toque abre diálogo de escolha única -->
+            <LinearLayout
+                android:id="@+id/rowMp3"
+                style="@style/SettingsRow"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/settings_cookies_hint"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="11sp" />
+                android:layout_height="wrap_content">
 
-            <!-- Player: barrinhas de DJ (v0.18.7) — espectro REAL do áudio -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_player"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_music_note" />
 
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/swVisualizer"
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_row_mp3" />
+
+                    <TextView
+                        android:id="@+id/tvMp3Sub"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Qualidade do M4A -->
+            <LinearLayout
+                android:id="@+id/rowM4a"
+                style="@style/SettingsRow"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:minHeight="44dp"
-                android:text="@string/settings_visualizer"
-                android:textColor="@color/on_background"
-                android:textSize="14sp" />
+                android:layout_height="wrap_content">
 
-            <TextView
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_library_music" />
+
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_row_m4a" />
+
+                    <TextView
+                        android:id="@+id/tvM4aSub"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Qualidade dos vídeos -->
+            <LinearLayout
+                android:id="@+id/rowVideo"
+                style="@style/SettingsRow"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="8dp"
-                android:text="@string/settings_visualizer_hint"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="11sp" />
+                android:layout_height="wrap_content">
 
-            <!-- Como usar (v0.19.6): reabrir o tutorial de primeira abertura -->
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_movie" />
+
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_row_video" />
+
+                    <TextView
+                        android:id="@+id/tvVideoSub"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ══════════════ CATEGORIA: PLAYER ══════════════ -->
             <TextView
+                style="@style/SettingsCategory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_tutorial"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:text="@string/set_cat_player" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnTutorial"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/settings_tutorial_btn"
-                app:icon="@drawable/ic_play"
-                app:iconTint="@color/primary"
-                app:strokeColor="@color/stroke" />
-
-            <TextView
+            <!-- Barrinhas de áudio: switch inline na própria linha -->
+            <LinearLayout
+                android:id="@+id/rowVisualizer"
+                style="@style/SettingsRow"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/settings_tutorial_hint"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="11sp" />
+                android:layout_height="wrap_content">
 
-            <!-- Atualização (v0.19.3): verificação manual — o card de
-                 instalar vive na Central de Downloads, então ao achar versão
-                 nova o app leva o usuário direto pra lá -->
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_equalizer" />
+
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_row_visualizer" />
+
+                    <TextView
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_sub_visualizer" />
+                </LinearLayout>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/swVisualizer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp" />
+            </LinearLayout>
+
+            <!-- ══════════════ CATEGORIA: YOUTUBE ══════════════ -->
             <TextView
+                style="@style/SettingsCategory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_update"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:text="@string/set_cat_youtube" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCheckUpdate"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/update_check_btn"
-                app:icon="@drawable/ic_refresh"
-                app:iconTint="@color/primary"
-                app:strokeColor="@color/stroke" />
-
-            <TextView
-                android:id="@+id/tvUpdateStatus"
+            <!-- Conta do YouTube (v0.19.8): o login acontece DENTRO da aba
+                 YouTube e é detectado sozinho — daqui o usuário só VÊ o
+                 status (e desconecta, se quiser). Nada de cookies.txt. -->
+            <LinearLayout
+                android:id="@+id/rowAccount"
+                style="@style/SettingsRow"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textColor="@color/on_surface_variant"
-                android:textSize="12sp" />
+                android:layout_height="wrap_content">
 
-            <!-- Sobre (v0.19.3): versão, assinatura, motores e o repo -->
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_youtube" />
+
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_row_account" />
+
+                    <TextView
+                        android:id="@+id/tvAccountSub"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ══════════════ CATEGORIA: AJUDA ══════════════ -->
             <TextView
+                style="@style/SettingsCategory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/settings_about"
-                android:textColor="@color/primary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:text="@string/set_cat_help" />
+
+            <LinearLayout
+                android:id="@+id/rowTutorial"
+                style="@style/SettingsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_play" />
+
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_tutorial_btn" />
+
+                    <TextView
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_tutorial_hint" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ══════════════ CATEGORIA: ATUALIZAÇÃO ══════════════ -->
+            <TextView
+                style="@style/SettingsCategory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/set_cat_update" />
+
+            <LinearLayout
+                android:id="@+id/rowUpdate"
+                style="@style/SettingsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_refresh" />
+
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/update_check_btn" />
+
+                    <TextView
+                        android:id="@+id/tvUpdateStatus"
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_sub_update" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ══════════════ CATEGORIA: SOBRE ══════════════ -->
+            <TextView
+                style="@style/SettingsCategory"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/set_cat_about" />
 
             <TextView
                 android:id="@+id/tvAboutVersion"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:paddingStart="14dp"
+                android:paddingTop="6dp"
                 android:textColor="@color/on_background"
                 android:textSize="13sp" />
 
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:paddingStart="14dp"
+                android:paddingTop="2dp"
                 android:text="@string/about_engines"
                 android:textColor="@color/on_surface_variant"
                 android:textSize="11sp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnGithub"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:text="@string/about_github_btn"
-                app:strokeColor="@color/stroke" />
+            <LinearLayout
+                android:id="@+id/rowGithub"
+                style="@style/SettingsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_github" />
+
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_row_github" />
+
+                    <TextView
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_sub_github" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

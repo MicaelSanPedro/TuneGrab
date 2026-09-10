@@ -93,4 +93,49 @@
         <item name="android:fontFamily">@font/poppins</item>
         <item name="fontFamily">@font/poppins</item>
     </style>
+
+    <!-- ══ Configurações por categoria (v0.19.8) — lista estilo YouTube:
+         cabeçalho de categoria em negrito + linhas de ícone/título/sub,
+         como o print que o autor mandou ══ -->
+    <style name="SettingsCategory">
+        <item name="android:textSize">17sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/on_background</item>
+        <item name="android:layout_marginTop">26dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingBottom">4dp</item>
+    </style>
+
+    <style name="SettingsRow">
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:minHeight">60dp</item>
+        <item name="android:paddingTop">12dp</item>
+        <item name="android:paddingBottom">12dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="SettingsRowIcon">
+        <item name="tint">@color/primary</item>
+    </style>
+
+    <style name="SettingsRowTexts">
+        <item name="android:orientation">vertical</item>
+        <item name="android:layout_marginStart">16dp</item>
+    </style>
+
+    <style name="SettingsRowTitle">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/on_background</item>
+    </style>
+
+    <style name="SettingsRowSub">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/on_surface_variant</item>
+        <item name="android:layout_marginTop">2dp</item>
+    </style>
 </resources>
