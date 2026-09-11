@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TuneGrab</string>
-    <string name="app_tagline">♪ TuneGrab</string>
     <string name="app_sub">Baixe o áudio de vídeos do YouTube</string>
 
     <!-- Splash de boas-vindas (v0.15.0) — minúsculo de propósito: o "B" maiúsculo
@@ -20,7 +19,6 @@
     <string name="cd_play">Reproduzir o vídeo sem baixar</string>
     <string name="paste_empty">Nada para colar na área de transferência.</string>
 
-    <string name="back">Voltar</string>
     <string name="cancel">Cancelar</string>
 
     <!-- Seletor de formato/qualidade -->
@@ -252,7 +250,6 @@
     <string name="lib_filter_video">Vídeos</string>
     <string name="lib_chip_count">%1$s · %2$d</string>
     <string name="lib_empty_audio">Nenhuma música baixada ainda.\nOs arquivos que você baixar aparecem aqui.</string>
-    <string name="lib_empty_video">Nenhum vídeo baixado ainda.\nOs vídeos que você baixar aparecem aqui.</string>
     <string name="lib_folder_default">Salvando em: Downloads/TuneGrab</string>
     <string name="lib_folder_custom">Salvando em: %1$s</string>
     <string name="lib_folder_unknown">pasta escolhida</string>

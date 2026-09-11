@@ -94,18 +94,8 @@
         <item name="fontFamily">@font/poppins</item>
     </style>
 
-    <!-- ══ Configurações por categoria (v0.19.8) — lista estilo YouTube:
-         cabeçalho de categoria em negrito + linhas de ícone/título/sub,
-         como o print que o autor mandou ══ -->
-    <style name="SettingsCategory">
-        <item name="android:textSize">17sp</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/on_background</item>
-        <item name="android:layout_marginTop">26dp</item>
-        <item name="android:paddingStart">14dp</item>
-        <item name="android:paddingBottom">4dp</item>
-    </style>
-
+    <!-- ══ Configurações por categoria (v0.19.8) — linhas de ícone/título/sub
+         estilo YouTube, como o print que o autor mandou ══ -->
     <style name="SettingsRow">
         <item name="android:orientation">horizontal</item>
         <item name="android:gravity">center_vertical</item>

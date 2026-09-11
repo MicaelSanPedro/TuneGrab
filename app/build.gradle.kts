@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 62
-        versionName = "0.19.13"
+        versionCode = 63
+        versionName = "0.19.14"
 
         // ABIs do motor yt-dlp embutido (python + ffmpeg são nativos).
         // x86/x86_64 ficam de fora para o APK não dobrar de tamanho —
@@ -60,6 +60,15 @@ android {
         // ficar extraídos no disco (não dá para executar direto do APK).
         jniLibs {
             useLegacyPackaging = true
+        }
+        // LIXO DE PACOTE fora do APK (v0.19.14, versão final): os *.version
+        // das libs (~48 arquivos de metadata), a info de VCS (textproto com o
+        // hash do commit) e o app-metadata.properties do AGP — nada disso é
+        // lido em runtime; é só rastro de build embutido de graça.
+        resources {
+            excludes += "META-INF/*.version"
+            excludes += "META-INF/version-control-info.textproto"
+            excludes += "META-INF/com/android/build/gradle/app-metadata.properties"
         }
     }
 
