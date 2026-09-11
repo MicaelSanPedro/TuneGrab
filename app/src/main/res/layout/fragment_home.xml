@@ -121,13 +121,18 @@
                     android:textColor="@color/on_surface_variant"
                     android:textSize="12sp" />
 
+                <!-- trackStopIndicatorSize=0 (v0.19.16): o Material 1.12
+                     ligou de fábrica um pontinho violeta no FIM da trilha
+                     ("stop indicator") — o autor achou lixo visual na barra
+                     de baixar o update; zero nele -->
                 <com.google.android.material.progressindicator.LinearProgressIndicator
                     android:id="@+id/progressUpdate"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
                     android:indeterminate="false"
-                    android:visibility="gone" />
+                    android:visibility="gone"
+                    app:trackStopIndicatorSize="0dp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

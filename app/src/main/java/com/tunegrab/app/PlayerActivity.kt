@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
@@ -30,6 +31,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.content.ContextCompat
+import androidx.core.widget.ImageViewCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -84,6 +87,12 @@ class PlayerActivity : AppCompatActivity() {
     private var queueUris: List<String> = emptyList()
     private var queueTitles: List<String> = emptyList()
     private var queueIndex = -1
+
+    // REPRODUÇÃO AUTOMÁTICA (v0.19.16): estado do ciclo NESTA sessão —
+    // começa com o padrão das Configurações; o toggle no player muda só
+    // daqui pra frente e NUNCA escreve na preferência (fechou o player,
+    // volta o padrão)
+    private var autoplayOn = false
 
     // CAPA (v0.19.0): bitmap embutido no arquivo cobre o cartão de arte;
     // coverUri guarda de qual faixa é a capa atual (não recarrega à toa)
@@ -145,6 +154,11 @@ class PlayerActivity : AppCompatActivity() {
     private val serviceConn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             playback = (service as? PlaybackService.LocalBinder)?.service
+            // REPRODUÇÃO AUTOMÁTICA (v0.19.16): serviço já tem fila (aberto
+            // pelo cartão de mídia)? O estado da sessão é o DELE — puxa daí
+            // em vez de pisar com o padrão das Configurações
+            playback?.takeIf { it.hasQueue() }?.let { autoplayOn = it.autoplay() }
+            syncAutoplayUi()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -166,6 +180,9 @@ class PlayerActivity : AppCompatActivity() {
         queueTitles = intent.getStringArrayListExtra(PlaybackService.EXTRA_QUEUE_TITLES)
             ?: emptyList()
         queueIndex = intent.getIntExtra(PlaybackService.EXTRA_QUEUE_INDEX, -1)
+        // reprodução automática (v0.19.16): a sessão começa no padrão que
+        // a linha na LISTA PRINCIPAL das Configurações definir
+        autoplayOn = FormatPrefs.autoplayDefault(this)
         binding.tvTitle.text = title
 
         binding.btnClose.setOnClickListener { closePlayer() }
@@ -420,7 +437,8 @@ class PlayerActivity : AppCompatActivity() {
                 title,
                 queueUris = queueUris,
                 queueTitles = queueTitles,
-                queueIndex = queueIndex
+                queueIndex = queueIndex,
+                autoplay = autoplayOn
             )
         }
         bindService(
@@ -443,7 +461,8 @@ class PlayerActivity : AppCompatActivity() {
                     initialTitle,
                     queueUris = queueUris,
                     queueTitles = queueTitles,
-                    queueIndex = queueIndex
+                    queueIndex = queueIndex,
+                    autoplay = autoplayOn
                 )
             }
             binding.btnPlay.postDelayed({ updatePosition() }, 100)
@@ -459,6 +478,17 @@ class PlayerActivity : AppCompatActivity() {
             playback?.skipPrevious()
             binding.btnPlay.postDelayed({ updatePosition() }, 100)
         }
+
+        // REPRODUÇÃO AUTOMÁTICA (v0.19.16): 4º controle da linha — a fila
+        // inteira acabou? recomeça do começo e segue tocando. Ligou aqui,
+        // vale só até fechar o player (o padrão da próxima sessão é o das
+        // Configurações). Sem fila o botão nem responde (sync no tick)
+        binding.btnAutoplay.setOnClickListener {
+            autoplayOn = !autoplayOn
+            playback?.setAutoplay(autoplayOn)
+            syncAutoplayUi()
+        }
+        syncAutoplayUi()
 
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -576,11 +606,42 @@ class PlayerActivity : AppCompatActivity() {
             binding.btnPrev.isEnabled = hasPrev
             binding.btnPrev.alpha = if (hasPrev) 1f else 0.35f
         }
+
+        // REPRODUÇÃO AUTOMÁTICA (v0.19.16): vivo só com fila da Biblioteca —
+        // sem fila (áudio remoto, handoff de vídeo) não há o que ciclar
+        val canAuto = svc.hasQueue()
+        if (binding.btnAutoplay.isEnabled != canAuto) {
+            binding.btnAutoplay.isEnabled = canAuto
+            syncAutoplayUi()
+        }
         if (svc.currentTitle() != binding.tvTitle.text.toString()) {
             binding.tvTitle.text = svc.currentTitle()
         }
         val trackUri = svc.currentUri()
         if (trackUri != null) loadCover(trackUri)
+    }
+
+    /**
+     * Cara do botão de reprodução automática (v0.19.16): violeta quando o
+     * ciclo está LIGADO, cinza apagado quando desligado; sem fila, o mesmo
+     * espírito dos vizinhos anterior/próxima (alpha 0.35). O ícone é sempre
+     * o mesmo — quem conta o estado é a cor.
+     */
+    private fun syncAutoplayUi() {
+        val b = binding.btnAutoplay
+        b.alpha = if (b.isEnabled) 1f else 0.35f
+        val tintRes = if (autoplayOn) R.color.primary else R.color.on_surface_variant
+        if (b.tag != tintRes) {
+            b.tag = tintRes
+            ImageViewCompat.setImageTintList(
+                b,
+                ColorStateList.valueOf(ContextCompat.getColor(this, tintRes))
+            )
+            b.contentDescription = getString(
+                if (autoplayOn) R.string.player_autoplay_on
+                else R.string.player_autoplay_off
+            )
+        }
     }
 
     private fun formatMs(ms: Int): String {

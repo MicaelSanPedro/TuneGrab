@@ -91,6 +91,7 @@ class SettingsFragment : Fragment() {
         bindMetered()
         bindQualities()
         bindVisualizer()
+        bindAutoplay()
         bindAccount()
         bindTutorial()
         bindUpdate()
@@ -307,6 +308,21 @@ class SettingsFragment : Fragment() {
         }
         binding.pagePlayer.rowVisualizer.setOnClickListener {
             binding.pagePlayer.swVisualizer.toggle()
+        }
+    }
+
+    /** Reprodução automática (v0.19.16): na LISTA PRINCIPAL (pedido do
+     *  autor), define o PADRÃO do botão no player — desligada, o player
+     *  abre com o ciclo desligado (dá pra ligar na hora, vale até fechar);
+     *  ligada, abre já ciclando a fila. O toggle NO player nunca escreve
+     *  aqui. Toque na linha inteira também alterna. */
+    private fun bindAutoplay() {
+        binding.swAutoplay.isChecked = FormatPrefs.autoplayDefault(requireContext())
+        binding.swAutoplay.setOnCheckedChangeListener { _, checked ->
+            FormatPrefs.setAutoplayDefault(requireContext(), checked)
+        }
+        binding.rowAutoplay.setOnClickListener {
+            binding.swAutoplay.toggle()
         }
     }
 

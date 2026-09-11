@@ -126,14 +126,17 @@
         android:textColor="@color/on_surface_variant"
         android:textSize="11sp" />
 
-    <!-- Painel de progresso: aparece quando a fila está sendo preparada -->
+    <!-- Painel de progresso: aparece quando a fila está sendo preparada
+         (trackStopIndicatorSize=0, v0.19.16: sem o pontinho do fim de
+         trilha que o Material 1.12 liga de fábrica) -->
     <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/sheetProgress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:indeterminate="false"
-        android:visibility="gone" />
+        android:visibility="gone"
+        app:trackStopIndicatorSize="0dp" />
 
     <TextView
         android:id="@+id/sheetStatus"

@@ -347,4 +347,13 @@
     <!-- Config. > Como usar (v0.19.6): reabrir o tutorial -->
     <string name="settings_tutorial_btn">Ver tutorial de novo</string>
     <string name="settings_tutorial_hint">O mesmo guia que aparece na primeira vez que você abre o app.</string>
+
+    <!-- Reprodução automática (v0.19.16): a fila inteira acabou, recomeça
+         do começo. A linha vive na LISTA PRINCIPAL das Configurações e
+         define o padrão do botão no player -->
+    <string name="set_row_autoplay">Reprodução automática</string>
+    <string name="set_sub_autoplay">No player, a fila de músicas recomeça do começo quando acaba. Ligada aqui, o botão do player já abre ligado.</string>
+    <string name="player_autoplay">Reprodução automática</string>
+    <string name="player_autoplay_on">Reprodução automática ligada — a fila recomeça ao acabar</string>
+    <string name="player_autoplay_off">Reprodução automática desligada</string>
 </resources>

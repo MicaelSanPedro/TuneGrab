@@ -109,6 +109,18 @@ object FormatPrefs {
     fun setMeteredWarningOn(ctx: Context, on: Boolean) {
         prefs(ctx).edit().putBoolean(KEY_METERED_WARN, on).apply()
     }
+
+    /** Reprodução automática (v0.19.16): quando a ÚLTIMA faixa da fila da
+     *  Biblioteca acaba, a fila volta pro começo e segue tocando em ciclo.
+     *  Aqui é só o PADRÃO de fábrica do toggle no player — desligada, o
+     *  player abre com o ciclo desligado (dá pra ligar na hora, vale até
+     *  fechar o player); ligada, abre já ciclando. O toggle NO player vale
+     *  só pra sessão e NUNCA escreve aqui. */
+    const val KEY_AUTOPLAY = "autoplay_default"
+    fun autoplayDefault(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_AUTOPLAY, false)
+    fun setAutoplayDefault(ctx: Context, on: Boolean) {
+        prefs(ctx).edit().putBoolean(KEY_AUTOPLAY, on).apply()
+    }
 }
 
 /**

@@ -256,6 +256,51 @@
                     app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
+            <!-- REPRODUÇÃO AUTOMÁTICA (v0.19.16): na LISTA PRINCIPAL, sem
+                 entrar em pasta (pedido do autor — fácil de achar). NÃO é
+                 pasta: switch inline na própria linha, toque na linha
+                 inteira alterna. Define o PADRÃO do botão no player:
+                 desligada, o player abre com o ciclo desligado (dá pra
+                 ligar na hora, vale até fechar); ligada, abre ciclando -->
+            <LinearLayout
+                android:id="@+id/rowAutoplay"
+                style="@style/SettingsRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    style="@style/SettingsRowIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_repeat" />
+
+                <LinearLayout
+                    style="@style/SettingsRowTexts"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+
+                    <TextView
+                        style="@style/SettingsRowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_row_autoplay" />
+
+                    <TextView
+                        style="@style/SettingsRowSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/set_sub_autoplay" />
+                </LinearLayout>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/swAutoplay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp" />
+            </LinearLayout>
+
             <!-- Pasta: YOUTUBE (subtítulo = status da conta, dinâmico) -->
             <LinearLayout
                 android:id="@+id/catYoutube"
