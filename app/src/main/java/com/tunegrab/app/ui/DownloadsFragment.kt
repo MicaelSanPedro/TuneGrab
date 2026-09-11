@@ -64,9 +64,9 @@ class DownloadsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = adapter
-        // v0.19.5: "Excluir finalizados" agora apaga as MÍDIAS de verdade
-        // (com diálogo confirmando) — antes só limpava a lista e o autor
-        // descobriu as músicas ainda no aparelho
+        // v0.19.15: "Limpar finalizados" só tira os downloads da LISTA (pra
+        // ela não ficar cheia) — os arquivos continuam salvos no aparelho;
+        // exclusão de verdade é a lixeira do card ou da Biblioteca
         binding.btnClear.setOnClickListener { askClearFinished() }
         // CTA do estado vazio: pula direto pro Início baixar a primeira música
         binding.btnEmptyGo.setOnClickListener {
@@ -123,47 +123,32 @@ class DownloadsFragment : Fragment() {
         }
     }
 
-    // ---------- excluir mídia de verdade (v0.19.5) ----------
+    // ---------- limpar a lista (v0.19.15) ----------
 
     /**
-     * "Excluir finalizados": o botão que antes SÓ limpava a lista (as mídias
-     * ficavam no aparelho — queixa do autor). Agora os arquivos dos downloads
-     * CONCLUÍDOS são apagados de verdade; os que falharam ou foram cancelados
-     * só saem da lista mesmo (não têm arquivo). Diálogo na frente: apagar
-     * música do aparelho não pode ser acidente.
+     * "Limpar finalizados": o botão SÓ tira os downloads da LISTA da Central
+     * pra ela não ficar cheia — NÃO apaga arquivo nenhum. (v0.19.15: antes
+     * este botão excluía as mídias de verdade, herança da v0.19.5; hoje esse
+     * papel é da lixeira no card e da Biblioteca, que apagam com verificação
+     * dupla.) Diálogo na frente pra deixar claro que os arquivos ficam salvos.
      */
     private fun askClearFinished() {
         val ctx = context ?: return
-        val hasDone = DownloadBus.items.value.any { it.state == DownloadBus.State.DONE }
         MaterialAlertDialogBuilder(ctx)
             .setTitle(R.string.dl_clear_title)
-            .setMessage(if (hasDone) R.string.dl_clear_msg else R.string.dl_clear_msg_list)
+            .setMessage(R.string.dl_clear_msg)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.dl_clear_yes) { _, _ -> clearFinishedNow() }
             .show()
     }
 
+    /** Limpeza pura do espelho em memória (DownloadBus): concluído, falha e
+     *  cancelado saem da lista; o que está rodando ou pausado continua.
+     *  Nada toca no disco. */
     private fun clearFinishedNow() {
         val ctx = context ?: return
-        val done = DownloadBus.items.value.filter { it.state == DownloadBus.State.DONE }
-        viewLifecycleOwner.lifecycleScope.launch {
-            var failures = 0
-            for (item in done) {
-                val ok = withContext(Dispatchers.IO) {
-                    val entry = LibraryFiles.findByFileName(ctx, item.fileName)
-                    entry != null && LibraryFiles.delete(ctx, entry)
-                }
-                if (!ok) failures++
-            }
-            DownloadBus.clearFinished()
-            if (!isAdded) return@launch
-            val msg = when {
-                done.isEmpty() -> R.string.dl_clear_done_list
-                failures == 0 -> R.string.dl_clear_done
-                else -> R.string.dl_clear_partial
-            }
-            Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
-        }
+        DownloadBus.clearFinished()
+        Toast.makeText(ctx, R.string.dl_clear_done_list, Toast.LENGTH_SHORT).show()
     }
 
     /** Lixeira do card concluído: VERIFICAÇÃO DUPLA igual à Biblioteca —
