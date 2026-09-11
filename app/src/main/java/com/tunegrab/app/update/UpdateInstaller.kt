@@ -40,9 +40,40 @@ object UpdateInstaller {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
+    /**
+     * A PASTA DEDICADA dos APKs de update (pedido do autor): única fonte de
+     * APK no TuneGrab — app-specific (Android/data/…/files/updates), o
+     * sistema apaga junto quando o app é desinstalado. Fallback interno se
+     * o armazenamento externo estiver indisponível (nunca NPE).
+     */
+    fun updatesDir(context: Context): File {
+        val base = context.getExternalFilesDir(null) ?: context.filesDir
+        return File(base, "updates")
+    }
+
     /** Onde o APK da versão X fica guardado (pasta privada do app). */
     fun apkFile(context: Context, info: UpdateChecker.UpdateInfo): File =
-        File(File(context.getExternalFilesDir(null), "updates"), "tunegrab-${info.version}.apk")
+        File(updatesDir(context), "tunegrab-${info.version}.apk")
+
+    /**
+     * LIMPEZA TOTAL (v0.19.13, pedido do autor): depois que a versão nova é
+     * instalada, NENHUM APK sobra — nem o que acabou de virar a versão
+     * atual, nem resto de nome esquisito que escape de comparação de
+     * versão. Apaga TUDO dentro da pasta updates (arquivos e subpastas,
+     * recursivo) e devolve quantos itens saíram. Chamada pelo TuneGrabApp
+     * na primeira abertura de cada versão nova — não depende de rede, nem
+     * do check de update, nem do nome do arquivo.
+     */
+    fun clearAllApks(context: Context): Int {
+        val dir = updatesDir(context)
+        val items = dir.listFiles() ?: return 0
+        var removed = 0
+        items.forEach {
+            val was = if (it.isDirectory) it.walkBottomUp().count() else 1
+            if (it.deleteRecursively()) removed += was
+        }
+        return removed
+    }
 
     /**
      * Limpeza: APKs de versões ANTIGAS saem da pasta de updates quando um

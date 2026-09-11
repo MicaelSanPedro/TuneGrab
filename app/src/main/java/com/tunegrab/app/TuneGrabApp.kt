@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
+import com.tunegrab.app.update.UpdateInstaller
 import com.tunegrab.app.yt.YtDlpEngine
 import com.tunegrab.app.yt.potoken.PoTokenManager
 import kotlinx.coroutines.CoroutineScope
@@ -22,10 +23,11 @@ class TuneGrabApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // o app acabou de ser atualizado? notificações que o processo VELHO
-        // postou (download concluído/falha, progresso preso) sobrevivem à
-        // troca do pacote como zumbis — a bandeja começa limpa a cada versão
-        clearStaleNotifications()
+        // o app acabou de ser atualizado? resto do processo VELHO não sobra:
+        // notificações zumbis saem da bandeja e TODOS os APKs de update saem
+        // da pasta dedicada (a versão que abriu AGORA já foi instalada —
+        // nenhum APK serve mais pra nada)
+        onNewVersionCleanup()
         // contexto do gerador de PoTokens (BotGuard via WebView)
         PoTokenManager.init(this)
         // contexto dos cookies de login do YouTube (o motor yt-dlp não recebe
@@ -73,19 +75,26 @@ class TuneGrabApp : Application() {
     }
 
     /**
-     * Ao instalar uma atualização, o Android mata o processo e substitui o
-     * pacote — mas as notificações postadas pelo app VELHO continuam na
-     * bandeja (ninguém as cancelou: o processo novo não sabe delas). Guarda
-     * o versionCode; na primeira abertura de uma versão DIFERENTE (exceto a
-     * 1ª instalação, onde não existe órfã), cancela TODAS as notificações do
-     * TuneGrab — o app nasce de bandeja limpa, sem resto velho.
+     * Primeira abertura de uma versão NOVA (troca de versionCode): o app
+     * VELHO pode deixar resto que o processo novo não sabia que existia.
+     *  - Notificações postadas antes da instalação (download concluído/
+     *    falha, progresso preso) sobrevivem à troca do pacote como zumbis →
+     *    cancelAll.
+     *  - APKs de update na pasta dedicada viraram LIXO: a versão que acabou
+     *    de ser instalada é a atual — NENHUM APK serve mais pra nada
+     *    (pedido do autor: "TODOS os apk's de update devem ser deletados,
+     *    tenha certeza de que realmente são") → clearAllApks apaga TUDO da
+     *    pasta updates, recursivo, sem depender de rede/check/nome.
+     * A 1ª instalação (last == -1) não tem órfãs — pula a limpeza.
      */
-    private fun clearStaleNotifications() {
+    private fun onNewVersionCleanup() {
         val prefs = getSharedPreferences(PREFS_STATE, MODE_PRIVATE)
         val last = prefs.getInt(KEY_LAST_VERSION_CODE, -1)
         prefs.edit().putInt(KEY_LAST_VERSION_CODE, BuildConfig.VERSION_CODE).apply()
         if (last != -1 && last != BuildConfig.VERSION_CODE) {
             NotificationManagerCompat.from(this).cancelAll()
+            val removed = UpdateInstaller.clearAllApks(this)
+            Log.i(TAG, "nova versão: $removed item(ns) de update apagado(s)")
         }
     }
 

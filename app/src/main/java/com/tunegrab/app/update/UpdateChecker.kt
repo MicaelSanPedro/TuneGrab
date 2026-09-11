@@ -6,7 +6,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
@@ -171,7 +170,7 @@ object UpdateChecker {
                 prefs.edit().remove(KEY_CACHE).apply()
             }
         }
-        val dir = File(context.getExternalFilesDir(null), "updates")
+        val dir = UpdateInstaller.updatesDir(context)
         dir.listFiles()?.forEach { f ->
             if (!f.isFile) return@forEach
             val v = Regex("^tunegrab-(.+)\\.apk$").find(f.name)?.groupValues?.get(1) ?: return@forEach

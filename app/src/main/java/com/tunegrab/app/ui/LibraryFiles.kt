@@ -28,8 +28,10 @@ data class LibraryEntry(
     val docUri: Uri? = null,     // pasta escolhida (SAF)
     val file: File? = null,      // pasta padrão (API 24–28)
     /** true = veio de fonte DO PRÓPRIO TuneGrab (pastas TuneGrab / pasta
-     *  escolhida) — ganha a seção de destaque no topo da Biblioteca. false =
-     *  achado no aparelho pela permissão de áudio (música de outro app). */
+     *  escolhida — atual ou do histórico de pastas — ou caminho com
+     *  "TuneGrab" achado pela permissão de áudio) — ganha a seção de
+     *  destaque no topo da Biblioteca. false = achado no aparelho pela
+     *  permissão de áudio (música de outro app). */
     val fromTuneGrab: Boolean = false
 ) {
     val isVideoKind: Boolean get() = isVideo || mime.startsWith("video")
@@ -87,6 +89,18 @@ object LibraryFiles {
         val tree = SaveLocation.customTree(ctx)
         if (tree != null) listTree(ctx, tree).forEach { putOwn(it) }
 
+        // PASTAS QUE JÁ FORAM DESTINO (v0.19.13): trocou o destino do
+        // download? As músicas das pastas antigas continuam sendo listadas
+        // como "do TuneGrab" — o histórico guarda as tree URIs e a permissão
+        // persistente de cada uma nunca é solta.
+        SaveLocation.pastTrees(ctx).forEach { past ->
+            try {
+                listTree(ctx, past).forEach { putOwn(it) }
+            } catch (t: Throwable) {
+                Log.w(TAG, "pasta antiga indisponível na Biblioteca", t)
+            }
+        }
+
         if (Build.VERSION.SDK_INT >= 29) {
             // vídeos + áudios do TuneGrab em Download/TuneGrab (e derivadas)
             queryMediaStore(ctx, MediaStore.Downloads.EXTERNAL_CONTENT_URI, "%TuneGrab%")
@@ -101,8 +115,11 @@ object LibraryFiles {
             // arquivos por caminho SEM depender de permissão nem do MediaStore.
             listDefaultDirs().forEach { putOwn(it) }
             // com permissão: todas as músicas do aparelho (OUTROS apps também)
+            // — mas as que moram em caminho com "TuneGrab" ganham o selo de
+            // origem (a própria pasta do app, mesmo que nenhuma das fontes
+            // acima as tenha achado)
             if (hasMediaReadPermission(ctx)) {
-                queryAllAudio(ctx)?.forEach { put(it) }
+                queryAllAudio(ctx)?.forEach { if (it.fromTuneGrab) putOwn(it) else put(it) }
             }
         } else {
             listLegacy().forEach { putOwn(it) }
@@ -208,14 +225,21 @@ object LibraryFiles {
         return out
     }
 
-    /** Todas as músicas do aparelho (precisa da permissão de áudio). */
+    /**
+     * Todas as músicas do aparelho (precisa da permissão de áudio).
+     * Marca fromTuneGrab=true nas que moram em caminho com "TuneGrab"
+     * (RELATIVE_PATH): “as músicas que eram dele” recebem o selo de origem
+     * MESMO que só a permissão de áudio as enxergue (ex.: pasta padrão
+     * renomeada, índice dessincronizado, depois de reinstalar).
+     */
     private fun queryAllAudio(ctx: Context): List<LibraryEntry>? {
         val proj = arrayOf(
             MediaStore.MediaColumns._ID,
             MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.SIZE,
             MediaStore.MediaColumns.DATE_MODIFIED,
-            MediaStore.MediaColumns.MIME_TYPE
+            MediaStore.MediaColumns.MIME_TYPE,
+            MediaStore.MediaColumns.RELATIVE_PATH
         )
         val out = mutableListOf<LibraryEntry>()
         try {
@@ -231,9 +255,15 @@ object LibraryFiles {
                 val sizeCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                 val dateCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
                 val mimeCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
+                val pathCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
                 while (c.moveToNext()) {
                     val name = c.getString(nameCol) ?: continue
                     val mime = c.getString(mimeCol) ?: mimeOf(name)
+                    val path = try {
+                        c.getString(pathCol) ?: ""
+                    } catch (t: Throwable) {
+                        ""
+                    }
                     out += LibraryEntry(
                         name = name,
                         size = c.getLong(sizeCol),
@@ -242,7 +272,8 @@ object LibraryFiles {
                         isVideo = mime.startsWith("video"),
                         mediaUri = ContentUris.withAppendedId(
                             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, c.getLong(idCol)
-                        )
+                        ),
+                        fromTuneGrab = path.contains("tunegrab", ignoreCase = true)
                     )
                 }
             }
