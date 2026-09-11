@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import androidx.core.app.NotificationManagerCompat
 import com.tunegrab.app.yt.YtDlpEngine
 import com.tunegrab.app.yt.potoken.PoTokenManager
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +22,10 @@ class TuneGrabApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // o app acabou de ser atualizado? notificações que o processo VELHO
+        // postou (download concluído/falha, progresso preso) sobrevivem à
+        // troca do pacote como zumbis — a bandeja começa limpa a cada versão
+        clearStaleNotifications()
         // contexto do gerador de PoTokens (BotGuard via WebView)
         PoTokenManager.init(this)
         // contexto dos cookies de login do YouTube (o motor yt-dlp não recebe
@@ -67,8 +72,27 @@ class TuneGrabApp : Application() {
         }
     }
 
+    /**
+     * Ao instalar uma atualização, o Android mata o processo e substitui o
+     * pacote — mas as notificações postadas pelo app VELHO continuam na
+     * bandeja (ninguém as cancelou: o processo novo não sabe delas). Guarda
+     * o versionCode; na primeira abertura de uma versão DIFERENTE (exceto a
+     * 1ª instalação, onde não existe órfã), cancela TODAS as notificações do
+     * TuneGrab — o app nasce de bandeja limpa, sem resto velho.
+     */
+    private fun clearStaleNotifications() {
+        val prefs = getSharedPreferences(PREFS_STATE, MODE_PRIVATE)
+        val last = prefs.getInt(KEY_LAST_VERSION_CODE, -1)
+        prefs.edit().putInt(KEY_LAST_VERSION_CODE, BuildConfig.VERSION_CODE).apply()
+        if (last != -1 && last != BuildConfig.VERSION_CODE) {
+            NotificationManagerCompat.from(this).cancelAll()
+        }
+    }
+
     companion object {
         private const val TAG = "TuneGrab"
+        private const val PREFS_STATE = "tunegrab_app_state"
+        private const val KEY_LAST_VERSION_CODE = "last_version_code"
 
         /** Escopo do APP (não de tela): a preparação da playlist sobrevive a
          *  trocar de aba (as abas são replace(), o fragment morre — o app não). */

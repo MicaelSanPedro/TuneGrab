@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
@@ -56,6 +57,14 @@ object UpdateChecker {
     suspend fun check(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
         val appCtx = context.applicationContext
         val prefs = appCtx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+        // Antes de QUALQUER decisão (inclusive o gap): se o cache fala de uma
+        // versão que já é a instalada, é resto morto — apaga AGORA. Reabrindo
+        // o app logo após instalar a atualização, o gap de 10 min devolvia o
+        // card zumbi de "atualização disponível" pra quem ACABOU de atualizar
+        // (o último check fora minutos antes, no download).
+        clearStale(appCtx, prefs)
+
         val now = System.currentTimeMillis()
 
         // Gap mínimo: morto e reaberto em segundos não martela a API.
@@ -140,6 +149,35 @@ object UpdateChecker {
         .replace(Regex("^\\s*[-*+]\\s+", RegexOption.MULTILINE), "• ")
         .replace(Regex("\\n{3,}"), "\n\n")
         .trim()
+
+    /**
+     * Limpeza de resto pós-instalação: o usuário atualizou, o app novo abriu
+     *  — e nada do app VELHO sobrevive pra confundir.
+     *  - Cache de update cuja versão não é mais nova que a instalada = resto
+     *    ("0.19.11 disponível" rodando DENTRO da 0.19.11 kkk) → fora, na hora.
+     *  - APK na pasta de updates cuja versão do nome não é mais nova que a
+     *    instalada = ~100MB que não servem mais pra nada → fora também.
+     *    (O cleanOldApks do download novo continua como 2ª linha de defesa.)
+     */
+    private fun clearStale(context: Context, prefs: android.content.SharedPreferences) {
+        val current = currentVersion(context) ?: return
+        prefs.getString(KEY_CACHE, null)?.let { raw ->
+            val cached = try {
+                JSONObject(raw).optString("version", "")
+            } catch (t: Throwable) {
+                "" // cache ilegível é resto também
+            }
+            if (cached.isBlank() || !isNewer(cached, current)) {
+                prefs.edit().remove(KEY_CACHE).apply()
+            }
+        }
+        val dir = File(context.getExternalFilesDir(null), "updates")
+        dir.listFiles()?.forEach { f ->
+            if (!f.isFile) return@forEach
+            val v = Regex("^tunegrab-(.+)\\.apk$").find(f.name)?.groupValues?.get(1) ?: return@forEach
+            if (!isNewer(v, current)) f.delete()
+        }
+    }
 
     private fun readCache(prefs: android.content.SharedPreferences): UpdateInfo? {
         val raw = prefs.getString(KEY_CACHE, null) ?: return null
