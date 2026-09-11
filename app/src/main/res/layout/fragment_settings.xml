@@ -256,12 +256,13 @@
                     app:tint="@color/on_surface_variant" />
             </LinearLayout>
 
-            <!-- REPRODUÇÃO AUTOMÁTICA (v0.19.16): na LISTA PRINCIPAL, sem
+            <!-- REPRODUÇÃO AUTOMÁTICA (v0.19.17): na LISTA PRINCIPAL, sem
                  entrar em pasta (pedido do autor — fácil de achar). NÃO é
                  pasta: switch inline na própria linha, toque na linha
-                 inteira alterna. Define o PADRÃO do botão no player:
-                 desligada, o player abre com o ciclo desligado (dá pra
-                 ligar na hora, vale até fechar); ligada, abre ciclando -->
+                 inteira alterna; o " ? " ao lado abre o diálogo explicando
+                 o que a opção faz (pedido do autor — nada de adivinhar).
+                 Ligada, a fila da Biblioteca recomeça do começo quando
+                 acaba; desligada, para na última faixa -->
             <LinearLayout
                 android:id="@+id/rowAutoplay"
                 style="@style/SettingsRow"
@@ -294,11 +295,23 @@
                         android:text="@string/set_sub_autoplay" />
                 </LinearLayout>
 
+                <!-- " ? " (v0.19.17): ajuda da opção — clicável por conta
+                     própria, então NÃO alterna o switch da linha -->
+                <ImageButton
+                    android:id="@+id/btnAutoplayHelp"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/set_autoplay_help"
+                    android:src="@drawable/ic_help"
+                    app:tint="@color/on_surface_variant" />
+
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/swAutoplay"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp" />
+                    android:layout_marginStart="8dp" />
             </LinearLayout>
 
             <!-- Pasta: YOUTUBE (subtítulo = status da conta, dinâmico) -->

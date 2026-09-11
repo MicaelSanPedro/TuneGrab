@@ -311,11 +311,11 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    /** Reprodução automática (v0.19.16): na LISTA PRINCIPAL (pedido do
-     *  autor), define o PADRÃO do botão no player — desligada, o player
-     *  abre com o ciclo desligado (dá pra ligar na hora, vale até fechar);
-     *  ligada, abre já ciclando a fila. O toggle NO player nunca escreve
-     *  aqui. Toque na linha inteira também alterna. */
+    /** Reprodução automática (v0.19.17): na LISTA PRINCIPAL (pedido do
+     *  autor), LIGA o ciclo da fila da Biblioteca — a última faixa acabou,
+     *  a fila volta pro começo e segue tocando. Desligada, o player para
+     *  quando a fila acaba. Toque na linha inteira alterna; o " ? " abre
+     *  o diálogo explicando (pedido do autor). */
     private fun bindAutoplay() {
         binding.swAutoplay.isChecked = FormatPrefs.autoplayDefault(requireContext())
         binding.swAutoplay.setOnCheckedChangeListener { _, checked ->
@@ -324,6 +324,17 @@ class SettingsFragment : Fragment() {
         binding.rowAutoplay.setOnClickListener {
             binding.swAutoplay.toggle()
         }
+        binding.btnAutoplayHelp.setOnClickListener { showAutoplayHelp() }
+    }
+
+    /** " ? " da reprodução automática (v0.19.17): explica a feature em
+     *  texto leigo — ninguém precisa adivinhar o que a opção faz. */
+    private fun showAutoplayHelp() {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.set_autoplay_help_title)
+            .setMessage(R.string.set_autoplay_help_msg)
+            .setPositiveButton(R.string.set_autoplay_help_ok, null)
+            .show()
     }
 
     // ---------- YouTube (conta) ----------

@@ -348,12 +348,14 @@
     <string name="settings_tutorial_btn">Ver tutorial de novo</string>
     <string name="settings_tutorial_hint">O mesmo guia que aparece na primeira vez que você abre o app.</string>
 
-    <!-- Reprodução automática (v0.19.16): a fila inteira acabou, recomeça
-         do começo. A linha vive na LISTA PRINCIPAL das Configurações e
-         define o padrão do botão no player -->
+    <!-- Reprodução automática (v0.19.17): a fila inteira acabou, recomeça
+         do começo. O CONTROLE é a linha na LISTA PRINCIPAL das
+         Configurações (sem botão no player — pedido do autor); o " ? "
+         ao lado abre o diálogo explicando -->
     <string name="set_row_autoplay">Reprodução automática</string>
-    <string name="set_sub_autoplay">No player, a fila de músicas recomeça do começo quando acaba. Ligada aqui, o botão do player já abre ligado.</string>
-    <string name="player_autoplay">Reprodução automática</string>
-    <string name="player_autoplay_on">Reprodução automática ligada — a fila recomeça ao acabar</string>
-    <string name="player_autoplay_off">Reprodução automática desligada</string>
+    <string name="set_sub_autoplay">A fila de músicas recomeça do começo quando acaba, em ciclo.</string>
+    <string name="set_autoplay_help">O que é reprodução automática?</string>
+    <string name="set_autoplay_help_title">O que é reprodução automática?</string>
+    <string name="set_autoplay_help_msg">Ligada: quando a fila de músicas da Biblioteca terminar, ela recomeça do começo e continua tocando em ciclo, sem você tocar em nada.\n\nDesligada: o player para quando a última música da fila acabar.\n\nMudou de ideia? Pode trocar aqui quando quiser — vale na hora, até pra fila que já estiver tocando.</string>
+    <string name="set_autoplay_help_ok">Entendi</string>
 </resources>

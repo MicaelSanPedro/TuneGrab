@@ -29,6 +29,7 @@ import androidx.media3.exoplayer.RenderersFactory
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.tunegrab.app.FormatPrefs
 import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.yt.DownloaderImpl
@@ -67,13 +68,6 @@ class PlaybackService : Service() {
     // navegação fica desligada e o comportamento é o de sempre.
     private var queue: List<Track> = emptyList()
     private var queueIndex = -1
-
-    // REPRODUÇÃO AUTOMÁTICA (v0.19.16, pedido do autor): com a fila INTEIRA
-    // tocada até o fim, volta pra primeira faixa e segue tocando em ciclo.
-    // A PlayerActivity manda o estado no ACTION_PLAY e atualiza ao vivo
-    // (toggle no player vale só pra sessão); sem fila, não muda NADA.
-    @Volatile
-    private var autoplay = false
 
     // posição inicial da faixa (handoff do vídeo: saiu do app com vídeo
     // tocando e o áudio segue aqui DE ONDE parou)
@@ -130,11 +124,11 @@ class PlaybackService : Service() {
             if (playbackState == Player.STATE_ENDED) {
                 // fim da faixa COM fila: pula sozinho pra próxima (player de
                 // música de verdade); na última faixa, ou CICLA pro começo
-                // (reprodução automática ligada), ou para em "pausado no
-                // fim" — play volta do zero, como sempre
+                // (reprodução automática ligada nas Configurações), ou para
+                // em "pausado no fim" — play volta do zero, como sempre
                 when {
                     hasNext() -> goTo(queueIndex + 1)
-                    autoplay && queue.isNotEmpty() -> goTo(0)
+                    autoplayOn() && queue.isNotEmpty() -> goTo(0)
                     else -> refreshMediaState()
                 }
             }
@@ -209,18 +203,10 @@ class PlaybackService : Service() {
 
     fun hasNext(): Boolean = queue.isNotEmpty() && queueIndex < queue.size - 1
 
-    /** Existe fila da Biblioteca? (v0.19.16) O botão de reprodução
-     *  automática no player só é vivo com fila — sem ela não há ciclo. */
-    fun hasQueue(): Boolean = queue.isNotEmpty()
-
-    /** Estado atual do ciclo (a PlayerActivity puxa ao conectar, pra não
-     *  pisar no que o serviço já está segurando da sessão). */
-    fun autoplay(): Boolean = autoplay
-
-    /** Liga/desliga o ciclo AO VIVO (toggle no player, só nesta sessão). */
-    fun setAutoplay(on: Boolean) {
-        autoplay = on
-    }
+    /** REPRODUÇÃO AUTOMÁTICA (v0.19.17): o estado do ciclo é a preferência
+     *  da LISTA PRINCIPAL das Configurações — lida NA HORA do fim da fila,
+     *  então mudar lá vale na hora, até pra fila que já está tocando. */
+    private fun autoplayOn(): Boolean = FormatPrefs.autoplayDefault(this)
 
     /** Anterior sempre responde: antes da 1ª faixa (ou depois de 3s tocando)
      *  reinicia a atual — comportamento clássico dos players de música. */
@@ -291,9 +277,6 @@ class PlaybackService : Service() {
                 uri = intent.data
                 trackTitle = intent.getStringExtra(EXTRA_TITLE) ?: ""
                 pendingStartMs = intent.getIntExtra(EXTRA_START_MS, 0)
-                // reprodução automática (v0.19.16): o padrão vem da activity
-                // (que lê a preferência das Configurações)
-                autoplay = intent.getBooleanExtra(EXTRA_AUTOPLAY, false)
                 createChannel()
                 // foreground JÁ (contrato do startForegroundService); a
                 // notificação "carregando" é trocada quando o áudio prepara
@@ -563,7 +546,6 @@ class PlaybackService : Service() {
         const val EXTRA_QUEUE_URIS = "queue_uris"
         const val EXTRA_QUEUE_TITLES = "queue_titles"
         const val EXTRA_QUEUE_INDEX = "queue_index"
-        const val EXTRA_AUTOPLAY = "autoplay"
 
         /** Acima disso, "anterior" reinicia a faixa em vez de voltar. */
         private const val PREVIOUS_RESTART_MS = 3000
@@ -585,7 +567,9 @@ class PlaybackService : Service() {
          * [startMs] retoma no meio da faixa (miniplayer: quando o usuário sai
          * do app com um VÍDEO tocando, o som continua aqui de onde parou).
          * [queueUris]/[queueTitles]/[queueIndex]: fila da Biblioteca (v0.19.0)
-         * — permite próxima/anterior e o avanço automático no fim da faixa.
+         * — permite próxima/anterior e o avanço automático no fim da faixa;
+         * no FIM da fila, quem decide é a reprodução automática (v0.19.17)
+         * lida direto da preferência das Configurações.
          */
         fun play(
             ctx: Context,
@@ -594,15 +578,13 @@ class PlaybackService : Service() {
             startMs: Int = 0,
             queueUris: List<String>? = null,
             queueTitles: List<String>? = null,
-            queueIndex: Int = -1,
-            autoplay: Boolean = false
+            queueIndex: Int = -1
         ) {
             val i = Intent(ctx, PlaybackService::class.java)
                 .setAction(ACTION_PLAY)
                 .setData(uri)
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_START_MS, startMs)
-                .putExtra(EXTRA_AUTOPLAY, autoplay)
             if (!queueUris.isNullOrEmpty() && !queueTitles.isNullOrEmpty() && queueIndex >= 0) {
                 i.putStringArrayListExtra(EXTRA_QUEUE_URIS, ArrayList(queueUris))
                 i.putStringArrayListExtra(EXTRA_QUEUE_TITLES, ArrayList(queueTitles))

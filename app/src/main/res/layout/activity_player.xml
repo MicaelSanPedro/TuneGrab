@@ -169,21 +169,6 @@
                 android:padding="14dp"
                 android:src="@drawable/ic_skip_next"
                 app:tint="@color/on_background" />
-
-            <!-- REPRODUÇÃO AUTOMÁTICA (v0.19.16): 4º controle da linha —
-                 fila inteira acabou, recomeça do começo. Violeta = ligado;
-                 cinza = desligado; apagão = sem fila. Vivo só no player de
-                 MÚSICAS (este LinearLayout é o bloco de áudio) -->
-            <ImageButton
-                android:id="@+id/btnAutoplay"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginStart="18dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/player_autoplay"
-                android:padding="14dp"
-                android:src="@drawable/ic_repeat"
-                app:tint="@color/on_surface_variant" />
         </LinearLayout>
     </LinearLayout>
 
