@@ -110,12 +110,13 @@ object FormatPrefs {
         prefs(ctx).edit().putBoolean(KEY_METERED_WARN, on).apply()
     }
 
-    /** Reprodução automática (v0.19.18): quando a ÚLTIMA faixa da fila da
+    /** Reprodução automática (v0.19.19): quando a ÚLTIMA faixa da fila da
      *  Biblioteca acaba, a fila volta pro começo e segue tocando em ciclo.
-     *  Aqui é o PADRÃO de fábrica do switch no player — desligada, o player
-     *  abre com o ciclo desligado (dá pra ligar na hora, vale até fechar o
-     *  player); ligada, abre já ciclando. O switch NO player vale só pra
-     *  sessão e NUNCA escreve aqui. */
+     *  UM interruptor só, em DOIS lugares: a linha na lista principal das
+     *  Configurações e a linha no player de música — os dois leem e
+     *  escrevem ESTA pref, então mudou num lugar, mudou em todo lugar, e
+     *  o estado FICA do jeito que o autor deixou (nada de "só na sessão").
+     *  O serviço lê NA HORA do fim da fila. */
     const val KEY_AUTOPLAY = "autoplay_default"
     fun autoplayDefault(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_AUTOPLAY, false)
     fun setAutoplayDefault(ctx: Context, on: Boolean) {

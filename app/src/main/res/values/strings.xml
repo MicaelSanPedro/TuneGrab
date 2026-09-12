@@ -353,9 +353,9 @@
          (com o " ? " que abre o diálogo); o switch NO player liga/desliga
          na hora, só pra sessão -->
     <string name="set_row_autoplay">Reprodução automática</string>
-    <string name="set_sub_autoplay">O player abre com a fila recomeçando do começo quando acaba. Dá pra trocar na hora, no player.</string>
+    <string name="set_sub_autoplay">A fila da Biblioteca recomeça do começo quando acaba, em ciclo. O mesmo interruptor também vive no player de música.</string>
     <string name="set_autoplay_help">O que é reprodução automática?</string>
     <string name="set_autoplay_help_title">O que é reprodução automática?</string>
-    <string name="set_autoplay_help_msg">Ligada: quando a fila de músicas da Biblioteca terminar, ela recomeça do começo e continua tocando em ciclo, sem você tocar em nada.\n\nDesligada: o player para quando a última música da fila acabar.\n\nAqui você escolhe como o player abre — e também dá pra ligar ou desligar na hora, pelo próprio player de música.</string>
+    <string name="set_autoplay_help_msg">Ligada: quando a fila de músicas da Biblioteca terminar, ela recomeça do começo e continua tocando em ciclo, sem você tocar em nada.\n\nDesligada: o player para quando a última música da fila acabar.\n\nÉ um interruptor só em dois lugares: aqui e no player de música. Mudou num lugar, mudou em todo lugar — e fica do jeito que você deixar.</string>
     <string name="set_autoplay_help_ok">Entendi</string>
 </resources>

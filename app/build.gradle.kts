@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 67
-        versionName = "0.19.18"
+        versionCode = 68
+        versionName = "0.19.19"
 
         // ABIs do motor yt-dlp embutido (python + ffmpeg são nativos).
         // x86/x86_64 ficam de fora para o APK não dobrar de tamanho —
