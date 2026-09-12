@@ -261,8 +261,8 @@
                  pasta: switch inline na própria linha, toque na linha
                  inteira alterna; o " ? " ao lado abre o diálogo explicando
                  o que a opção faz (pedido do autor — nada de adivinhar).
-                 Ligada, a fila da Biblioteca recomeça do começo quando
-                 acaba; desligada, para na última faixa -->
+                 Ligada, quando a música acaba a próxima toca sozinha (na
+                 última, para); desligada, a música para quando acaba -->
             <LinearLayout
                 android:id="@+id/rowAutoplay"
                 style="@style/SettingsRow"

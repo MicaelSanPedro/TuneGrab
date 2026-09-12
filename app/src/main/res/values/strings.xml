@@ -348,14 +348,14 @@
     <string name="settings_tutorial_btn">Ver tutorial de novo</string>
     <string name="settings_tutorial_hint">O mesmo guia que aparece na primeira vez que você abre o app.</string>
 
-    <!-- Reprodução automática (v0.19.18): a fila inteira acabou, recomeça
-         do começo. O PADRÃO é a linha na LISTA PRINCIPAL das Configurações
-         (com o " ? " que abre o diálogo); o switch NO player liga/desliga
-         na hora, só pra sessão -->
+    <!-- Reprodução automática (v0.19.20, POR MÚSICA): ligada, quando a
+         música acaba a próxima toca sozinha (na última, para); desligada,
+         para quando acaba. O MESMO interruptor vive na LISTA PRINCIPAL das
+         Configurações (com o " ? " que abre o diálogo) e no player -->
     <string name="set_row_autoplay">Reprodução automática</string>
-    <string name="set_sub_autoplay">A fila da Biblioteca recomeça do começo quando acaba, em ciclo. O mesmo interruptor também vive no player de música.</string>
+    <string name="set_sub_autoplay">Ligada: quando a música acaba, a próxima da fila toca sozinha. Desligada: a música para quando acabar.</string>
     <string name="set_autoplay_help">O que é reprodução automática?</string>
     <string name="set_autoplay_help_title">O que é reprodução automática?</string>
-    <string name="set_autoplay_help_msg">Ligada: quando a fila de músicas da Biblioteca terminar, ela recomeça do começo e continua tocando em ciclo, sem você tocar em nada.\n\nDesligada: o player para quando a última música da fila acabar.\n\nÉ um interruptor só em dois lugares: aqui e no player de música. Mudou num lugar, mudou em todo lugar — e fica do jeito que você deixar.</string>
+    <string name="set_autoplay_help_msg">Ligada: quando uma música da fila acaba, a próxima toca sozinha, estilo YouTube. Chegando na última, o player para.\n\nDesligada: a música toca até o fim e para — nada pula sozinho; pra ouvir a outra, é só tocar no botão de próxima.\n\nOs botões de próxima/anterior seguem funcionando sempre. E é o mesmo interruptor em dois lugares: aqui e no player de música — mudou num lugar, mudou em todo lugar, e fica do jeito que você deixar.</string>
     <string name="set_autoplay_help_ok">Entendi</string>
 </resources>

@@ -311,11 +311,11 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    /** Reprodução automática (v0.19.17): na LISTA PRINCIPAL (pedido do
-     *  autor), LIGA o ciclo da fila da Biblioteca — a última faixa acabou,
-     *  a fila volta pro começo e segue tocando. Desligada, o player para
-     *  quando a fila acaba. Toque na linha inteira alterna; o " ? " abre
-     *  o diálogo explicando (pedido do autor). */
+    /** Reprodução automática (v0.19.20, feature POR MÚSICA): na LISTA
+     *  PRINCIPAL (pedido do autor), LIGADA = quando uma faixa acaba, a
+     *  próxima toca sozinha (na última, o player para); DESLIGADA = cada
+     *  faixa toca até o fim e para. Toque na linha inteira alterna; o
+     *  " ? " abre o diálogo explicando (pedido do autor). */
     private fun bindAutoplay() {
         binding.swAutoplay.isChecked = FormatPrefs.autoplayDefault(requireContext())
         binding.swAutoplay.setOnCheckedChangeListener { _, checked ->

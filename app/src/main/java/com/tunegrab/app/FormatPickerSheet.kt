@@ -110,15 +110,15 @@ object FormatPrefs {
         prefs(ctx).edit().putBoolean(KEY_METERED_WARN, on).apply()
     }
 
-    /** Reprodução automática (v0.19.19): quando a ÚLTIMA faixa da fila da
-     *  Biblioteca acaba, a fila volta pro começo e segue tocando em ciclo.
-     *  UM interruptor só, em DOIS lugares: a linha na lista principal das
-     *  Configurações e a linha no player de música — os dois leem e
-     *  escrevem ESTA pref, então mudou num lugar, mudou em todo lugar, e
-     *  o estado FICA do jeito que o autor deixou (nada de "só na sessão").
-     *  O serviço lê NA HORA do fim da fila. */
+    /** Reprodução automática (v0.19.20, o autor corrigiu o entendimento:
+     *  a feature é POR MÚSICA). LIGADA: quando uma faixa da fila acaba, a
+     *  próxima toca sozinha (na ÚLTIMA, o player para). DESLIGADA: a faixa
+     *  toca até o fim e para — nada pula sozinho. UM interruptor só, em
+     *  DOIS lugares: a linha na lista principal das Configurações e a
+     *  linha no player — os dois leem e escrevem ESTA pref; o serviço lê
+     *  NA HORA do fim de cada faixa. Padrão LIGADA (o player de sempre). */
     const val KEY_AUTOPLAY = "autoplay_default"
-    fun autoplayDefault(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_AUTOPLAY, false)
+    fun autoplayDefault(ctx: Context): Boolean = prefs(ctx).getBoolean(KEY_AUTOPLAY, true)
     fun setAutoplayDefault(ctx: Context, on: Boolean) {
         prefs(ctx).edit().putBoolean(KEY_AUTOPLAY, on).apply()
     }

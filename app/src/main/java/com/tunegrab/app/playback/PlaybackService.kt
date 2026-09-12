@@ -63,9 +63,10 @@ class PlaybackService : Service() {
 
     // FILA da Biblioteca (v0.19.0, pedido do autor: passar pra próxima e
     // voltar pra anterior): a aba Músicas entrega a lista de faixas visíveis
-    // (na ordem da tela) + o índice da faixa aberta. A faixa que ACABA pula
-    // sozinha pra próxima; sem fila (áudio remoto, handoff de vídeo) a
-    // navegação fica desligada e o comportamento é o de sempre.
+    // (na ordem da tela) + o índice da faixa aberta. O avanço sozinho no fim
+    // de CADA faixa obedece à reprodução automática (v0.19.20); sem fila
+    // (áudio remoto, handoff de vídeo) a navegação fica desligada e o
+    // comportamento é o de sempre.
     private var queue: List<Track> = emptyList()
     private var queueIndex = -1
 
@@ -122,19 +123,19 @@ class PlaybackService : Service() {
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_ENDED) {
-                // fim da faixa COM fila: pula sozinho pra próxima (player de
-                // música de verdade); na última faixa, ou CICLA pro começo
-                // (reprodução automática ligada), ou para em "pausado no
-                // fim" — play volta do zero, como sempre
-                when {
-                    hasNext() -> goTo(queueIndex + 1)
-                    // REPRODUÇÃO AUTOMÁTICA (v0.19.19): UM interruptor só,
-                    // lido NA HORA do fim da fila — o switch do player e o
-                    // das Configurações são O MESMO (escrevem a mesma pref);
-                    // não existe estado de sessão pra dessincronizar
-                    FormatPrefs.autoplayDefault(this@PlaybackService) &&
-                        queue.isNotEmpty() -> goTo(0)
-                    else -> refreshMediaState()
+                // REPRODUÇÃO AUTOMÁTICA (v0.19.20, o autor corrigiu o
+                // entendimento: a feature é POR MÚSICA — não por fila):
+                // LIGADA — a faixa que acaba pula sozinha pra próxima e, na
+                // ÚLTIMA, o player para; DESLIGADA — a faixa toca até o fim
+                // e para, NADA pula sozinho. A pref é lida NA HORA (o switch
+                // do player e o das Configurações são O MESMO interruptor).
+                // Anterior/próxima MANUAL (botão, notificação) seguem
+                // funcionando sempre — o toggle só governa o avanço sozinho
+                if (FormatPrefs.autoplayDefault(this@PlaybackService) && hasNext()) {
+                    goTo(queueIndex + 1)
+                } else {
+                    // "pausado no fim": play volta do zero, como sempre
+                    refreshMediaState()
                 }
             }
         }
@@ -218,7 +219,7 @@ class PlaybackService : Service() {
     fun hasNext(): Boolean = queue.isNotEmpty() && queueIndex < queue.size - 1
 
     /** Existe fila da Biblioteca? A linha de reprodução automática no
-     *  player só aparece com fila — sem ela não há ciclo. */
+     *  player só aparece com fila — sem ela não há o que avançar sozinho. */
     fun hasQueue(): Boolean = queue.isNotEmpty()
 
     /** Anterior sempre responde: antes da 1ª faixa (ou depois de 3s tocando)
@@ -580,8 +581,8 @@ class PlaybackService : Service() {
          * [startMs] retoma no meio da faixa (miniplayer: quando o usuário sai
          * do app com um VÍDEO tocando, o som continua aqui de onde parou).
          * [queueUris]/[queueTitles]/[queueIndex]: fila da Biblioteca (v0.19.0)
-         * — permite próxima/anterior e o avanço automático no fim da faixa;
-         * no FIM da fila, quem decide é a reprodução automática (v0.19.19):
+         * — permite próxima/anterior e o avanço no fim de cada faixa; quem
+         * decide no fim de CADA faixa é a reprodução automática (v0.19.20):
          * a pref é lida NA HORA — o switch do player e o das Configurações
          * são o MESMO interruptor, então não há estado pra sincronizar.
          */
