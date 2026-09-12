@@ -22,6 +22,7 @@ import android.os.Looper
 import android.util.Log
 import android.util.Rational
 import android.view.View
+import android.widget.CompoundButton
 import android.widget.MediaController
 import android.widget.SeekBar
 import android.widget.Toast
@@ -156,6 +157,12 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // REPRODUÇÃO AUTOMÁTICA (v0.19.21): abrir o player do zero SEMPRE
+        // recomeça do padrão das Configurações — o valor escolhido no switch
+        // daqui é da SESSÃO e morre quando o player fecha. (Recriação de
+        // tela passa savedInstanceState != null: a sessão continua.)
+        if (savedInstanceState == null) PlaybackService.autoplayOverride = null
 
         val uri: Uri = intent.data ?: run { finish(); return }
         val title = intent.getStringExtra(EXTRA_TITLE) ?: ""
@@ -460,16 +467,13 @@ class PlayerActivity : AppCompatActivity() {
             binding.btnPlay.postDelayed({ updatePosition() }, 100)
         }
 
-        // REPRODUÇÃO AUTOMÁTICA (v0.19.19, conserto do "não funciona" da
-        // v0.19.18): o switch do player é O MESMO interruptor da linha na
-        // lista principal das Configurações — lê e ESCREVE a mesma pref.
-        // Ligar aqui liga lá (e vice-versa), e o estado FICA: abrir o
-        // player de novo não reseta mais nada. O serviço lê a pref na hora
-        // do fim da fila; a linha só aparece com fila (sync no tick)
-        binding.swAutoplay.isChecked = FormatPrefs.autoplayDefault(this)
-        binding.swAutoplay.setOnCheckedChangeListener { _, checked ->
-            FormatPrefs.setAutoplayDefault(this, checked)
-        }
+        // REPRODUÇÃO AUTOMÁTICA (v0.19.21, o autor redefiniu: as
+        // CONFIGURAÇÕES SÃO O REGENTE — o player não escreve NENHUMA pref):
+        // o switch daqui muda SÓ o valor da sessão, que vale enquanto este
+        // player estiver aberto e morre quando ele fecha. Ao abrir, mostra
+        // o padrão das Configurações (override zerado no onCreate).
+        binding.swAutoplay.setOnCheckedChangeListener(autoplayListener)
+        syncAutoplaySwitch()
 
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -551,6 +555,31 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    /** Listener do switch de reprodução automática do player (v0.19.21):
+     *  escreve SÓ a sessão — a pref das Configurações (o regente) fica
+     *  intocada; ao fechar o player, o valor da sessão morre. */
+    private val autoplayListener =
+        CompoundButton.OnCheckedChangeListener { _, checked ->
+            PlaybackService.autoplayOverride = checked
+        }
+
+    /**
+     * Estado REAL do switch = override da sessão ?: padrão das
+     * Configurações. Guard de eco: setChecked programático dispara o
+     * listener e viraria loop — desliga, aplica, religa. Chamado no
+     * onCreate e no onResume (voltou de outra tela, o valor pode ter sido
+     * regido pelas Configurações).
+     */
+    private fun syncAutoplaySwitch() {
+        val target = PlaybackService.autoplayOverride
+            ?: FormatPrefs.autoplayDefault(this)
+        if (binding.swAutoplay.isChecked != target) {
+            binding.swAutoplay.setOnCheckedChangeListener(null)
+            binding.swAutoplay.isChecked = target
+            binding.swAutoplay.setOnCheckedChangeListener(autoplayListener)
+        }
+    }
+
     private fun updatePosition() {
         if (isVideo) return
         val svc = playback ?: return
@@ -588,12 +617,17 @@ class PlayerActivity : AppCompatActivity() {
             binding.btnPrev.alpha = if (hasPrev) 1f else 0.35f
         }
 
-        // REPRODUÇÃO AUTOMÁTICA (v0.19.18): a linha vive só com fila da
-        // Biblioteca — sem fila (áudio remoto, handoff de vídeo) não há o
-        // que ciclar, então nem aparece
-        val rowTarget = if (svc.hasQueue()) View.VISIBLE else View.GONE
-        if (binding.rowAutoplay.visibility != rowTarget) {
-            binding.rowAutoplay.visibility = rowTarget
+        // REPRODUÇÃO AUTOMÁTICA (v0.19.21, bug do autor: "só existe na
+        // biblioteca, não existe na central"): no player de MÚSICA a linha
+        // agora vive SEMPRE — Biblioteca (com fila), Central (áudio remoto)
+        // e cartão de mídia. Sem próxima na fila o switch não tem pra onde
+        // avançar (chegando na última, o player para — regra de sempre),
+        // mas o estado da sessão aparece igual. Vídeo não passa por aqui:
+        // o tick cedo retorna, e o player de vídeo não tem controles de
+        // música (o som dele no 2º plano abre o player de música pelo
+        // cartão — e lá a linha vive)
+        if (binding.rowAutoplay.visibility != View.VISIBLE) {
+            binding.rowAutoplay.visibility = View.VISIBLE
         }
 
         if (svc.currentTitle() != binding.tvTitle.text.toString()) {
@@ -842,6 +876,11 @@ class PlayerActivity : AppCompatActivity() {
         // voltou pra tela: as barrinhas voltam a dançar (o attach persiste;
         // aqui só religa a captura desligada no onStop)
         binding.visualizer.setHostPaused(false)
+        // v0.19.21: o switch de autoplay re-sincroniza com o que vale AGORA
+        // (override da sessão ?: padrão das Configurações) — as
+        // Configurações regem ao vivo, então o valor pode ter mudado
+        // enquanto a tela estava fora de foco
+        syncAutoplaySwitch()
         if (pipJustExited) {
             // EXPANDIU a janelinha PiP: volta pra tela normal — o handoff
             // NUNCA aconteceu (o player seguiu tocando na janelinha), não
@@ -894,6 +933,10 @@ class PlayerActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         tickHandler.removeCallbacks(tick)
+        // player fechou de vez: o valor da sessão morre com ele e o padrão
+        // das Configurações volta a mandar (v0.19.21). isFinishing=false =
+        // recriação de tela — a sessão continua.
+        if (isFinishing) PlaybackService.autoplayOverride = null
         // loop de desenho das barrinhas para com a activity
         binding.visualizer.detach()
         // botão do PiP desliga com a activity (receiver vira no-op)

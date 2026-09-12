@@ -22,6 +22,7 @@ import com.tunegrab.app.R
 import com.tunegrab.app.YtCookies
 import com.tunegrab.app.databinding.FragmentSettingsBinding
 import com.tunegrab.app.download.SaveLocation
+import com.tunegrab.app.playback.PlaybackService
 import com.tunegrab.app.update.UpdateChecker
 import kotlinx.coroutines.launch
 
@@ -311,15 +312,23 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    /** Reprodução automática (v0.19.20, feature POR MÚSICA): na LISTA
-     *  PRINCIPAL (pedido do autor), LIGADA = quando uma faixa acaba, a
-     *  próxima toca sozinha (na última, o player para); DESLIGADA = cada
-     *  faixa toca até o fim e para. Toque na linha inteira alterna; o
-     *  " ? " abre o diálogo explicando (pedido do autor). */
+    /** Reprodução automática — O PADRÃO-REGENTE (v0.19.21): ESTA linha é
+     *  o que manda. LIGADA = quando uma faixa da fila acaba, a próxima
+     *  toca sozinha (na última, o player para); DESLIGADA = cada faixa
+     *  toca até o fim e para. Mudou aqui, vale NA HORA — até pra fila que
+     *  está tocando. O switch do player é só da sessão dele e NUNCA
+     *  escreve nesta pref. Toque na linha inteira alterna; o " ? " abre o
+     *  diálogo explicando (pedido do autor). */
     private fun bindAutoplay() {
         binding.swAutoplay.isChecked = FormatPrefs.autoplayDefault(requireContext())
         binding.swAutoplay.setOnCheckedChangeListener { _, checked ->
+            // REGENTE (v0.19.21): aqui é o padrão de verdade — grava a pref
+            // e dissolve o override de sessão do player (se existir), então
+            // o novo valor vale NA HORA, até pra fila que está tocando. O
+            // switch do player é outro caso: só a sessão dele, sem tocar
+            // nesta pref.
             FormatPrefs.setAutoplayDefault(requireContext(), checked)
+            PlaybackService.autoplayOverride = null
         }
         binding.rowAutoplay.setOnClickListener {
             binding.swAutoplay.toggle()

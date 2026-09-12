@@ -123,15 +123,18 @@ class PlaybackService : Service() {
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_ENDED) {
-                // REPRODUÇÃO AUTOMÁTICA (v0.19.20, o autor corrigiu o
-                // entendimento: a feature é POR MÚSICA — não por fila):
-                // LIGADA — a faixa que acaba pula sozinha pra próxima e, na
-                // ÚLTIMA, o player para; DESLIGADA — a faixa toca até o fim
-                // e para, NADA pula sozinho. A pref é lida NA HORA (o switch
-                // do player e o das Configurações são O MESMO interruptor).
-                // Anterior/próxima MANUAL (botão, notificação) seguem
-                // funcionando sempre — o toggle só governa o avanço sozinho
-                if (FormatPrefs.autoplayDefault(this@PlaybackService) && hasNext()) {
+                // REPRODUÇÃO AUTOMÁTICA (v0.19.21, o autor redefiniu: as
+                // CONFIGURAÇÕES SÃO O REGENTE — o padrão delas manda; o
+                // switch do player é só da SESSÃO e nunca escreve na pref).
+                // Vale na hora: override da sessão (enquanto o player está
+                // aberto) ?: pref das Configurações. LIGADA — a faixa que
+                // acaba pula sozinha pra próxima e, na ÚLTIMA, o player
+                // para; DESLIGADA — a faixa toca até o fim e para, NADA pula
+                // sozinho. Anterior/próxima MANUAL (botão, notificação)
+                // seguem funcionando sempre — o toggle só governa o avanço
+                val autoplayOn = autoplayOverride
+                    ?: FormatPrefs.autoplayDefault(this@PlaybackService)
+                if (autoplayOn && hasNext()) {
                     goTo(queueIndex + 1)
                 } else {
                     // "pausado no fim": play volta do zero, como sempre
@@ -310,6 +313,9 @@ class PlaybackService : Service() {
     }
 
     override fun onDestroy() {
+        // sessão do player morre junto: o padrão das Configurações volta a
+        // mandar na próxima sessão (v0.19.21)
+        autoplayOverride = null
         releasePlayer()
         try {
             session?.release()
@@ -568,6 +574,18 @@ class PlaybackService : Service() {
 
         /** True entre onCreate/onDestroy — evita startForegroundService órfão. */
         private var running = false
+
+        /**
+         * SESSÃO do player (v0.19.21): o switch do player só vale ENQUANTO
+         * ele está aberto — null = sem override, vale o padrão das
+         * Configurações (o regente). Quem escreve: SÓ o switch do player.
+         * Quem zera: abrir o player do zero, fechar o player (fim da
+         * sessão), mudar nas Configurações (regente vale na hora) e a morte
+         * do serviço. NUNCA vai pra pref — as Configurações não mudam por
+         * causa do player.
+         */
+        @Volatile
+        var autoplayOverride: Boolean? = null
 
         /** "content://..." → Uri sem estourar exceção (uri podre na fila = fora). */
         private fun String.toUriOrNull(): Uri? = try {

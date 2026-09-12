@@ -348,14 +348,18 @@
     <string name="settings_tutorial_btn">Ver tutorial de novo</string>
     <string name="settings_tutorial_hint">O mesmo guia que aparece na primeira vez que você abre o app.</string>
 
-    <!-- Reprodução automática (v0.19.20, POR MÚSICA): ligada, quando a
-         música acaba a próxima toca sozinha (na última, para); desligada,
-         para quando acaba. O MESMO interruptor vive na LISTA PRINCIPAL das
-         Configurações (com o " ? " que abre o diálogo) e no player -->
+    <!-- Reprodução automática (v0.19.21, O REGENTE): ESTA linha é o padrão
+         que manda — o player abre com ela e mudar aqui vale na hora. O
+         switch do player é só da sessão e NUNCA altera esta pref. O " ? "
+         abre o diálogo explicando -->
     <string name="set_row_autoplay">Reprodução automática</string>
-    <string name="set_sub_autoplay">Ligada: quando a música acaba, a próxima da fila toca sozinha. Desligada: a música para quando acabar.</string>
+    <string name="set_sub_autoplay">O padrão que o player usa a cada abertura — e mudou aqui, vale na hora. Ligada: quando a música acaba, a próxima da fila toca sozinha. Desligada: a música para quando acabar.</string>
     <string name="set_autoplay_help">O que é reprodução automática?</string>
     <string name="set_autoplay_help_title">O que é reprodução automática?</string>
-    <string name="set_autoplay_help_msg">Ligada: quando uma música da fila acaba, a próxima toca sozinha, estilo YouTube. Chegando na última, o player para.\n\nDesligada: a música toca até o fim e para — nada pula sozinho; pra ouvir a outra, é só tocar no botão de próxima.\n\nOs botões de próxima/anterior seguem funcionando sempre. E é o mesmo interruptor em dois lugares: aqui e no player de música — mudou num lugar, mudou em todo lugar, e fica do jeito que você deixar.</string>
+    <string name="set_autoplay_help_msg">Aqui é O REGENTE: o valor desta linha é o padrão que o player usa toda vez que abre, e mudar aqui vale na hora — até pra fila que está tocando agora.
+
+Ligada: quando uma música da fila acaba, a próxima toca sozinha, estilo YouTube. Chegando na última, o player para. Desligada: a música toca até o fim e para — nada pula sozinho; pra ouvir a outra, é só tocar no botão de próxima.
+
+O switch que existe no player de música é outro caso: ele muda só a reprodução daquele momento, e quando o player fecha tudo volta pro padrão daqui — mexer lá não muda nada nas Configurações. Os botões de próxima/anterior seguem funcionando sempre.</string>
     <string name="set_autoplay_help_ok">Entendi</string>
 </resources>
