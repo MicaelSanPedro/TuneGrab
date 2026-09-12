@@ -85,6 +85,12 @@ class PlayerActivity : AppCompatActivity() {
     private var queueTitles: List<String> = emptyList()
     private var queueIndex = -1
 
+    // REPRODUÇÃO AUTOMÁTICA (v0.19.18, pedido do autor: "deve estar no
+    // player também"): estado do ciclo NESTA sessão — começa com o padrão
+    // das Configurações; o switch no player muda só daqui pra frente e
+    // NUNCA escreve na preferência (fechou o player, volta o padrão)
+    private var autoplayOn = false
+
     // CAPA (v0.19.0): bitmap embutido no arquivo cobre o cartão de arte;
     // coverUri guarda de qual faixa é a capa atual (não recarrega à toa)
     private var coverUri: Uri? = null
@@ -145,6 +151,11 @@ class PlayerActivity : AppCompatActivity() {
     private val serviceConn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             playback = (service as? PlaybackService.LocalBinder)?.service
+            // REPRODUÇÃO AUTOMÁTICA: serviço já tem fila (aberto pelo cartão
+            // de mídia)? O estado da sessão é o DELE — puxa daí em vez de
+            // pisar com o padrão das Configurações
+            playback?.takeIf { it.hasQueue() }?.let { autoplayOn = it.autoplay() }
+            syncAutoplayUi()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -166,6 +177,9 @@ class PlayerActivity : AppCompatActivity() {
         queueTitles = intent.getStringArrayListExtra(PlaybackService.EXTRA_QUEUE_TITLES)
             ?: emptyList()
         queueIndex = intent.getIntExtra(PlaybackService.EXTRA_QUEUE_INDEX, -1)
+        // reprodução automática (v0.19.18): a sessão começa no padrão que
+        // a linha na LISTA PRINCIPAL das Configurações definir
+        autoplayOn = FormatPrefs.autoplayDefault(this)
         binding.tvTitle.text = title
 
         binding.btnClose.setOnClickListener { closePlayer() }
@@ -420,7 +434,8 @@ class PlayerActivity : AppCompatActivity() {
                 title,
                 queueUris = queueUris,
                 queueTitles = queueTitles,
-                queueIndex = queueIndex
+                queueIndex = queueIndex,
+                autoplay = autoplayOn
             )
         }
         bindService(
@@ -443,7 +458,8 @@ class PlayerActivity : AppCompatActivity() {
                     initialTitle,
                     queueUris = queueUris,
                     queueTitles = queueTitles,
-                    queueIndex = queueIndex
+                    queueIndex = queueIndex,
+                    autoplay = autoplayOn
                 )
             }
             binding.btnPlay.postDelayed({ updatePosition() }, 100)
@@ -458,6 +474,17 @@ class PlayerActivity : AppCompatActivity() {
         binding.btnPrev.setOnClickListener {
             playback?.skipPrevious()
             binding.btnPlay.postDelayed({ updatePosition() }, 100)
+        }
+
+        // REPRODUÇÃO AUTOMÁTICA (v0.19.18): switch na linha PRÓPRIA embaixo
+        // do transporte (o botão da v0.19.16 empurrava os ícones — pedido do
+        // autor). Liga o ciclo da fila SÓ nesta sessão; a pref das
+        // Configurações nunca é escrita daqui. A linha só aparece com fila
+        // (sync no tick); sem fila não há o que ciclar
+        binding.swAutoplay.isChecked = autoplayOn
+        binding.swAutoplay.setOnCheckedChangeListener { _, checked ->
+            autoplayOn = checked
+            playback?.setAutoplay(autoplayOn)
         }
 
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -577,11 +604,25 @@ class PlayerActivity : AppCompatActivity() {
             binding.btnPrev.alpha = if (hasPrev) 1f else 0.35f
         }
 
+        // REPRODUÇÃO AUTOMÁTICA (v0.19.18): a linha vive só com fila da
+        // Biblioteca — sem fila (áudio remoto, handoff de vídeo) não há o
+        // que ciclar, então nem aparece
+        val rowTarget = if (svc.hasQueue()) View.VISIBLE else View.GONE
+        if (binding.rowAutoplay.visibility != rowTarget) {
+            binding.rowAutoplay.visibility = rowTarget
+        }
+
         if (svc.currentTitle() != binding.tvTitle.text.toString()) {
             binding.tvTitle.text = svc.currentTitle()
         }
         val trackUri = svc.currentUri()
         if (trackUri != null) loadCover(trackUri)
+    }
+
+    /** Estado do switch de reprodução automática (o serviço já com fila
+     *  manda o DELE ao conectar; fora disso a sessão manda). */
+    private fun syncAutoplayUi() {
+        binding.swAutoplay.isChecked = autoplayOn
     }
 
     private fun formatMs(ms: Int): String {

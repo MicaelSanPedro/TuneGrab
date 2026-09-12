@@ -55,9 +55,13 @@ object SpectrumBus {
  *     cara de mixer de DJ; linear deixa os graves dominando tudo) e publica
  *     no SpectrumBus.
  *
- * Pausou? O ExoPlayer para de chamar queueInput, nenhuma publicação nova
- * chega e as barras caem sozinhas na view (decay) — nenhum estado consultado.
- * Formato passa INTACTO (o app só ESPIA o PCM, nunca altera o som).
+ * Pausou? NENHUMA publicação nova (v0.19.18): o serviço marca o sono via
+ * setSpectrumPaused quando o player deixa de tocar — o sink do ExoPlayer
+ * ainda aceita PCM por um instante depois da pausa (top-off do buffer), e
+ * esse fluxo fantasma fazia as barras 'acordarem' depois de caídas. Sem
+ * publicação = as barras caem sozinhas na view (decay) e FICAM caídas —
+ * nenhum estado consultado pela view. Formato passa INTACTO (o app só
+ * ESPIA o PCM, nunca altera o som).
  */
 class SpectrumProcessor : BaseAudioProcessor() {
 
@@ -75,6 +79,20 @@ class SpectrumProcessor : BaseAudioProcessor() {
     private var channels = 1
     private var pcmFloat = false
     private var sinceLastFft = 0
+
+    /** PAUSA = ESPECTRO DORME (v0.19.18): enquanto o player não está
+     *  tocando, NADA é publicado — nem do fluxo fantasma do sink (top-off
+     *  pós-pausa), nem de seek com pausa. O PlaybackService comanda via
+     *  onIsPlayingChanged; a view só vê o bus esfriar e decai pro chão. */
+    @Volatile
+    private var paused = false
+
+    /** Marca/desmarca o sono do espectro. Pausou: limpa o bus na hora (o
+     *  histórico da view envelhece e as barras caem — sem dado novo). */
+    fun setSpectrumPaused(p: Boolean) {
+        paused = p
+        if (p) SpectrumBus.clear()
+    }
 
     /** Bandas publicadas (array reutilizado — só publish copia pra fora). */
     private val bands = FloatArray(BARS)
@@ -223,6 +241,8 @@ class SpectrumProcessor : BaseAudioProcessor() {
      * metade direita do mixer ficava quase zerada em música normal.
      */
     private fun computeBands() {
+        // dormindo (pausa): NEM FFT roda — zero publicação, zero CPU extra
+        if (paused) return
         // fila circular → ordem cronológica (rotacionada; o MÓDULO do
         // espectro não muda com rotação circular)
         var src = writePos

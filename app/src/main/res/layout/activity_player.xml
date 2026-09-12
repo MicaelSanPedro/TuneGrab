@@ -170,6 +170,36 @@
                 android:src="@drawable/ic_skip_next"
                 app:tint="@color/on_background" />
         </LinearLayout>
+
+        <!-- REPRODUÇÃO AUTOMÁTICA (v0.19.18, pedido do autor: "deve estar no
+             player também"): linha PRÓPRIA embaixo do transporte, estilo
+             YouTube Music — nome + switch. O botão da v0.19.16 apertava a
+             linha de transporte inteira (empurrava os ícones); aqui NADA se
+             move. Só existe com fila da Biblioteca (o tick revela/esconde);
+             o switch da sessão NUNCA escreve na preferência das Configs -->
+        <LinearLayout
+            android:id="@+id/rowAutoplay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/set_row_autoplay"
+                android:textColor="@color/on_surface_variant"
+                android:textSize="13sp" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/swAutoplay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:contentDescription="@string/set_row_autoplay" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Carregando stream remoto (reproduzir sem baixar): gira até o
