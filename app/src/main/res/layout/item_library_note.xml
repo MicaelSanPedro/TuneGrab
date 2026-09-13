@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- v0.22.1: nota de “pasta vazia” DENTRO da lista. A mensagem de vazio
+     (peso 1) e a lista (peso 99) nunca conviveram na mesma tela — com a
+     linha de VOLTAR morando na lista (fix da pasta vazia), a frase vira
+     linha também e ninguém briga por espaço. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tvNote"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="24dp"
+    android:paddingTop="20dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="20dp"
+    android:textColor="@color/on_surface_variant"
+    android:textSize="13sp" />

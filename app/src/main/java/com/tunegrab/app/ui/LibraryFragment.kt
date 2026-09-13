@@ -29,6 +29,7 @@ import com.tunegrab.app.databinding.FragmentLibraryBinding
 import com.tunegrab.app.databinding.ItemLibraryFileBinding
 import com.tunegrab.app.databinding.ItemLibraryFolderBinding
 import com.tunegrab.app.databinding.ItemLibraryHeaderBinding
+import com.tunegrab.app.databinding.ItemLibraryNoteBinding
 import com.tunegrab.app.playback.PlaybackService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -287,6 +288,11 @@ class LibraryFragment : Fragment() {
                     )
                     addAll(inside.map { LibRow.File(it) })
                 }
+                // v0.22.1: pasta sem NADA (nem subpasta, nem faixa) — a frase
+                // de sempre vira linha da lista, embaixo do voltar
+                if (folders.isEmpty() && inside.isEmpty()) {
+                    add(LibRow.Note(getString(R.string.lib_empty_folder_view)))
+                }
             }
         }
         adapter.submit(rows)
@@ -295,8 +301,14 @@ class LibraryFragment : Fragment() {
         if (currentFolder.isNotBlank()) {
             b.tvEmpty.text = getString(R.string.lib_empty_folder_view)
         }
-        b.tvEmpty.isVisible = rows.none { it is LibRow.File || it is LibRow.Folder }
-        b.list.isVisible = rows.any { it is LibRow.File || it is LibRow.Folder }
+        // v0.22.1 FIX (o “não consigo voltar”): a linha de VOLTAR tem que
+        // viver mesmo em pasta vazia — antes, rows=[Up] não tinha File nem
+        // Folder, a lista inteira ia pra GONE e a linha de voltar sumia
+        // junto: autor PRESO dentro da pasta. Agora Up conta como conteúdo
+        // (a nota de vazia só existe acompanhando o Up, nunca sozinha).
+        val hasRows = rows.any { it is LibRow.File || it is LibRow.Folder || it is LibRow.Up }
+        b.tvEmpty.isVisible = !hasRows
+        b.list.isVisible = hasRows
         // fila de músicas na ordem em que aparecem na tela (próprias
         // primeiro; dentro de pasta: só o que mora nela)
         audioQueue = if (showVideos) emptyList() else {
@@ -609,7 +621,8 @@ class LibraryFragment : Fragment() {
 }
 
 /** Linha da lista da Biblioteca: cabeçalho de seção, arquivo, PASTA
- *  navegável (v0.22.0) ou a linha de voltar. */
+ *  navegável (v0.22.0), a linha de voltar ou a nota de pasta vazia
+ *  (v0.22.1). */
 sealed class LibRow {
     data class Section(
         val title: String,
@@ -625,6 +638,11 @@ sealed class LibRow {
 
     /** PASTAS (v0.22.0): linha “…” — sobe uma pasta (a raiz usa o nome dela). */
     data class Up(val parentLabel: String) : LibRow()
+
+    /** v0.22.1: texto sem toque dentro da lista (pasta vazia) — a frase
+     *  que era do vazio em tela cheia, agora convivendo com a linha de
+     *  voltar sem brigar pelo peso da tela. */
+    data class Note(val text: String) : LibRow()
 }
 
 class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -632,6 +650,7 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     class HeaderHolder(val binding: ItemLibraryHeaderBinding) : RecyclerView.ViewHolder(binding.root)
     class EntryHolder(val binding: ItemLibraryFileBinding) : RecyclerView.ViewHolder(binding.root)
     class FolderHolder(val binding: ItemLibraryFolderBinding) : RecyclerView.ViewHolder(binding.root)
+    class NoteHolder(val binding: ItemLibraryNoteBinding) : RecyclerView.ViewHolder(binding.root)
 
     private var rows: List<LibRow> = emptyList()
     var onPlay: ((LibraryEntry) -> Unit)? = null
@@ -715,6 +734,7 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     override fun getItemViewType(position: Int): Int = when (rows[position]) {
         is LibRow.Section -> TYPE_HEADER
         is LibRow.File -> TYPE_FILE
+        is LibRow.Note -> TYPE_NOTE
         // pasta e voltar compartilham o layout de pasta (ícone/nome/chevron)
         else -> TYPE_FOLDER
     }
@@ -728,6 +748,11 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             )
             TYPE_FILE -> EntryHolder(
                 ItemLibraryFileBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                )
+            )
+            TYPE_NOTE -> NoteHolder(
+                ItemLibraryNoteBinding.inflate(
                     LayoutInflater.from(parent.context), parent, false
                 )
             )
@@ -793,6 +818,10 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 b.chevron.isVisible = false
                 b.root.setOnClickListener { onGoUp?.invoke() }
             }
+            is LibRow.Note -> {
+                // v0.22.1: nota de pasta vazia — texto puro, sem toque
+                (holder as NoteHolder).binding.tvNote.text = row.text
+            }
             is LibRow.File -> {
                 val entry = row.entry
                 val b = (holder as EntryHolder).binding
@@ -854,5 +883,6 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private const val TYPE_HEADER = 0
         private const val TYPE_FILE = 1
         private const val TYPE_FOLDER = 2
+        private const val TYPE_NOTE = 3
     }
 }
