@@ -243,7 +243,7 @@ class LibraryFragment : Fragment() {
         val shownFolders = folders.mapNotNull { f ->
             val prefix = "${f.key}/"
             val sub = all.filter {
-                it.fromTuneGrab && (it.folder == f.key || it.folder.startsWith(prefix))
+                it.fromTuneGrab && (it.folder == f.key || it.folder?.startsWith(prefix) == true)
             }
             val kind = sub.count { it.isVideoKind == showVideos }
             if (kind > 0 || sub.isEmpty()) f.copy(items = kind) else null
@@ -658,7 +658,7 @@ class LibraryFragment : Fragment() {
     private fun confirmFolderDelete(f: LibraryFolders.LibFolder) {
         val ctx = context ?: return
         val inside = all.count {
-            it.fromTuneGrab && (it.folder == f.key || it.folder.startsWith("${f.key}/"))
+            it.fromTuneGrab && (it.folder == f.key || it.folder?.startsWith("${f.key}/") == true)
         }
         val msg = if (inside == 0) {
             ctx.getString(R.string.lib_folder_delete_empty, f.name)
