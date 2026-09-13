@@ -1,6 +1,8 @@
 package com.tunegrab.app.access
 
 import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -32,6 +34,18 @@ import javax.crypto.spec.SecretKeySpec
  *    liberou continua dentro (a flag é local); mundo novo não entra mais.
  *  - A PRIMEIRA liberação exige internet (sem net, sem convite aceito).
  *
+ * v0.21.0 — SENHA PRESA NO APARELHO (pedido do autor: "uma senha e ela só
+ * funciona naquele dispositivo, se tentar em outro, não pega"). Entrada com
+ * campo "device" no JSON SÓ destrava no aparelho daquele código: o app deriva
+ * um CÓDIGO DE APARELHO do ANDROID_ID (Settings.Secure — sem permissão, por
+ * assinatura do app, sobrevive a desinstalar/limpar dados; só reset de
+ * fábrica troca), mostra na LockActivity e, na checagem, repete o HMAC da
+ * entrada com o código LOCAL e compara tempo-constante. Não bateu = "essa
+ * senha pertence a outro aparelho". Entrada SEM "device" vale em qualquer
+ * aparelho (formato antigo, grandfathered). O código NÃO é segredo — o par
+ * (senha, aparelho) é o que vale; o algoritmo de derivação é CONGELADO
+ * (DEVICE_CODE_KEY "TuneGrabDeviceCode-v1"): mudou, todo código muda.
+ *
  * PBKDF2 é implementado AQUI NA MÃO (RFC 8018, um bloco de 32 bytes) porque
  * o SecretKeyFactory "PBKDF2WithHmacSHA256" só existe a partir da API 26 —
  * e o app atende até a API 24. HmacSHA256 via javax.crypto é de berço.
@@ -42,7 +56,8 @@ object AccessGate {
     /** Resultado da tentativa de liberação — cada caso tem frase própria na tela. */
     sealed interface Verdict {
         data class Accepted(val id: String) : Verdict
-        object Wrong : Verdict      // senha não bateu (usada, errada ou queimada)
+        object Wrong : Verdict      // senha não bateu (errada ou queimada)
+        object WrongDevice : Verdict // senha EXISTE, mas é presa noutro aparelho
         object Empty : Verdict      // digitou nada
         object Offline : Verdict    // rede falhou — 1ª liberação pede internet
         object NoActive : Verdict   // lista existe mas está vazia
@@ -53,11 +68,20 @@ object AccessGate {
         val id: String,
         val salt: ByteArray,
         val hash: ByteArray,
-        val iters: Int
+        val iters: Int,
+        val binding: Pair<ByteArray, ByteArray>? // (deviceSalt, deviceHash) — null = solta
     )
 
     private const val LIST_URL =
         "https://raw.githubusercontent.com/MicaelSanPedro/TuneGrab/main/access/passwords.json"
+
+    /** O MESMO alfabeto do gerador (sem 0/O/1/I/L — 31 chars). */
+    internal const val ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+    /** Chave da derivação do código de aparelho — CONGELADA (está no APK,
+     *  nunca foi segredo). v1: se um dia precisar mudar o algoritmo, vira -v2
+     *  e a lista inteira é re-emitida. O espelho em Python vive no passgen. */
+    private val DEVICE_CODE_KEY = "TuneGrabDeviceCode-v1".toByteArray(Charsets.UTF_8)
 
     private const val PREFS = "access_gate"
     private const val KEY_UNLOCKED = "unlocked"
@@ -86,11 +110,60 @@ object AccessGate {
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     /**
+     * CÓDIGO DESTE APARELHO (v0.21.0) — "XXXX-XXXX" derivado do ANDROID_ID,
+     * mostrado na LockActivity pra pessoa mandar pro autor junto com o nome.
+     * Estável: por assinatura do app desde a API 26 (sobrevive a desinstalar,
+     * limpar dados, atualizar; só reset de fábrica/troca de celular muda —
+     * e aí o autor re-emite a MESMA senha pro código novo). Fallback raríssimo
+     * (aparelho sem ID provisionado): fingerprint do build.
+     */
+    fun deviceCode(context: Context): String {
+        val raw = Settings.Secure.getString(
+            context.contentResolver, Settings.Secure.ANDROID_ID
+        )?.takeIf { it.isNotBlank() } ?: Build.FINGERPRINT
+        return deviceCodeFrom(raw)
+    }
+
+    /** Espelho EXATO do device_code_from() do passgen (Python) — NÃO MUDAR
+     *  sem mudar lá junto: ID bruto -> trim/lowercase -> HMAC(KEY, id) ->
+     *  5 bytes -> 8 chars do alfabeto (passeio de 5 bits, módulo 31). */
+    internal fun deviceCodeFrom(raw: String): String {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(DEVICE_CODE_KEY, "HmacSHA256"))
+        val digest = mac.doFinal(raw.trim().lowercase(Locale.ROOT).toByteArray(Charsets.UTF_8))
+        var bits = 0L
+        for (i in 0 until 5) bits = (bits shl 8) or (digest[i].toLong() and 0xFFL)
+        val sb = StringBuilder(9)
+        for (i in 0 until 8) {
+            sb.append(ALPHABET[(((bits shr (5 * (7 - i))) and 0x1FL).toInt()) % ALPHABET.length])
+            if (i == 3) sb.append('-')
+        }
+        return sb.toString()
+    }
+
+    /** Canônico do código pro binding: MAIÚSCULAS, só [A-Z0-9] — o traço é
+     *  máscara visual; quem digita/copiar com caixa errada não engana. */
+    internal fun canonicalDeviceCode(raw: String): String =
+        raw.uppercase(Locale.ROOT).filter { it in 'A'..'Z' || it in '0'..'9' }
+
+    /** HMAC-SHA256 puro (chave = salt do binding, msg = canônico do código).
+     *  Espelho do device_binding() do passgen. */
+    internal fun hmacSha256(key: ByteArray, message: ByteArray): ByteArray {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(key, "HmacSHA256"))
+        return mac.doFinal(message)
+    }
+
+    /**
      * Confere a senha digitada contra a lista remota. Rede e PBKDF2 rodam
      * no IO; a activity só lida com o veredito. Erros NUNCA explodem —
      * viram veredito (mesma filosofia do UpdateChecker).
+     *
+     * v0.21.0: precisa do contexto pra derivar o código DESTE aparelho —
+     * entrada com binding que não casa com o código local = WrongDevice
+     * (senha existe, mas é de outro aparelho).
      */
-    suspend fun verify(typed: String): Verdict = withContext(Dispatchers.IO) {
+    suspend fun verify(context: Context, typed: String): Verdict = withContext(Dispatchers.IO) {
         // Canônico: MAIÚSCULAS e só letras/números — "tune-7k3m-9qpd",
         // "TUNE 7K3M 9QPD" e "TUNE7K3M9QPD" viram a MESMA chave. É esse
         // canônico que o gerador hasheou (as linhas de display são só
@@ -107,10 +180,23 @@ object AccessGate {
         if (entries.isEmpty()) return@withContext Verdict.NoActive
 
         val passwordBytes = canonical.toByteArray(Charsets.UTF_8)
+        // Código local canônico (8 chars, sem traço) derivado UMA vez —
+        // o HMAC de binding é barato, mas nada de recalcular por entrada.
+        val localCode = canonicalDeviceCode(deviceCode(context))
+        val localCodeBytes = localCode.toByteArray(Charsets.UTF_8)
         for (entry in entries) {
             val candidate = pbkdf2Sha256(passwordBytes, entry.salt, entry.iters, 32)
             if (MessageDigest.isEqual(candidate, entry.hash)) {
-                return@withContext Verdict.Accepted(entry.id)
+                val (devSalt, devHash) = entry.binding
+                    ?: return@withContext Verdict.Accepted(entry.id) // solta = qualquer aparelho
+                // Entrada PRESA: o canônico do código local tem que gerar
+                // o MESMO HMAC. Falhou = senha certa, aparelho errado.
+                val mine = hmacSha256(devSalt, localCodeBytes)
+                return@withContext if (MessageDigest.isEqual(mine, devHash)) {
+                    Verdict.Accepted(entry.id)
+                } else {
+                    Verdict.WrongDevice
+                }
             }
         }
         Verdict.Wrong
@@ -126,7 +212,9 @@ object AccessGate {
         }
     }
 
-    /** null = JSON quebrado (Failed); lista vazia/sem hashes = NoActive. */
+    /** null = JSON quebrado (Failed); lista vazia/sem hashes = NoActive.
+     *  Binding "device" é OPCIONAL: presente e MALFORMADO = fail-closed
+     *  (salt vazio x hash vazio nunca batem com nada — a entrada morre). */
     private fun parseEntries(body: String): List<Entry>? {
         return try {
             val root = JSONObject(body)
@@ -141,8 +229,22 @@ object AccessGate {
                         Base64.decode(o.optString("hash"), Base64.DEFAULT)
                     } catch (t: Throwable) { ByteArray(0) }
                     val iters = o.optInt("iters", 0)
+                    val dev = o.optJSONObject("device")
+                    val binding: Pair<ByteArray, ByteArray>? = when {
+                        dev == null -> null // entrada SOLTA (formato v0.20.0 ou sem binding)
+                        else -> {
+                            val ds = try {
+                                Base64.decode(dev.optString("salt"), Base64.DEFAULT)
+                            } catch (t: Throwable) { ByteArray(0) }
+                            val dh = try {
+                                Base64.decode(dev.optString("hash"), Base64.DEFAULT)
+                            } catch (t: Throwable) { ByteArray(0) }
+                            if (ds.size == 16 && dh.size == 32) ds to dh
+                            else ByteArray(0) to ByteArray(0) // binding quebrado = fail-closed
+                        }
+                    }
                     if (salt.isNotEmpty() && hash.size == 32 && iters > 0) {
-                        add(Entry(o.optString("id", ""), salt, hash, iters))
+                        add(Entry(o.optString("id", ""), salt, hash, iters, binding))
                     }
                 }
             }

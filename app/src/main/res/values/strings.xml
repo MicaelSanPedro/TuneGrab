@@ -365,17 +365,22 @@ O switch que existe no player de música é outro caso: ele muda só a reproduç
 
     <!-- Trava de acesso (v0.20.0): o app é por convite — a senha que o autor
          distribui (derivada do nome completo de quem vai usar) libera o
-         aparelho UMA vez; usado, queimado. A checagem é remota (lista de
-         hashes no próprio repo) e a 1ª liberação pede internet. Errou,
-         tenta de novo na hora — sem punição. -->
-    <string name="lock_sub">Este app é por convite. Digite a senha que você recebeu pra liberar o uso — ela só funciona uma vez.</string>
+         aparelho; na v0.21.0 cada senha pode nascer PRESA a um aparelho
+         (código do ANDROID_ID, mostrado abaixo do campo). A checagem é
+         remota (lista de hashes no próprio repo) e a 1ª liberação pede
+         internet. Errou, tenta de novo na hora — sem punição. -->
+    <string name="lock_sub">Este app é por convite. Digite a senha que você recebeu pra liberar o uso — cada senha fica presa em um único aparelho.</string>
     <string name="lock_hint">Senha</string>
     <string name="lock_btn">Liberar o app ♪</string>
     <string name="lock_ok">Senha aceita ✓ liberando o app…</string>
     <string name="lock_err_empty">Digite a senha que você recebeu.</string>
-    <string name="lock_err_wrong">Senha não reconhecida — pode já ter sido usada ou ter vindo com erro de digitação. Confere aí e tenta de novo.</string>
+    <string name="lock_err_wrong">Senha não reconhecida — pode ter vindo com erro de digitação ou ter sido trocada. Confere aí e tenta de novo.</string>
+    <string name="lock_err_wrong_device">Essa senha existe, mas pertence a OUTRO aparelho — cada senha fica presa no celular de quem pediu. Confere se este é o aparelho certo.</string>
     <string name="lock_err_offline">Sem internet: a primeira liberação precisa de conexão. Verifica o Wi-Fi ou os dados e tenta de novo.</string>
     <string name="lock_err_noactive">Nenhuma senha ativa no momento. Fala com o Micael pra receber a sua.</string>
     <string name="lock_err_generic">Não deu pra verificar a senha agora. Tenta de novo em instantes.</string>
-    <string name="lock_footer">Não tem senha? Fala com quem te mandou o app.</string>
+    <string name="lock_footer">Não tem senha? Manda seu nome completo e o código deste aparelho pro Micael.</string>
+    <string name="lock_device_label">Código deste aparelho</string>
+    <string name="lock_device_copy_hint">toque pra copiar</string>
+    <string name="lock_device_copied">Código copiado ✓ manda ele junto com o seu nome pro Micael</string>
 </resources>

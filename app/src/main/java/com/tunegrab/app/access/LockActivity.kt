@@ -1,9 +1,12 @@
 package com.tunegrab.app.access
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.tunegrab.app.MainActivity
@@ -14,17 +17,21 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Trava de acesso (v0.20.0): tela de convite do app. O Splash manda pra cá
- * quando o aparelho ainda não foi liberado (e links compartilhados que
- * tentarem pular o Splash batem no guard da MainActivity). Um campo, um
- * botão: a senha que o autor distribuiu.
+ * Trava de acesso (v0.20.0, binding por aparelho na v0.21.0): tela de convite
+ * do app. O Splash manda pra cá quando o aparelho ainda não foi liberado (e
+ * links compartilhados que tentarem pular o Splash batem no guard da
+ * MainActivity). Um campo, um botão: a senha que o autor distribuiu.
  *
  * Regras cravadas com o autor:
  *  - A checagem é REMOTA (lista de hashes no repo) — a 1ª liberação PRECISA
  *    de internet; sem rede, mensagem clara e tenta de novo;
  *  - Acertou → AccessGate.markUnlocked → esse aparelho NUNCA mais pede
  *    senha (só limpando os dados do app);
- *  - Errou → mensagem e tentar de novo NA HORA (sem punição, sem atraso).
+ *  - Errou → mensagem e tentar de novo NA HORA (sem punição, sem atraso);
+ *  - v0.21.0: cada senha pode ser PRESA a um aparelho — aqui embaixo a
+ *    pessoa vê o CÓDIGO DESTE APARELHO (do ANDROID_ID, via AccessGate) pra
+ *    mandar pro autor junto com o nome; senha de outro aparelho = mensagem
+ *    própria, sem culpa e sem atraso.
  *
  * Depois de liberar, o roteamento é o MESMO do Splash: tutorial na 1ª vez,
  * barra montada nas seguintes.
@@ -54,6 +61,17 @@ class LockActivity : AppCompatActivity() {
             }
         }
         binding.txtPassword.requestFocus()
+
+        // Código DESTE aparelho (v0.21.0): quem pede senha nova precisa dele —
+        // toque copia pro clipboard (e nada de digitar na unha e errar).
+        binding.txtDeviceCode.text = AccessGate.deviceCode(this)
+        binding.deviceBox.setOnClickListener {
+            val clipboard = getSystemService(ClipboardManager::class.java)
+            clipboard.setPrimaryClip(
+                ClipData.newPlainText("tunegrab_device_code", binding.txtDeviceCode.text)
+            )
+            Toast.makeText(this, R.string.lock_device_copied, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun submit() {
@@ -64,7 +82,7 @@ class LockActivity : AppCompatActivity() {
         }
         setState(checking = true)
         lifecycleScope.launch {
-            val verdict = AccessGate.verify(typed)
+            val verdict = AccessGate.verify(applicationContext, typed)
             setState(checking = false)
             when (verdict) {
                 is AccessGate.Verdict.Accepted -> {
@@ -77,6 +95,8 @@ class LockActivity : AppCompatActivity() {
                     showStatus(getString(R.string.lock_err_empty), true)
                 AccessGate.Verdict.Wrong ->
                     showStatus(getString(R.string.lock_err_wrong), true)
+                AccessGate.Verdict.WrongDevice ->
+                    showStatus(getString(R.string.lock_err_wrong_device), true)
                 AccessGate.Verdict.Offline ->
                     showStatus(getString(R.string.lock_err_offline), true)
                 AccessGate.Verdict.NoActive ->
