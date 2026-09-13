@@ -50,6 +50,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Trava de acesso (v0.20.0): o app é POR CONVITE. Aparelho sem
+             senha liberada chega aqui pelo Splash (e links compartilhados
+             batem no guard da MainActivity). A senha é conferida na lista
+             de hashes do próprio repo (access/passwords.json); acertou,
+             o aparelho destrava pra sempre — limpar os dados volta a pedir. -->
+        <activity
+            android:name=".access.LockActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TuneGrab"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

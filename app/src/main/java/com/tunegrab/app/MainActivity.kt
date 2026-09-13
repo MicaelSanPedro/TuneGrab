@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
+import com.tunegrab.app.access.AccessGate
+import com.tunegrab.app.access.LockActivity
 import com.tunegrab.app.databinding.ActivityMainBinding
 import com.tunegrab.app.download.DownloadService
 import com.tunegrab.app.ui.BottomNav
@@ -24,6 +26,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // v0.20.0: trava de acesso — links compartilhados/abertos caem AQUI
+        // sem passar pelo Splash; sem senha liberada, não vê nada do app:
+        // vira e manda pra LockActivity, que roteia de volta quando aceitar.
+        if (!AccessGate.isUnlocked(this)) {
+            startActivity(Intent(this, LockActivity::class.java))
+            finish()
+            return
+        }
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         BottomNav.setup(this, binding.navBar.bottomNav, R.id.fragmentContainer, R.id.navHome)
