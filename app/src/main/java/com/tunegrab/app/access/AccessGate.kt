@@ -127,26 +127,28 @@ object AccessGate {
     }
 
     /** null = JSON quebrado (Failed); lista vazia/sem hashes = NoActive. */
-    private fun parseEntries(body: String): List<Entry>? = try {
-        val root = JSONObject(body)
-        val arr = root.optJSONArray("hashes") ?: return emptyList()
-        buildList {
-            for (i in 0 until arr.length()) {
-                val o = arr.optJSONObject(i) ?: continue
-                val salt = try {
-                    Base64.decode(o.optString("salt"), Base64.DEFAULT)
-                } catch (t: Throwable) { ByteArray(0) }
-                val hash = try {
-                    Base64.decode(o.optString("hash"), Base64.DEFAULT)
-                } catch (t: Throwable) { ByteArray(0) }
-                val iters = o.optInt("iters", 0)
-                if (salt.isNotEmpty() && hash.size == 32 && iters > 0) {
-                    add(Entry(o.optString("id", ""), salt, hash, iters))
+    private fun parseEntries(body: String): List<Entry>? {
+        return try {
+            val root = JSONObject(body)
+            val arr = root.optJSONArray("hashes") ?: return emptyList()
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val o = arr.optJSONObject(i) ?: continue
+                    val salt = try {
+                        Base64.decode(o.optString("salt"), Base64.DEFAULT)
+                    } catch (t: Throwable) { ByteArray(0) }
+                    val hash = try {
+                        Base64.decode(o.optString("hash"), Base64.DEFAULT)
+                    } catch (t: Throwable) { ByteArray(0) }
+                    val iters = o.optInt("iters", 0)
+                    if (salt.isNotEmpty() && hash.size == 32 && iters > 0) {
+                        add(Entry(o.optString("id", ""), salt, hash, iters))
+                    }
                 }
             }
+        } catch (t: Throwable) {
+            null
         }
-    } catch (t: Throwable) {
-        null
     }
 
     /**
