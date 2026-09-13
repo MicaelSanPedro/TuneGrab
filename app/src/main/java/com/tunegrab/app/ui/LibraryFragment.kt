@@ -217,9 +217,17 @@ class LibraryFragment : Fragment() {
     /**
      * Aplica o filtro do chip (Músicas/Vídeos) e monta as SEÇÕES. NA RAIZ:
      * pastas primeiro (seção própria, v0.22.0), depois o baixado PELO
-     * TuneGrab e as mídias achadas no aparelho — a vista plana de sempre,
-     * NADA sumiu. DENTRO DE PASTA: linha de voltar, subpastas e só o que
-     * mora nela (faixa do próprio app; mídia de outro app não tem pasta). */
+     * TuneGrab que mora NA RAIZ e as mídias achadas no aparelho. DENTRO DE
+     * PASTA: linha de voltar, subpastas e só o que mora nela (faixa do
+     * próprio app; mídia de outro app não tem pasta).
+     *
+     * v0.22.2 FIX (o “ctrl v” do micaelsan): a raiz era PLANA de propósito
+     * (“NADA sumiu”), listando TODAS as próprias — inclusive as que moram
+     * dentro de pastas. Mover pra pasta entrava nela mas “continha” na
+     * raiz: mover parecia COPIAR. Agora raiz = quem mora na raiz; quem tem
+     * pasta aparece SÓ dentro dela (mover é ctrl x). As SEM pasta navegável
+     * (folder nulo — mídia própria fora da raiz, ex.: Music/TuneGrab)
+     * seguem visíveis na raiz pra nada sumir da tela. */
     private fun render() {
         val b = _binding ?: return
         val shown = all.filter { it.isVideoKind == showVideos }
@@ -236,7 +244,12 @@ class LibraryFragment : Fragment() {
                     )
                     addAll(folders.map { LibRow.Folder(it) })
                 }
-                val own = shown.filter { it.fromTuneGrab }
+                // v0.22.2 FIX (o “ctrl v”): raiz mostra só quem mora NA RAIZ —
+                // antes listava TODAS as próprias (vista plana da v0.22.0),
+                // então a música movida pra pasta “continha” aqui: mover
+                // parecia copiar. Quem tem pasta mora SÓ na pasta; as sem
+                // casa navegável (folder nulo) seguem na raiz, nada some.
+                val own = shown.filter { it.fromTuneGrab && it.folder.isNullOrEmpty() }
                 val others = shown.filter { !it.fromTuneGrab }
                 if (own.isNotEmpty()) {
                     add(
@@ -312,9 +325,14 @@ class LibraryFragment : Fragment() {
         // fila de músicas na ordem em que aparecem na tela (próprias
         // primeiro; dentro de pasta: só o que mora nela)
         audioQueue = if (showVideos) emptyList() else {
-            val own = shown.filter { it.fromTuneGrab }
-            if (currentFolder.isBlank()) own + shown.filter { !it.fromTuneGrab }
-            else own.filter { it.folder == currentFolder }
+            // MESMA REGRA da vista (v0.22.2): na raiz, só quem mora na raiz
+            // (sem pasta mapeável entra junto); dentro de pasta, só dela.
+            val own = if (currentFolder.isBlank()) {
+                shown.filter { it.fromTuneGrab && it.folder.isNullOrEmpty() }
+            } else {
+                shown.filter { it.fromTuneGrab && it.folder == currentFolder }
+            }
+            if (currentFolder.isBlank()) own + shown.filter { !it.fromTuneGrab } else own
         }
         // MESMA DOENÇA do print da Central: vazio peso 1 × lista peso 99 —
         // com a lista “visível e vazia” a mensagem ficava com 1% da tela.
