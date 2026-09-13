@@ -27,6 +27,7 @@ import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentLibraryBinding
 import com.tunegrab.app.databinding.ItemLibraryFileBinding
+import com.tunegrab.app.databinding.ItemLibraryFolderBinding
 import com.tunegrab.app.databinding.ItemLibraryHeaderBinding
 import com.tunegrab.app.playback.PlaybackService
 import kotlinx.coroutines.Dispatchers
@@ -115,7 +116,7 @@ class LibraryFragment : Fragment() {
         adapter.onShare = { e -> LibraryFiles.share(requireContext(), e) }
         adapter.onDelete = { e -> delete(e) }
         // v0.22.0: PASTAS — navegar, criar pasta e mover (individual e lote)
-        adapter.onEnterFolder = { f -> enterFolder(f.key) }
+        adapter.onEnterFolder = { f -> enterFolder(f.folder.key) }
         adapter.onGoUp = { goUp() }
         adapter.onMove = { e -> moveDialog(listOf(e)) }
         binding.btnNewFolder.setOnClickListener { askNewFolder() }
