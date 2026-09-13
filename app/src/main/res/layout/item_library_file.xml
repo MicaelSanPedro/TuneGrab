@@ -94,6 +94,17 @@
             android:src="@drawable/ic_share"
             app:tint="@color/on_surface_variant" />
 
+        <!-- v0.22.0: mover pra pasta — só aparece em faixa DO TuneGrab
+             (o app é dono; mídia de outro app não move). -->
+        <ImageButton
+            android:id="@+id/btnMove"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/cd_move"
+            android:src="@drawable/ic_folder"
+            app:tint="@color/on_surface_variant" />
+
         <ImageButton
             android:id="@+id/btnDelete"
             android:layout_width="44dp"

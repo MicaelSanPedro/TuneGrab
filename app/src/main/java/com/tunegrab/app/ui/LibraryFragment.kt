@@ -42,7 +42,9 @@ import androidx.documentfile.provider.DocumentFile
  * em chips próprios — nada misturado. Ações: reproduzir no app / abrir /
  * compartilhar / apagar. v0.19.7: SEGUIR NA FAIXA — segurar num cartão
  * entra no modo de seleção múltipla (tap alterna o check, barra contextual
- * com contador + Todos + lixeira) pra apagar em lote.
+ * com contador + Todos + lixeira) pra apagar em lote. v0.22.0: PASTAS DE
+ * VERDADE — botão de nova pasta (diretório real dentro da TuneGrab), linhas
+ * de pasta navegáveis e mover músicas pra dentro/fora (individual e lote).
  */
 class LibraryFragment : Fragment() {
 
@@ -59,6 +61,16 @@ class LibraryFragment : Fragment() {
      *  primeiro) — repassada ao player, que ganha anterior/próxima e pula
      *  sozinho pra próxima no fim de cada faixa. */
     private var audioQueue: List<LibraryEntry> = emptyList()
+
+    /** PASTAS (v0.22.0): a pasta aberta agora — chave relativa à raiz
+     *  ("" = raiz da pasta TuneGrab / da pasta escolhida). */
+    private var currentFolder: String = ""
+
+    /** Subpastas DIRETAS da pasta aberta (recarregadas no load/navegação). */
+    private var folders: List<LibraryFolders.LibFolder> = emptyList()
+
+    /** O texto de destino da raiz ("Salvando em: …") pra montar a trilha. */
+    private var rootFolderLabel: String = ""
 
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -102,6 +114,12 @@ class LibraryFragment : Fragment() {
         adapter.onOpen = { e -> open(e) }
         adapter.onShare = { e -> LibraryFiles.share(requireContext(), e) }
         adapter.onDelete = { e -> delete(e) }
+        // v0.22.0: PASTAS — navegar, criar pasta e mover (individual e lote)
+        adapter.onEnterFolder = { f -> enterFolder(f.key) }
+        adapter.onGoUp = { goUp() }
+        adapter.onMove = { e -> moveDialog(listOf(e)) }
+        binding.btnNewFolder.setOnClickListener { askNewFolder() }
+        binding.btnMoveSel.setOnClickListener { moveDialog(adapter.selectedEntries()) }
         // v0.19.7: barra contextual da seleção múltipla (contador/Todos/lixeira)
         adapter.onSelectCount = { n -> onSelCount(n) }
         binding.btnSelClose.setOnClickListener { adapter.exitSelection() }
@@ -146,48 +164,147 @@ class LibraryFragment : Fragment() {
             val (entries, folderLabel) = withContext(Dispatchers.IO) { LibraryFiles.listAll(ctx) }
             val b = _binding ?: return@launch
             all = entries
-            b.tvFolder.text = folderLabel
+            rootFolderLabel = folderLabel
+            b.tvFolder.text = crumbsLabel()
+            refreshFolders(ctx)
+        }
+    }
+
+    /** Trilha de navegação (v0.22.0): na raiz, o destino de sempre
+     *  ("Salvando em: …"); dentro de pasta, "TuneGrab › Forró › 2026". */
+    private fun crumbsLabel(): String {
+        if (currentFolder.isBlank()) return rootFolderLabel
+        val root = LibraryFolders.rootLabel(requireContext())
+        val path = currentFolder.split('/').joinToString(" › ")
+        return "$root › $path"
+    }
+
+    /** Lista as subpastas da pasta aberta (IO rápido) e re-renderiza. */
+    private fun refreshFolders(ctx: android.content.Context) {
+        lifecycleScope.launch {
+            val f = withContext(Dispatchers.IO) {
+                LibraryFolders.listChildren(ctx, currentFolder, all)
+            }
+            val b = _binding ?: return@launch
+            folders = f
             render()
         }
     }
 
-    /** Aplica o filtro do chip (Músicas/Vídeos) e divide em SEÇÕES: primeiro
-     *  o que foi baixado PELO TuneGrab (destaque, com preferência no topo),
-     *  depois as mídias achadas no aparelho. */
+    /** Entrou numa pasta: seleção morre (nada de mover/apagar o que não se
+     *  vê), pasta vira a atual, lista volta pro topo. */
+    private fun enterFolder(key: String) {
+        val ctx = requireContext()
+        adapter.exitSelection()
+        currentFolder = key
+        binding.list.scrollToPosition(0)
+        binding.tvFolder.text = crumbsLabel()
+        refreshFolders(ctx)
+    }
+
+    /** Voltou uma pasta (a linha “…” da lista). */
+    private fun goUp() {
+        val ctx = requireContext()
+        adapter.exitSelection()
+        currentFolder = currentFolder.substringBeforeLast('/', "")
+        binding.list.scrollToPosition(0)
+        binding.tvFolder.text = crumbsLabel()
+        refreshFolders(ctx)
+    }
+
+    /**
+     * Aplica o filtro do chip (Músicas/Vídeos) e monta as SEÇÕES. NA RAIZ:
+     * pastas primeiro (seção própria, v0.22.0), depois o baixado PELO
+     * TuneGrab e as mídias achadas no aparelho — a vista plana de sempre,
+     * NADA sumiu. DENTRO DE PASTA: linha de voltar, subpastas e só o que
+     * mora nela (faixa do próprio app; mídia de outro app não tem pasta). */
     private fun render() {
         val b = _binding ?: return
         val shown = all.filter { it.isVideoKind == showVideos }
-        val own = shown.filter { it.fromTuneGrab }
-        val others = shown.filter { !it.fromTuneGrab }
         val rows = buildList {
-            if (own.isNotEmpty()) {
-                add(
-                    LibRow.Section(
-                        getString(R.string.lib_section_own),
-                        own.size,
-                        own = true
+            if (currentFolder.isBlank()) {
+                if (folders.isNotEmpty()) {
+                    add(
+                        LibRow.Section(
+                            getString(R.string.lib_folders_section),
+                            folders.size,
+                            own = true,
+                            folders = true
+                        )
                     )
-                )
-                addAll(own.map { LibRow.File(it) })
-            }
-            if (others.isNotEmpty()) {
-                add(
-                    LibRow.Section(
-                        getString(R.string.lib_section_others),
-                        others.size,
-                        own = false
+                    addAll(folders.map { LibRow.Folder(it) })
+                }
+                val own = shown.filter { it.fromTuneGrab }
+                val others = shown.filter { !it.fromTuneGrab }
+                if (own.isNotEmpty()) {
+                    add(
+                        LibRow.Section(
+                            getString(R.string.lib_section_own),
+                            own.size,
+                            own = true
+                        )
                     )
-                )
-                addAll(others.map { LibRow.File(it) })
+                    addAll(own.map { LibRow.File(it) })
+                }
+                if (others.isNotEmpty()) {
+                    add(
+                        LibRow.Section(
+                            getString(R.string.lib_section_others),
+                            others.size,
+                            own = false
+                        )
+                    )
+                    addAll(others.map { LibRow.File(it) })
+                }
+            } else {
+                val parentKey = currentFolder.substringBeforeLast('/', "")
+                val parentLabel = if (parentKey.isBlank()) {
+                    LibraryFolders.rootLabel(requireContext())
+                } else {
+                    parentKey.substringAfterLast('/')
+                }
+                add(LibRow.Up(parentLabel))
+                if (folders.isNotEmpty()) {
+                    add(
+                        LibRow.Section(
+                            getString(R.string.lib_folders_section),
+                            folders.size,
+                            own = true,
+                            folders = true
+                        )
+                    )
+                    addAll(folders.map { LibRow.Folder(it) })
+                }
+                val inside = shown.filter { it.fromTuneGrab && it.folder == currentFolder }
+                if (inside.isNotEmpty()) {
+                    add(
+                        LibRow.Section(
+                            getString(R.string.lib_section_own),
+                            inside.size,
+                            own = true
+                        )
+                    )
+                    addAll(inside.map { LibRow.File(it) })
+                }
             }
         }
         adapter.submit(rows)
-        b.tvEmpty.isVisible = shown.isEmpty()
-        // fila de músicas na ordem em que aparecem na tela (próprias primeiro)
-        audioQueue = if (showVideos) emptyList() else own + others
+        // vazio: dentro de pasta a frase ensina o caminho (mover pra cá /
+        // subpasta); na raiz vale a mensagem estática de sempre (XML)
+        if (currentFolder.isNotBlank()) {
+            b.tvEmpty.text = getString(R.string.lib_empty_folder_view)
+        }
+        b.tvEmpty.isVisible = rows.none { it is LibRow.File || it is LibRow.Folder }
+        b.list.isVisible = rows.any { it is LibRow.File || it is LibRow.Folder }
+        // fila de músicas na ordem em que aparecem na tela (próprias
+        // primeiro; dentro de pasta: só o que mora nela)
+        audioQueue = if (showVideos) emptyList() else {
+            val own = shown.filter { it.fromTuneGrab }
+            if (currentFolder.isBlank()) own + shown.filter { !it.fromTuneGrab }
+            else own.filter { it.folder == currentFolder }
+        }
         // MESMA DOENÇA do print da Central: vazio peso 1 × lista peso 99 —
         // com a lista “visível e vazia” a mensagem ficava com 1% da tela.
-        b.list.isVisible = shown.isNotEmpty()
         // contagem em cada chip: dá pra ver o que tem no outro filtro sem sair daqui
         b.chipFilterAudio.text = getString(
             R.string.lib_chip_count,
@@ -309,6 +426,114 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    // ---------- PASTAS (v0.22.0): criar e mover ----------
+
+    /** Botão de pasta com + (topo): diálogo com o nome da nova pasta —
+     *  nasce DE VERDADE dentro da pasta aberta agora. */
+    private fun askNewFolder() {
+        val ctx = context ?: return
+        val input = android.widget.EditText(ctx).apply {
+            hint = ctx.getString(R.string.lib_new_folder_hint)
+            setSingleLine(true)
+            val pad = (20 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, pad / 2)
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.lib_new_folder_title)
+            .setMessage(R.string.lib_new_folder_msg)
+            .setView(input)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.lib_new_folder_ok) { _, _ ->
+                createFolder(input.text.toString())
+            }
+            .show()
+    }
+
+    private fun createFolder(rawName: String) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            val res = withContext(Dispatchers.IO) {
+                LibraryFolders.create(ctx, currentFolder, rawName)
+            }
+            if (_binding == null) return@launch // a aba saiu da tela no meio
+            when (res) {
+                is LibraryFolders.CreateResult.Created -> {
+                    Toast.makeText(ctx, R.string.lib_folder_created, Toast.LENGTH_SHORT).show()
+                    refreshFolders(ctx)
+                }
+                LibraryFolders.CreateResult.Exists -> cant(R.string.lib_err_folder_exists)
+                LibraryFolders.CreateResult.Invalid -> cant(R.string.lib_err_folder_name)
+                LibraryFolders.CreateResult.Failed -> cant(R.string.lib_err_folder_create)
+            }
+        }
+    }
+
+    /**
+     * MOVER: diálogo com a lista de pastas (raiz + todas, indentadas por
+     * profundidade). A pasta onde o arquivo já está aparece, mas mover pra
+     * onde já está é contado como "same" — nada de surpresa.
+     */
+    private fun moveDialog(entries: List<LibraryEntry>) {
+        val owned = entries.filter { it.fromTuneGrab }
+        if (owned.isEmpty()) return cant(R.string.lib_move_nofolders)
+        val ctx0 = context ?: return
+        lifecycleScope.launch {
+            val keys = withContext(Dispatchers.IO) { LibraryFolders.listAllKeys(ctx0) }
+            if (!isAdded) return@launch
+            val ctx = context ?: return@launch
+            val options = mutableListOf("" to ctx.getString(R.string.lib_move_root))
+            keys.forEach { k ->
+                val depth = k.count { c -> c == '/' }
+                options.add(k to "    ".repeat(depth) + k.substringAfterLast('/'))
+            }
+            var chosen = -1
+            MaterialAlertDialogBuilder(ctx)
+                .setTitle(R.string.lib_move_title)
+                .setSingleChoiceItems(options.map { it.second }.toTypedArray(), -1) { _, which ->
+                    chosen = which
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.lib_move_ok) { _, _ ->
+                    if (chosen in options.indices) {
+                        moveSelected(owned, options[chosen].first)
+                    }
+                }
+                .show()
+        }
+    }
+
+    private fun moveSelected(entries: List<LibraryEntry>, targetKey: String) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            val res = withContext(Dispatchers.IO) {
+                LibraryFolders.moveMany(ctx, entries, targetKey)
+            }
+            if (_binding == null) return@launch // a aba saiu da tela no meio
+            adapter.exitSelection()
+            when {
+                res.moved == 0 && res.same == entries.size ->
+                    cant(R.string.lib_move_same)
+                res.moved == 0 ->
+                    cant(if (entries.size == 1) R.string.lib_err_move_one else R.string.lib_err_move)
+                res.moved + res.same == entries.size -> {
+                    val msg = if (res.moved == 1) {
+                        ctx.getString(R.string.lib_moved_one)
+                    } else {
+                        ctx.getString(R.string.lib_moved_many, res.moved)
+                    }
+                    Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+                }
+                else ->
+                    Toast.makeText(
+                        ctx,
+                        ctx.getString(R.string.lib_move_partial, res.moved, entries.size),
+                        Toast.LENGTH_LONG
+                    ).show()
+            }
+            load()
+        }
+    }
+
     // ---------- seleção múltipla (v0.19.7) ----------
 
     /** A barra contextual acompanha a contagem: entrando no modo ela
@@ -382,22 +607,41 @@ class LibraryFragment : Fragment() {
     }
 }
 
-/** Linha da lista da Biblioteca: cabeçalho de seção ou arquivo. */
+/** Linha da lista da Biblioteca: cabeçalho de seção, arquivo, PASTA
+ *  navegável (v0.22.0) ou a linha de voltar. */
 sealed class LibRow {
-    data class Section(val title: String, val count: Int, val own: Boolean) : LibRow()
+    data class Section(
+        val title: String,
+        val count: Int,
+        val own: Boolean,
+        val folders: Boolean = false
+    ) : LibRow()
+
     data class File(val entry: LibraryEntry) : LibRow()
+
+    /** PASTAS (v0.22.0): linha de pasta que abre ao toque. */
+    data class Folder(val folder: LibraryFolders.LibFolder) : LibRow()
+
+    /** PASTAS (v0.22.0): linha “…” — sobe uma pasta (a raiz usa o nome dela). */
+    data class Up(val parentLabel: String) : LibRow()
 }
 
 class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     class HeaderHolder(val binding: ItemLibraryHeaderBinding) : RecyclerView.ViewHolder(binding.root)
     class EntryHolder(val binding: ItemLibraryFileBinding) : RecyclerView.ViewHolder(binding.root)
+    class FolderHolder(val binding: ItemLibraryFolderBinding) : RecyclerView.ViewHolder(binding.root)
 
     private var rows: List<LibRow> = emptyList()
     var onPlay: ((LibraryEntry) -> Unit)? = null
     var onOpen: ((LibraryEntry) -> Unit)? = null
     var onShare: ((LibraryEntry) -> Unit)? = null
     var onDelete: ((LibraryEntry) -> Unit)? = null
+
+    // v0.22.0: pastas — entrar, subir e mover faixa pra pasta
+    var onEnterFolder: ((LibRow.Folder) -> Unit)? = null
+    var onGoUp: (() -> Unit)? = null
+    var onMove: ((LibraryEntry) -> Unit)? = null
 
     // ---------- seleção múltipla (v0.19.7) ----------
 
@@ -467,14 +711,30 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         notifyDataSetChanged()
     }
 
-    override fun getItemViewType(position: Int): Int =
-        if (rows[position] is LibRow.Section) TYPE_HEADER else TYPE_FILE
+    override fun getItemViewType(position: Int): Int = when (rows[position]) {
+        is LibRow.Section -> TYPE_HEADER
+        is LibRow.File -> TYPE_FILE
+        // pasta e voltar compartilham o layout de pasta (ícone/nome/chevron)
+        else -> TYPE_FOLDER
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder =
-        if (viewType == TYPE_HEADER) {
-            HeaderHolder(ItemLibraryHeaderBinding.inflate(LayoutInflater.from(parent.context), parent, false))
-        } else {
-            EntryHolder(ItemLibraryFileBinding.inflate(LayoutInflater.from(parent.context), parent, false))
+        when (viewType) {
+            TYPE_HEADER -> HeaderHolder(
+                ItemLibraryHeaderBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                )
+            )
+            TYPE_FILE -> EntryHolder(
+                ItemLibraryFileBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                )
+            )
+            else -> FolderHolder(
+                ItemLibraryFolderBinding.inflate(
+                    LayoutInflater.from(parent.context), parent, false
+                )
+            )
         }
 
     override fun getItemCount(): Int = rows.size
@@ -484,7 +744,13 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             is LibRow.Section -> {
                 val b = (holder as HeaderHolder).binding
                 b.tvSectionTitle.text = "${row.title} · ${row.count}"
-                if (row.own) {
+                if (row.folders) {
+                    // v0.22.0: seção de PASTAS — ícone de pasta na cor do app
+                    b.headerIcon.setImageResource(R.drawable.ic_folder)
+                    b.headerIcon.setColorFilter(
+                        ContextCompat.getColor(b.root.context, R.color.primary)
+                    )
+                } else if (row.own) {
                     b.headerIcon.setImageResource(R.drawable.ic_download)
                     b.headerIcon.setColorFilter(
                         ContextCompat.getColor(b.root.context, R.color.primary)
@@ -495,6 +761,36 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                         ContextCompat.getColor(b.root.context, R.color.on_surface_variant)
                     )
                 }
+            }
+            is LibRow.Folder -> {
+                // v0.22.0: linha de pasta — nome, contagem de itens e chevron;
+                // o toque entra na pasta (navegação de verdade)
+                val b = (holder as FolderHolder).binding
+                val ctx = b.root.context
+                b.tvName.text = row.folder.name
+                b.tvMeta.text = when (row.folder.items) {
+                    0 -> ctx.getString(R.string.lib_folder_empty)
+                    1 -> ctx.getString(R.string.lib_folder_items_one)
+                    else -> ctx.getString(R.string.lib_folder_items, row.folder.items)
+                }
+                b.icon.setImageResource(R.drawable.ic_folder)
+                b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.primary))
+                b.chevron.isVisible = true
+                b.root.setOnClickListener { onEnterFolder?.invoke(row) }
+            }
+            is LibRow.Up -> {
+                // v0.22.0: linha de voltar — seta pra esquerda + o nome da
+                // pasta de cima (a raiz usa o nome dela, "TuneGrab")
+                val b = (holder as FolderHolder).binding
+                val ctx = b.root.context
+                b.tvName.text = row.parentLabel
+                b.tvMeta.text = ctx.getString(R.string.lib_up_meta)
+                b.icon.setImageResource(R.drawable.ic_back)
+                b.icon.setColorFilter(
+                    ContextCompat.getColor(ctx, R.color.on_surface_variant)
+                )
+                b.chevron.isVisible = false
+                b.root.setOnClickListener { onGoUp?.invoke() }
             }
             is LibRow.File -> {
                 val entry = row.entry
@@ -515,13 +811,16 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.primary))
                 }
 
-                // v0.19.7: no modo seleção os 3 botões saem e o círculo de
+                // v0.19.7: no modo seleção os 4 botões saem e o círculo de
                 // check entra; o cartão marcado ganha fundo roxo + borda violeta
                 val isSel = selectionMode && key(entry) in selected
                 b.selBox.isVisible = selectionMode
                 b.chk.setImageResource(if (isSel) R.drawable.bg_sel_on else R.drawable.bg_sel_off)
                 b.btnPlay.isVisible = !selectionMode
                 b.btnShare.isVisible = !selectionMode
+                // v0.22.0: MOVER só em faixa do TuneGrab — o app é dono dos
+                // próprios downloads; mídia de outro app não é dele pra mover
+                b.btnMove.isVisible = !selectionMode && entry.fromTuneGrab
                 b.btnDelete.isVisible = !selectionMode
                 b.root.setCardBackgroundColor(
                     ContextCompat.getColor(ctx, if (isSel) R.color.sel_card else R.color.surface)
@@ -544,6 +843,7 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 }
                 b.btnPlay.setOnClickListener { onPlay?.invoke(entry) }
                 b.btnShare.setOnClickListener { onShare?.invoke(entry) }
+                b.btnMove.setOnClickListener { onMove?.invoke(entry) }
                 b.btnDelete.setOnClickListener { onDelete?.invoke(entry) }
             }
         }
@@ -552,5 +852,6 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     companion object {
         private const val TYPE_HEADER = 0
         private const val TYPE_FILE = 1
+        private const val TYPE_FOLDER = 2
     }
 }

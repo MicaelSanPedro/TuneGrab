@@ -32,7 +32,13 @@ data class LibraryEntry(
      *  "TuneGrab" achado pela permissão de áudio) — ganha a seção de
      *  destaque no topo da Biblioteca. false = achado no aparelho pela
      *  permissão de áudio (música de outro app). */
-    val fromTuneGrab: Boolean = false
+    val fromTuneGrab: Boolean = false,
+    /** PASTAS (v0.22.0): chave da pasta onde o arquivo mora, relativa à raiz
+     *  de navegação ("" = raiz, "Forró", "Forró/2026" — ver
+     *  LibraryFolders). null = fora da raiz navegável ou origem desconhecida
+     *  (música de outro app, pasta antiga fora do padrão) — continua
+     *  listada na vista plana da raiz, mas não entra na navegação. */
+    val folder: String? = null
 ) {
     val isVideoKind: Boolean get() = isVideo || mime.startsWith("video")
 }
@@ -152,6 +158,11 @@ object LibraryFiles {
         return entries.firstOrNull { it.name.lowercase() == wanted }
     }
 
+    /** Chave de pasta (v0.22.0) de um documento DENTRO da tree — espelho do
+     *  LibraryFolders.treeKey (mesmo cálculo; aqui sem tocar na classe). */
+    private fun treeFolderKey(tree: Uri, docUri: Uri): String? =
+        LibraryFolders.treeKey(tree, docUri)
+
     private fun listTree(ctx: Context, tree: Uri): List<LibraryEntry> {
         val dir = DocumentFile.fromTreeUri(ctx, tree) ?: return emptyList()
         return dir.listFiles()
@@ -165,7 +176,8 @@ object LibraryFiles {
                     modifiedMs = it.lastModified(),
                     mime = mime,
                     isVideo = mime.startsWith("video"),
-                    docUri = it.uri
+                    docUri = it.uri,
+                    folder = treeFolderKey(tree, it.uri)
                 )
             }
             .sortedByDescending { it.modifiedMs }
@@ -183,7 +195,8 @@ object LibraryFiles {
             MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.SIZE,
             MediaStore.MediaColumns.DATE_MODIFIED,
-            MediaStore.MediaColumns.MIME_TYPE
+            MediaStore.MediaColumns.MIME_TYPE,
+            MediaStore.MediaColumns.RELATIVE_PATH
         )
         val out = mutableListOf<LibraryEntry>()
         try {
@@ -205,16 +218,19 @@ object LibraryFiles {
                 val sizeCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                 val dateCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
                 val mimeCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
+                val pathCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
                 while (c.moveToNext()) {
                     val name = c.getString(nameCol) ?: continue
                     val mime = c.getString(mimeCol) ?: mimeOf(name)
+                    val rel = try { c.getString(pathCol) } catch (t: Throwable) { null }
                     out += LibraryEntry(
                         name = name,
                         size = c.getLong(sizeCol),
                         modifiedMs = c.getLong(dateCol) * 1000L,
                         mime = mime,
                         isVideo = mime.startsWith("video"),
-                        mediaUri = ContentUris.withAppendedId(collection, c.getLong(idCol))
+                        mediaUri = ContentUris.withAppendedId(collection, c.getLong(idCol)),
+                        folder = LibraryFolders.relativePathToKey(rel)
                     )
                 }
             }
@@ -273,7 +289,8 @@ object LibraryFiles {
                         mediaUri = ContentUris.withAppendedId(
                             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, c.getLong(idCol)
                         ),
-                        fromTuneGrab = path.contains("tunegrab", ignoreCase = true)
+                        fromTuneGrab = path.contains("tunegrab", ignoreCase = true),
+                        folder = LibraryFolders.relativePathToKey(path)
                     )
                 }
             }
@@ -338,7 +355,8 @@ object LibraryFiles {
                     modifiedMs = it.lastModified(),
                     mime = mime,
                     isVideo = mime.startsWith("video"),
-                    file = it
+                    file = it,
+                    folder = LibraryFolders.fileToKey(it)
                 )
             }
             ?.sortedByDescending { it.modifiedMs }

@@ -25,6 +25,17 @@
             android:textSize="20sp"
             android:textStyle="bold" />
 
+        <!-- v0.22.0: NOVA PASTA — cria um diretório DE VERDADE dentro da
+             pasta TuneGrab (ou da pasta escolhida), na pasta aberta agora -->
+        <ImageButton
+            android:id="@+id/btnNewFolder"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/lib_new_folder"
+            android:src="@drawable/ic_folder_add"
+            app:tint="@color/primary" />
+
         <ImageButton
             android:id="@+id/btnRefresh"
             android:layout_width="44dp"
@@ -79,6 +90,17 @@
             android:layout_height="wrap_content"
             android:minWidth="0dp"
             android:text="@string/lib_sel_all" />
+
+        <!-- v0.22.0: mover em lote — leva os selecionados pra pasta escolhida
+             no diálogo (mesmo fluxo do mover individual) -->
+        <ImageButton
+            android:id="@+id/btnMoveSel"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/cd_move_sel"
+            android:src="@drawable/ic_folder"
+            app:tint="@color/primary" />
 
         <ImageButton
             android:id="@+id/btnDeleteSel"

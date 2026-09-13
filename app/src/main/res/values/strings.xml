@@ -285,6 +285,37 @@
     <string name="cd_share">Compartilhar</string>
     <string name="cd_delete">Apagar</string>
 
+    <!-- PASTAS DE VERDADE na Biblioteca (v0.22.0): criar, navegar e mover
+         músicas pra dentro/fora — tudo dentro da pasta TuneGrab -->
+    <string name="lib_folders_section">Pastas</string>
+    <string name="lib_folder_empty">pasta vazia</string>
+    <string name="lib_folder_items_one">1 item</string>
+    <string name="lib_folder_items">%1$d itens</string>
+    <string name="lib_root_name">TuneGrab</string>
+    <string name="lib_up_meta">Toque pra voltar</string>
+    <string name="lib_empty_folder_view">Pasta vazia.\nMova músicas pra cá (botão de pasta na faixa) ou crie uma subpasta pelo botão de pasta com + no topo.</string>
+    <string name="lib_new_folder">Nova pasta</string>
+    <string name="lib_new_folder_title">Nova pasta</string>
+    <string name="lib_new_folder_msg">A pasta nasce DE VERDADE dentro da pasta do TuneGrab — aparece no gerenciador de arquivos do aparelho também.</string>
+    <string name="lib_new_folder_hint">Nome da pasta</string>
+    <string name="lib_new_folder_ok">Criar</string>
+    <string name="lib_folder_created">Pasta criada ✓</string>
+    <string name="lib_err_folder_name">Escreve um nome pra pasta (sem “/”)</string>
+    <string name="lib_err_folder_exists">Já existe uma pasta com esse nome aqui</string>
+    <string name="lib_err_folder_create">Não foi possível criar a pasta.</string>
+    <string name="lib_move_title">Mover pra pasta</string>
+    <string name="lib_move_root">TuneGrab (fora da pasta)</string>
+    <string name="lib_move_ok">Mover</string>
+    <string name="lib_moved_one">Movido ✓</string>
+    <string name="lib_moved_many">%1$d movidos ✓</string>
+    <string name="lib_move_partial">Movei %1$d de %2$d — o resto não pôde ser movido</string>
+    <string name="lib_move_same">Já está nessa pasta</string>
+    <string name="lib_move_nofolders">Você ainda não tem pastas — toque no botão de pasta com + no topo pra criar a primeira</string>
+    <string name="lib_err_move">Não foi possível mover — pode já existir arquivo com o mesmo nome no destino.</string>
+    <string name="lib_err_move_one">Não foi possível mover este arquivo.</string>
+    <string name="cd_move">Mover pra pasta</string>
+    <string name="cd_move_sel">Mover selecionadas</string>
+
     <!-- Pasta de download -->
     <string name="settings_folder">Pasta de download</string>
     <string name="settings_folder_default">Padrão: Downloads/TuneGrab</string>
