@@ -303,6 +303,27 @@
     <string name="lib_err_folder_name">Escreve um nome pra pasta (sem “/”)</string>
     <string name="lib_err_folder_exists">Já existe uma pasta com esse nome aqui</string>
     <string name="lib_err_folder_create">Não foi possível criar a pasta.</string>
+    <!-- v0.22.3: renomear e apagar pastas (micaelsan: "eu não consigo
+         deletar pastas ou renomear elas") -->
+    <string name="lib_folder_more">Opções da pasta</string>
+    <string name="lib_folder_opt_rename">Renomear</string>
+    <string name="lib_folder_opt_delete">Apagar pasta</string>
+    <string name="lib_folder_rename_title">Renomear pasta</string>
+    <string name="lib_folder_rename_ok">Renomear</string>
+    <string name="lib_folder_renamed">Pasta renomeada ✓</string>
+    <string name="lib_err_folder_rename">Não foi possível renomear a pasta.</string>
+    <string name="lib_folder_delete_title">Apagar pasta</string>
+    <string name="lib_folder_delete_empty">Apagar a pasta “%1$s” vazia?</string>
+    <string name="lib_folder_deleted">Pasta apagada ✓</string>
+    <string name="lib_err_folder_delete">Não foi possível apagar a pasta.</string>
+    <plurals name="lib_folder_delete_items">
+        <item quantity="one">Apagar “%1$s” e o %2$d item que mora dentro dela?\nSubpastas e tudo que tem nelas vai junto.</item>
+        <item quantity="other">Apagar “%1$s” e os %2$d itens que moram dentro dela?\nSubpastas e tudo que tem nelas vai junto.</item>
+    </plurals>
+    <plurals name="lib_folder_delete_left">
+        <item quantity="one">A pasta foi, mas %1$d item ficou pra trás (não é do TuneGrab)</item>
+        <item quantity="other">A pasta foi, mas %1$d itens ficaram pra trás (não são do TuneGrab)</item>
+    </plurals>
     <string name="lib_move_title">Mover pra pasta</string>
     <string name="lib_move_root">TuneGrab (fora da pasta)</string>
     <string name="lib_move_ok">Mover</string>

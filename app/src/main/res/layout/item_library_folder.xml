@@ -62,6 +62,20 @@
                 android:textSize="11sp" />
         </LinearLayout>
 
+        <!-- v0.22.3: três pontos — renomear/apagar SEM depender de o autor
+             descobrir o segurar (que também funciona, mesma área de toque
+             do cartão de arquivo). A linha de VOLTAR esconde (adapter). -->
+        <ImageView
+            android:id="@+id/btnMore"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/lib_folder_more"
+            android:padding="2dp"
+            android:src="@drawable/ic_more_vert"
+            app:tint="@color/on_surface_variant" />
+
         <ImageView
             android:id="@+id/chevron"
             android:layout_width="20dp"

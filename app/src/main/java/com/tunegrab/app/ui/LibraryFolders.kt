@@ -1,5 +1,6 @@
 package com.tunegrab.app.ui
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.media.MediaScannerConnection
@@ -38,6 +39,17 @@ import java.io.File
  * NUNCA sobrescreve: se já existe arquivo com o mesmo nome no destino, o
  * move falha com aviso — o toque errado não pode custar uma música.
  *
+ * v0.22.3 — micaelsan: "eu não consigo deletar pastas ou renomear elas".
+ * RENOMEAR e APAGAR de pasta, nos mesmos 3 backends do mover:
+ *  · rename — File renameTo do diretório (24–28 e 30+ FUSE) + UPDATE do
+ *    RELATIVE_PATH em lote no MediaStore (corrige o índice quando o rename
+ *    de disco funciona e vira o PLANO B quando não vira); SAF renameTo.
+ *  · delete — varredura MediaStore (arquivos indexados da pasta, API 29+,
+ *    só o que o PRÓPRIO app contribuiu) + limpeza física java.io.File do
+ *    que sobrou de fora do índice + MediaScanner; SAF: varridura recursiva
+ *    do DocumentFile (arquivos primeiro, pastas de baixo pra cima).
+ * Sempre com contagem honesta (apagados x que ficaram) — a UI avisa.
+ *
  * ZERO toque no DownloadService: downloads continuam nascendo na raiz da
  * pasta de destino, exatamente como sempre.
  */
@@ -59,6 +71,19 @@ object LibraryFolders {
 
     /** Resultado do lote: `same` = já estavam na pasta de destino. */
     data class MoveResult(val moved: Int, val same: Int)
+
+    /** v0.22.3: resultado da exclusão de pasta — `deleted` conta arquivos
+     *  removidos (+1 se a própria pasta virou nada no fim); `failed` conta
+     *  os que NEGARAM a remoção (faixa de outro app, storage teimoso). */
+    data class DeleteResult(val deleted: Int, val failed: Int)
+
+    /** v0.22.3: resultado do rename — cada caso tem frase própria na UI. */
+    sealed class RenameResult {
+        object Renamed : RenameResult()
+        object Exists : RenameResult()
+        object Invalid : RenameResult()
+        object Failed : RenameResult()
+    }
 
     // ---------- raiz e chaves ----------
 
@@ -416,5 +441,234 @@ object LibraryFolders {
             Log.w(TAG, "move SAF falhou: ${e.name}", t)
             false
         }
+    }
+
+    // ---------- v0.22.3: RENOMEAR E APAGAR PASTA ----------
+
+    /** RELATIVE_PATH do MediaStore que corresponde à chave: "Download/
+     *  TuneGrab/Foo/" — SEMPRE com barra no fim (é o formato do índice). */
+    private fun relOf(key: String): String =
+        "${Environment.DIRECTORY_DOWNLOADS}/$ROOT_NAME" +
+            if (key.isBlank()) "/" else "/$key/"
+
+    /**
+     * RENOMEAR PASTA (v0.22.3) — micaelsan: "eu não consigo deletar pastas
+     * ou renomear elas". Ordem do rename no destino padrão:
+     *  1. colisão primeiro (File E MediaStore) — nunca em cima do vizinho;
+     *  2. File renameTo do DIRETÓRIO (24–28 legado; 30+ FUSE nos próprios
+     *     arquivos; 29 não alcança caminho — cai pro passo 3);
+     *  3. UPDATE do RELATIVE_PATH em LOTE no MediaStore (API 29+): corrige
+     *     o índice quando o rename de disco funcionou e move por conta
+     *     própria quando não funcionou (a pasta nova nasce implícita, a
+     *     velha fica vazia e é removida no fim).
+     * SAF: renameTo do DocumentFile (renameDocument do provider).
+     */
+    fun renameFolder(ctx: Context, key: String, rawNewName: String): RenameResult {
+        if (key.isBlank()) return RenameResult.Failed // a raiz não tem nome
+        val newName = sanitize(rawNewName) ?: return RenameResult.Invalid
+        val currentName = key.substringAfterLast('/')
+        if (newName == currentName) return RenameResult.Renamed
+        return try {
+            if (isCustomTree(ctx)) {
+                val parentKey = key.substringBeforeLast('/', "")
+                val parentDoc = navigateDoc(ctx, parentKey) ?: return RenameResult.Failed
+                if (parentDoc.findFile(newName)?.exists() == true) return RenameResult.Exists
+                val dir = navigateDoc(ctx, key) ?: return RenameResult.Failed
+                if (dir.renameTo(newName)) RenameResult.Renamed else RenameResult.Failed
+            } else {
+                val root = defaultRoot()
+                val parentKey = key.substringBeforeLast('/', "")
+                val newKey = joinKey(parentKey, newName)
+                // 1) colisão: o MediaStore indexa (29+) e o disco confirma
+                if (Build.VERSION.SDK_INT >= 29 &&
+                    mediaStoreCountUnder(ctx, relOf(newKey)) > 0
+                ) return RenameResult.Exists
+                val parentDir = navigateFile(root, parentKey)
+                if (parentDir != null && File(parentDir, newName).exists()) {
+                    return RenameResult.Exists
+                }
+                // 2) rename do diretório por caminho
+                var ok = false
+                val dir = navigateFile(root, key)
+                if (dir?.isDirectory == true) {
+                    val target = File(dir.parentFile, newName)
+                    if (dir.renameTo(target)) {
+                        ok = true
+                        MediaScannerConnection.scanFile(
+                            ctx.applicationContext,
+                            arrayOf(dir.absolutePath, target.absolutePath), null, null
+                        )
+                    }
+                }
+                // 3) índice: quando o disco moveu, CORRIGE; quando não moveu,
+                // MOVE (e a velha vazia some no fim)
+                if (Build.VERSION.SDK_INT >= 29) {
+                    if (mediaStoreRenamePath(ctx, relOf(key), relOf(newKey)) > 0) ok = true
+                    if (ok) try { dir?.delete() } catch (_: Throwable) {}
+                }
+                if (ok) RenameResult.Renamed else RenameResult.Failed
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "renomear pasta falhou (key=$key)", t)
+            RenameResult.Failed
+        }
+    }
+
+    /**
+     * APAGAR PASTA (v0.22.3) com TUDO que mora dentro (subpastas vão junto
+     * — a confirmação da UI diz isso). Contagem honesta: `deleted` =
+     * arquivos removidos (+1 se a própria pasta sumiu no fim); `failed` =
+     * os que negaram (faixa de outro app fica, o resto da pasta também).
+     * Destino padrão: MediaStore varre os indexados (29+, só o próprio app
+     * consegue apagar sem confirmação por arquivo) e o File limpa o que
+     * ficou de fora do índice + a pasta física. SAF: varridura recursiva.
+     */
+    fun deleteFolder(ctx: Context, key: String): DeleteResult {
+        if (key.isBlank()) return DeleteResult(0, 1) // a raiz nunca
+        val acc = IntArray(2) // [apagados, falhados]
+        try {
+            if (isCustomTree(ctx)) {
+                val dir = navigateDoc(ctx, key) ?: return DeleteResult(0, 0)
+                wipeDoc(dir, acc)
+                if (dir.delete()) acc[0]++ // a pasta em si
+            } else {
+                if (Build.VERSION.SDK_INT >= 29) mediaStoreSweepDelete(ctx, key, acc)
+                val dir = navigateFile(defaultRoot(), key)
+                if (dir?.isDirectory == true) {
+                    wipeFile(dir, acc)
+                    if (dir.delete()) acc[0]++ // a pasta em si
+                    MediaScannerConnection.scanFile(
+                        ctx.applicationContext, arrayOf(dir.absolutePath), null, null
+                    )
+                }
+                // API 29 sem pasta alcançável: o MediaProvider poda o
+                // diretório sozinho quando o último arquivo vai embora
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "apagar pasta falhou (key=$key)", t)
+        }
+        return DeleteResult(acc[0], acc[1])
+    }
+
+    /** Varredura SAF: arquivos primeiro, pastas de baixo pra cima. */
+    private fun wipeDoc(dir: DocumentFile, acc: IntArray) {
+        for (child in dir.listFiles()) {
+            if (child.isDirectory) {
+                wipeDoc(child, acc)
+                child.delete() // some se os filhos saíram todos; senão fica
+            } else {
+                if (child.delete()) acc[0]++ else acc[1]++
+            }
+        }
+    }
+
+    /** Varredura java.io.File: idem (o que o índice não tinha, o disco paga). */
+    private fun wipeFile(dir: File, acc: IntArray) {
+        val children = dir.listFiles() ?: return
+        for (child in children) {
+            if (child.isDirectory) {
+                wipeFile(child, acc)
+                child.delete()
+            } else {
+                if (child.delete()) acc[0]++ else acc[1]++
+            }
+        }
+    }
+
+    /**
+     * APAGA no MediaStore (API 29+) cada arquivo indexado sob a pasta — o
+     * app é dono dos que ele mesmo baixou (delete direto, sem confirmação
+     * por arquivo); faixa de OUTRO app lança RecoverableSecurityException e
+     * entra na contagem de `failed` (o aviso da UI explica o que ficou).
+     */
+    private fun mediaStoreSweepDelete(ctx: Context, key: String, acc: IntArray) {
+        try {
+            val uris = ArrayList<Uri>()
+            ctx.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.MediaColumns._ID),
+                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? ESCAPE '\\'",
+                arrayOf(escapeLike(relOf(key)) + "%"), null
+            )?.use { c ->
+                val idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                while (c.moveToNext()) {
+                    uris.add(
+                        ContentUris.withAppendedId(
+                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, c.getLong(idCol)
+                        )
+                    )
+                }
+            }
+            for (u in uris) {
+                try {
+                    if (ctx.contentResolver.delete(u, null, null) > 0) acc[0]++ else acc[1]++
+                } catch (t: Throwable) {
+                    acc[1]++ // RecoverableSecurityException = não é dela
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "varredura MediaStore (apagar pasta) falhou", t)
+        }
+    }
+
+    /** Quantos arquivos indexados moram sob `relPrefix` (com barra no fim) —
+     *  o teste de colisão do rename usa (LIKE escapado, como no resto). */
+    private fun mediaStoreCountUnder(ctx: Context, relPrefix: String): Int = try {
+        var n = 0
+        ctx.contentResolver.query(
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? ESCAPE '\\'",
+            arrayOf(escapeLike(relPrefix) + "%"), null
+        )?.use { c -> n = c.count }
+        n
+    } catch (t: Throwable) {
+        Log.w(TAG, "contagem MediaStore (colisão de rename) falhou", t)
+        0
+    }
+
+    /**
+     * RENAME em LOTE no índice: cada arquivo com RELATIVE_PATH sob `oldRel`
+     * ganha UPDATE pro caminho novo (prefixo trocado, resto intacto). É a
+     * MESMA operação do moveViaMediaStore da v0.22.0, só que em lote: no
+     * arquivo do próprio app o UPDATE passa sem pergunta; o de outro app
+     * falha e não conta. Devolve quantos passaram.
+     */
+    private fun mediaStoreRenamePath(ctx: Context, oldRel: String, newRel: String): Int {
+        if (Build.VERSION.SDK_INT < 29) return 0
+        var ok = 0
+        try {
+            val updates = ArrayList<Pair<Uri, String>>()
+            ctx.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.RELATIVE_PATH),
+                "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? ESCAPE '\\'",
+                arrayOf(escapeLike(oldRel) + "%"), null
+            )?.use { c ->
+                val idCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                val pathCol = c.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
+                while (c.moveToNext()) {
+                    val old = c.getString(pathCol) ?: continue
+                    updates.add(
+                        ContentUris.withAppendedId(
+                            MediaStore.Downloads.EXTERNAL_CONTENT_URI, c.getLong(idCol)
+                        ) to (newRel + old.removePrefix(oldRel))
+                    )
+                }
+            }
+            for ((uri, newPath) in updates) {
+                try {
+                    val values = ContentValues().apply {
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, newPath)
+                    }
+                    if (ctx.contentResolver.update(uri, values, null, null) > 0) ok++
+                } catch (_: Throwable) {
+                    // faixa de outro app: o índice dela fica, o disco manda
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "renomear via MediaStore falhou", t)
+        }
+        return ok
     }
 }

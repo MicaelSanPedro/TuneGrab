@@ -120,6 +120,8 @@ class LibraryFragment : Fragment() {
         adapter.onEnterFolder = { f -> enterFolder(f.folder.key) }
         adapter.onGoUp = { goUp() }
         adapter.onMove = { e -> moveDialog(listOf(e)) }
+        // v0.22.3: segurar na pasta (ou o ⋮ dela) abre renomear/apagar
+        adapter.onFolderOptions = { f -> folderOptions(f) }
         binding.btnNewFolder.setOnClickListener { askNewFolder() }
         binding.btnMoveSel.setOnClickListener { moveDialog(adapter.selectedEntries()) }
         // v0.19.7: barra contextual da seleção múltipla (contador/Todos/lixeira)
@@ -231,18 +233,33 @@ class LibraryFragment : Fragment() {
     private fun render() {
         val b = _binding ?: return
         val shown = all.filter { it.isVideoKind == showVideos }
+        // v0.22.3 FIX (o "porque as pastas de MP3 aparecem em vídeos?"):
+        // a seção PASTAS listava `folders` cru, IGNORANDO o chip — a pasta
+        // de música aparecia até no filtro de VÍDEOS. Agora pasta entra só
+        // se tiver algo do tipo do chip DENTRO (ela mesma ou nas subpastas);
+        // a contagem da linha passa a contar esse tipo (o que você vê ao
+        // entrar bate com o número). Vazia de verdade: aparece nos 2 chips
+        // (pasta vazia precisa continuar achável pra ser preenchida).
+        val shownFolders = folders.mapNotNull { f ->
+            val prefix = "${f.key}/"
+            val sub = all.filter {
+                it.fromTuneGrab && (it.folder == f.key || it.folder.startsWith(prefix))
+            }
+            val kind = sub.count { it.isVideoKind == showVideos }
+            if (kind > 0 || sub.isEmpty()) f.copy(items = kind) else null
+        }
         val rows = buildList {
             if (currentFolder.isBlank()) {
-                if (folders.isNotEmpty()) {
+                if (shownFolders.isNotEmpty()) {
                     add(
                         LibRow.Section(
                             getString(R.string.lib_folders_section),
-                            folders.size,
+                            shownFolders.size,
                             own = true,
                             folders = true
                         )
                     )
-                    addAll(folders.map { LibRow.Folder(it) })
+                    addAll(shownFolders.map { LibRow.Folder(it) })
                 }
                 // v0.22.2 FIX (o “ctrl v”): raiz mostra só quem mora NA RAIZ —
                 // antes listava TODAS as próprias (vista plana da v0.22.0),
@@ -279,16 +296,16 @@ class LibraryFragment : Fragment() {
                     parentKey.substringAfterLast('/')
                 }
                 add(LibRow.Up(parentLabel))
-                if (folders.isNotEmpty()) {
+                if (shownFolders.isNotEmpty()) {
                     add(
                         LibRow.Section(
                             getString(R.string.lib_folders_section),
-                            folders.size,
+                            shownFolders.size,
                             own = true,
                             folders = true
                         )
                     )
-                    addAll(folders.map { LibRow.Folder(it) })
+                    addAll(shownFolders.map { LibRow.Folder(it) })
                 }
                 val inside = shown.filter { it.fromTuneGrab && it.folder == currentFolder }
                 if (inside.isNotEmpty()) {
@@ -565,6 +582,130 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    // ---------- PASTAS (v0.22.3): renomear e apagar ----------
+
+    /** Segurar na pasta (ou o ⋮): as duas ações que faltavam. */
+    private fun folderOptions(row: LibRow.Folder) {
+        val f = row.folder
+        val ctx = context ?: return
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(f.name)
+            .setItems(
+                arrayOf(
+                    ctx.getString(R.string.lib_folder_opt_rename),
+                    ctx.getString(R.string.lib_folder_opt_delete)
+                )
+            ) { _, which ->
+                when (which) {
+                    0 -> askRenameFolder(f)
+                    else -> confirmFolderDelete(f)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** Renomear: caixa de texto vinda com o nome atual, selecionado. */
+    private fun askRenameFolder(f: LibraryFolders.LibFolder) {
+        val ctx = context ?: return
+        val input = android.widget.EditText(ctx).apply {
+            hint = ctx.getString(R.string.lib_new_folder_hint)
+            setText(f.name)
+            setSingleLine(true)
+            setSelection(f.name.length)
+            val pad = (20 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad / 2, pad, pad / 2)
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.lib_folder_rename_title)
+            .setView(input)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.lib_folder_rename_ok) { _, _ ->
+                renameFolder(f, input.text.toString())
+            }
+            .show()
+    }
+
+    private fun renameFolder(f: LibraryFolders.LibFolder, rawName: String) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            val res = withContext(Dispatchers.IO) {
+                LibraryFolders.renameFolder(ctx, f.key, rawName)
+            }
+            if (_binding == null) return@launch // a aba saiu da tela no meio
+            when (res) {
+                is LibraryFolders.RenameResult.Renamed -> {
+                    Toast.makeText(ctx, R.string.lib_folder_renamed, Toast.LENGTH_SHORT).show()
+                    // aberta na pasta renomeada (ou dentro dela)? acompanha
+                    if (currentFolder == f.key || currentFolder.startsWith("${f.key}/")) {
+                        val newName = LibraryFolders.sanitize(rawName) ?: f.name
+                        val parent = f.key.substringBeforeLast('/', "")
+                        val newKey = if (parent.isBlank()) newName else "$parent/$newName"
+                        currentFolder = newKey + currentFolder.removePrefix(f.key)
+                        binding.tvFolder.text = crumbsLabel()
+                    }
+                    load()
+                }
+                LibraryFolders.RenameResult.Exists -> cant(R.string.lib_err_folder_exists)
+                LibraryFolders.RenameResult.Invalid -> cant(R.string.lib_err_folder_name)
+                LibraryFolders.RenameResult.Failed -> cant(R.string.lib_err_folder_rename)
+            }
+        }
+    }
+
+    /** Apagar: VERIFICAÇÃO DUPLA (mesma religião da lixeira de faixa) —
+     *  avisa QUANTO vai junto (subpastas e tudo) antes do toque final. */
+    private fun confirmFolderDelete(f: LibraryFolders.LibFolder) {
+        val ctx = context ?: return
+        val inside = all.count {
+            it.fromTuneGrab && (it.folder == f.key || it.folder.startsWith("${f.key}/"))
+        }
+        val msg = if (inside == 0) {
+            ctx.getString(R.string.lib_folder_delete_empty, f.name)
+        } else {
+            ctx.resources.getQuantityString(
+                R.plurals.lib_folder_delete_items, inside, f.name, inside
+            )
+        }
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle(R.string.lib_folder_delete_title)
+            .setMessage(msg)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.lib_delete_yes) { _, _ -> deleteFolderNow(f) }
+            .show()
+    }
+
+    private fun deleteFolderNow(f: LibraryFolders.LibFolder) {
+        val ctx = requireContext()
+        lifecycleScope.launch {
+            val res = withContext(Dispatchers.IO) {
+                LibraryFolders.deleteFolder(ctx, f.key)
+            }
+            if (_binding == null) return@launch // a aba saiu da tela no meio
+            when {
+                // sem negação = a pasta foi (vazia incluída — o vazio não
+                // tem arquivo pra contar, e é isso que a frase diz)
+                res.failed == 0 ->
+                    Toast.makeText(ctx, R.string.lib_folder_deleted, Toast.LENGTH_SHORT).show()
+                res.deleted > 0 ->
+                    Toast.makeText(
+                        ctx,
+                        ctx.resources.getQuantityString(
+                            R.plurals.lib_folder_delete_left, res.failed, res.failed
+                        ),
+                        Toast.LENGTH_LONG
+                    ).show()
+                else -> cant(R.string.lib_err_folder_delete)
+            }
+            // a aba estava DENTRO da pasta apagada? sobe pro pai dela
+            if (currentFolder == f.key || currentFolder.startsWith("${f.key}/")) {
+                currentFolder = f.key.substringBeforeLast('/', "")
+                binding.tvFolder.text = crumbsLabel()
+            }
+            load()
+        }
+    }
+
     // ---------- seleção múltipla (v0.19.7) ----------
 
     /** A barra contextual acompanha a contagem: entrando no modo ela
@@ -680,6 +821,8 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     var onEnterFolder: ((LibRow.Folder) -> Unit)? = null
     var onGoUp: (() -> Unit)? = null
     var onMove: ((LibraryEntry) -> Unit)? = null
+    // v0.22.3: segurar na pasta (ou o ⋮) — renomear/apagar
+    var onFolderOptions: ((LibRow.Folder) -> Unit)? = null
 
     // ---------- seleção múltipla (v0.19.7) ----------
 
@@ -821,6 +964,15 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.primary))
                 b.chevron.isVisible = true
                 b.root.setOnClickListener { onEnterFolder?.invoke(row) }
+                // v0.22.3: as ações que faltavam — o ⋮ VISÍVEL e o segurar
+                // (mesmo gesto das faixas) abrem renomear/apagar
+                b.btnMore.isVisible = true
+                b.btnMore.setOnClickListener { onFolderOptions?.invoke(row) }
+                b.root.setOnLongClickListener { v ->
+                    v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                    onFolderOptions?.invoke(row)
+                    true
+                }
             }
             is LibRow.Up -> {
                 // v0.22.0: linha de voltar — seta pra esquerda + o nome da
@@ -835,6 +987,11 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 )
                 b.chevron.isVisible = false
                 b.root.setOnClickListener { onGoUp?.invoke() }
+                // v0.22.3: voltar NÃO é pasta — sem ⋮ e sem segurar (recycle
+                // devolve holder sujo se não limpar aqui)
+                b.btnMore.isVisible = false
+                b.root.setOnLongClickListener(null)
+                b.root.isLongClickable = false
             }
             is LibRow.Note -> {
                 // v0.22.1: nota de pasta vazia — texto puro, sem toque
