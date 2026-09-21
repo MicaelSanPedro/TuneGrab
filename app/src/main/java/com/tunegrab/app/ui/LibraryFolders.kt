@@ -253,6 +253,11 @@ object LibraryFolders {
             val col = c.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)
             while (c.moveToNext()) {
                 val k = relativePathToKey(c.getString(col)) ?: continue
+                // v0.22.4: arquivo na RAIZ -> chave "" -> "".split('/') devolve
+                // [""] e a raiz entrava como "pasta" de chave vazia — linha
+                // SEM NOME no diálogo de mover (micaelsan: "tem uma pasta sem
+                // nome nas minhas pastas"). A raiz não é pasta: não entra.
+                if (k.isBlank()) continue
                 // "A/B" implica que "A" existe: a cadeia de pais entra junto
                 val segs = k.split('/')
                 var acc = ""
@@ -464,7 +469,8 @@ object LibraryFolders {
      * SAF: renameTo do DocumentFile (renameDocument do provider).
      */
     fun renameFolder(ctx: Context, key: String, rawNewName: String): RenameResult {
-        if (key.isBlank()) return RenameResult.Failed // a raiz não tem nome
+        // v0.22.4: isEmpty (só a raiz) — pasta de nome em branco agora RENOMEIA
+        if (key.isEmpty()) return RenameResult.Failed // a raiz não tem nome
         val newName = sanitize(rawNewName) ?: return RenameResult.Invalid
         val currentName = key.substringAfterLast('/')
         if (newName == currentName) return RenameResult.Renamed
@@ -524,7 +530,10 @@ object LibraryFolders {
      * ficou de fora do índice + a pasta física. SAF: varridura recursiva.
      */
     fun deleteFolder(ctx: Context, key: String): DeleteResult {
-        if (key.isBlank()) return DeleteResult(0, 1) // a raiz nunca
+        // v0.22.4: SÓ a chave VAZIA é a raiz (isEmpty). isBlank pegava também
+        // pasta de nome em branco (criada fora do app) — e aí a pasta-fantasma
+        // era intocável: "a raiz nunca" pra quem NÃO é raiz.
+        if (key.isEmpty()) return DeleteResult(0, 1) // a raiz nunca
         val acc = IntArray(2) // [apagados, falhados]
         try {
             if (isCustomTree(ctx)) {

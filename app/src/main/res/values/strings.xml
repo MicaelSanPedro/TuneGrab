@@ -301,6 +301,8 @@
     <string name="lib_new_folder_ok">Criar</string>
     <string name="lib_folder_created">Pasta criada ✓</string>
     <string name="lib_err_folder_name">Escreve um nome pra pasta (sem “/”)</string>
+    <!-- v0.22.4: pasta de nome em branco (criada fora do app) ganha rótulo -->
+    <string name="lib_folder_blank">(pasta sem nome)</string>
     <string name="lib_err_folder_exists">Já existe uma pasta com esse nome aqui</string>
     <string name="lib_err_folder_create">Não foi possível criar a pasta.</string>
     <!-- v0.22.3: renomear e apagar pastas (micaelsan: "eu não consigo

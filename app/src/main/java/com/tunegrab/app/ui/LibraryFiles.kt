@@ -5,6 +5,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -373,16 +374,67 @@ object LibraryFiles {
      * falha (arquivo de outro app, storage travado) devolve false — quem
      * chama decide o aviso. Nada aqui mexe na mecânica de download.
      */
-    fun delete(ctx: Context, e: LibraryEntry): Boolean = try {
-        when {
-            e.docUri != null -> DocumentFile.fromSingleUri(ctx, e.docUri)?.delete() == true
-            e.mediaUri != null -> ctx.contentResolver.delete(e.mediaUri, null, null) > 0
-            e.file != null -> e.file.delete()
-            else -> false
+    fun delete(ctx: Context, e: LibraryEntry): Boolean {
+        val direct = try {
+            when {
+                e.docUri != null -> DocumentFile.fromSingleUri(ctx, e.docUri)?.delete() == true
+                e.mediaUri != null -> ctx.contentResolver.delete(e.mediaUri, null, null) > 0
+                e.file != null -> e.file.delete()
+                else -> false
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "apagar falhou: ${e.name}", t)
+            false
         }
-    } catch (t: Throwable) {
-        Log.w(TAG, "apagar falhou: ${e.name}", t)
-        false
+        if (direct) return true
+        // v0.22.4 (micaelsan: "não é possível deletar músicas mais, todas dão
+        // erro"): o índice do MediaStore pode estar DESSINCRONIZADO (linha
+        // velha/ghost depois de mover/renomear pastas — o delete por URI
+        // devolve 0 ou nega) enquanto o ARQUIVO FÍSICO vive. Só faixa DO
+        // PRÓPRIO app segue pro caminho de disco; mídia de outro app NUNCA
+        // é apagada por caminho.
+        return e.docUri == null && deleteViaFile(ctx, e)
+    }
+
+    /**
+     * APAGA pelo CAMINHO (v0.22.4) — rede de segurança do delete e do
+     * createDeleteRequest: resolve o arquivo físico igual ao moveViaFile (o
+     * File da entrada, ou pasta + nome, ou nome na raiz) e apaga. Depois,
+     * MediaScanner reindexa — a linha ghost do índice morre junto. Faixa de
+     * outro app devolve false (não é nossa pra tocar por caminho).
+     */
+    fun deleteViaFile(ctx: Context, e: LibraryEntry): Boolean {
+        if (!e.fromTuneGrab) return false
+        val root = LibraryFolders.defaultRoot()
+        val candidate: File? = when {
+            e.file != null -> e.file
+            e.folder != null -> {
+                var dir: File = root
+                var reached = true
+                for (seg in e.folder.split('/')) {
+                    dir = File(dir, seg)
+                    if (!dir.isDirectory) {
+                        reached = false
+                        break
+                    }
+                }
+                if (reached) File(dir, e.name) else null
+            }
+            else -> File(root, e.name)
+        }
+        val target = candidate?.takeIf { it.isFile } ?: return false
+        val gone = try {
+            target.delete()
+        } catch (t: Throwable) {
+            Log.w(TAG, "apagar por caminho falhou: ${e.name}", t)
+            false
+        }
+        if (gone) {
+            MediaScannerConnection.scanFile(
+                ctx.applicationContext, arrayOf(target.absolutePath), null, null
+            )
+        }
+        return gone
     }
 
     /** URI segura para abrir/compartilhar (content://, nunca file:// fora do app). */

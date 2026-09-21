@@ -8,6 +8,7 @@ import androidx.activity.result.IntentSenderRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.text.format.DateUtils
 import android.util.Log
 import android.view.HapticFeedbackConstants
@@ -439,7 +440,7 @@ class LibraryFragment : Fragment() {
         val ctx = requireContext()
         lifecycleScope.launch {
             var recoverable: android.content.IntentSender? = null
-            val ok = withContext(Dispatchers.IO) {
+            var ok = withContext(Dispatchers.IO) {
                 try {
                     when {
                         e.docUri != null ->
@@ -461,14 +462,37 @@ class LibraryFragment : Fragment() {
                 }
             }
             if (!isAdded) return@launch
-            val sender = recoverable
+            // v0.22.4 (micaelsan: "não é possível deletar músicas mais, todas
+            // que eu tento, dão erro"): no API 30+ o caminho canônico é o
+            // createDeleteRequest — cobre faixa PRÓPRIA (sem diálogo), de
+            // OUTRO app (com o diálogo do sistema) e a flaqueza do
+            // intentSender do RecoverableSecurityException. Se o índice
+            // negar (linha stale/ghost do corre-corre de pastas), o ARQUIVO
+            // FÍSICO paga — só o que é do próprio app, por caminho.
+            var sender = recoverable
+            if (!ok && Build.VERSION.SDK_INT >= 30 && e.mediaUri != null) {
+                val ask = try {
+                    MediaStore.createDeleteRequest(
+                        ctx.contentResolver, listOf(e.mediaUri)
+                    ).intentSender
+                } catch (t: Throwable) {
+                    Log.w(TAG, "createDeleteRequest falhou: ${e.name}", t)
+                    null
+                }
+                if (ask != null) {
+                    sender = ask
+                } else {
+                    ok = withContext(Dispatchers.IO) { LibraryFiles.deleteViaFile(ctx, e) }
+                    if (!isAdded) return@launch
+                }
+            }
             when {
-                sender != null ->
-                    deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
                 ok -> {
                     Toast.makeText(ctx, R.string.lib_deleted, Toast.LENGTH_SHORT).show()
                     load()
                 }
+                sender != null ->
+                    deleteLauncher.launch(IntentSenderRequest.Builder(sender).build())
                 else -> cant(R.string.lib_err_delete)
             }
         }
@@ -532,7 +556,13 @@ class LibraryFragment : Fragment() {
             val options = mutableListOf("" to ctx.getString(R.string.lib_move_root))
             keys.forEach { k ->
                 val depth = k.count { c -> c == '/' }
-                options.add(k to "    ".repeat(depth) + k.substringAfterLast('/'))
+                // v0.22.4: nome em branco ganha rótulo — e a chave "" da raiz
+                // não vem mais da listagem (era linha sem nome aqui)
+                val nm = k.substringAfterLast('/')
+                options.add(
+                    k to "    ".repeat(depth) +
+                        if (nm.isBlank()) ctx.getString(R.string.lib_folder_blank) else nm
+                )
             }
             var chosen = -1
             MaterialAlertDialogBuilder(ctx)
@@ -589,7 +619,10 @@ class LibraryFragment : Fragment() {
         val f = row.folder
         val ctx = context ?: return
         MaterialAlertDialogBuilder(ctx)
-            .setTitle(f.name)
+            .setTitle(
+                // v0.22.4: pasta de nome em branco ganha rótulo no menu
+                if (f.name.isBlank()) ctx.getString(R.string.lib_folder_blank) else f.name
+            )
             .setItems(
                 arrayOf(
                     ctx.getString(R.string.lib_folder_opt_rename),
@@ -657,14 +690,16 @@ class LibraryFragment : Fragment() {
      *  avisa QUANTO vai junto (subpastas e tudo) antes do toque final. */
     private fun confirmFolderDelete(f: LibraryFolders.LibFolder) {
         val ctx = context ?: return
+        // v0.22.4: nome em branco ganha rótulo nas duas frases
+        val nome = if (f.name.isBlank()) ctx.getString(R.string.lib_folder_blank) else f.name
         val inside = all.count {
             it.fromTuneGrab && (it.folder == f.key || it.folder?.startsWith("${f.key}/") == true)
         }
         val msg = if (inside == 0) {
-            ctx.getString(R.string.lib_folder_delete_empty, f.name)
+            ctx.getString(R.string.lib_folder_delete_empty, nome)
         } else {
             ctx.resources.getQuantityString(
-                R.plurals.lib_folder_delete_items, inside, f.name, inside
+                R.plurals.lib_folder_delete_items, inside, nome, inside
             )
         }
         MaterialAlertDialogBuilder(ctx)
@@ -954,7 +989,13 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 // o toque entra na pasta (navegação de verdade)
                 val b = (holder as FolderHolder).binding
                 val ctx = b.root.context
-                b.tvName.text = row.folder.name
+                // v0.22.4: pasta de nome em branco (criada fora do app) ganha
+                // rótulo visível — na tela ela era a linha "sem nome"
+                b.tvName.text = if (row.folder.name.isBlank()) {
+                    ctx.getString(R.string.lib_folder_blank)
+                } else {
+                    row.folder.name
+                }
                 b.tvMeta.text = when (row.folder.items) {
                     0 -> ctx.getString(R.string.lib_folder_empty)
                     1 -> ctx.getString(R.string.lib_folder_items_one)
