@@ -9,6 +9,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.text.Editable
+import android.text.TextWatcher
 import android.text.format.DateUtils
 import android.util.Log
 import android.view.HapticFeedbackConstants
@@ -75,6 +77,15 @@ class LibraryFragment : Fragment() {
     /** O texto de destino da raiz ("Salvando em: …") pra montar a trilha. */
     private var rootFolderLabel: String = ""
 
+    /** BUSCA (v0.22.5): o texto digitado no campo do topo — "" = busca
+     *  desligada e a biblioteca mostra a vista de sempre. Com texto, a tela
+     *  inteira vira resultado (pastas + faixas do chip atual). */
+    private var query: String = ""
+
+    /** BUSCA (v0.22.5): TODAS as chaves de pasta do destino (a busca acha
+     *  pasta em QUALQUER nível, não só as filhas da pasta aberta). */
+    private var allFolderKeys: List<String> = emptyList()
+
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             updateBanner()
@@ -118,7 +129,13 @@ class LibraryFragment : Fragment() {
         adapter.onShare = { e -> LibraryFiles.share(requireContext(), e) }
         adapter.onDelete = { e -> delete(e) }
         // v0.22.0: PASTAS — navegar, criar pasta e mover (individual e lote)
-        adapter.onEnterFolder = { f -> enterFolder(f.folder.key) }
+        adapter.onEnterFolder = { f ->
+            // v0.22.5: entrou numa pasta achada pela busca? a busca desliga —
+            // dentro da pasta a vista é a de sempre (nada de resultado
+            // filtrado por engano num lugar que a busca não alcança)
+            if (query.isNotEmpty()) binding.searchInput.setText("")
+            enterFolder(f.folder.key)
+        }
         adapter.onGoUp = { goUp() }
         adapter.onMove = { e -> moveDialog(listOf(e)) }
         // v0.22.3: segurar na pasta (ou o ⋮ dela) abre renomear/apagar
@@ -145,6 +162,25 @@ class LibraryFragment : Fragment() {
                 render()
             }
         }
+        // v0.22.5: BUSCA — cada letra re-renderiza; o X limpa (setText("")
+        // passa pelo mesmo caminho do listener, um caminho só)
+        binding.btnSearchClear.setOnClickListener {
+            binding.searchInput.setText("")
+        }
+        binding.searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                val q = s?.toString().orEmpty()
+                binding.btnSearchClear.isVisible = q.isNotEmpty()
+                if (q == query) return
+                query = q
+                // trocou a busca: a seleção morre — nada de apagar o que
+                // não se vê mais (mesma religião da troca de chip)
+                adapter.exitSelection()
+                render()
+            }
+        })
     }
 
     override fun onResume() {
@@ -184,14 +220,18 @@ class LibraryFragment : Fragment() {
         return "$root › $path"
     }
 
-    /** Lista as subpastas da pasta aberta (IO rápido) e re-renderiza. */
+    /** Lista as subpastas da pasta aberta (IO rápido) e re-renderiza.
+     *  v0.22.5: no mesmo fôlego, TODAS as chaves de pasta do destino —
+     *  a busca precisa achar pasta em qualquer nível do tree. */
     private fun refreshFolders(ctx: android.content.Context) {
         lifecycleScope.launch {
-            val f = withContext(Dispatchers.IO) {
-                LibraryFolders.listChildren(ctx, currentFolder, all)
+            val (f, keys) = withContext(Dispatchers.IO) {
+                LibraryFolders.listChildren(ctx, currentFolder, all) to
+                    LibraryFolders.listAllKeys(ctx)
             }
             val b = _binding ?: return@launch
             folders = f
+            allFolderKeys = keys
             render()
         }
     }
@@ -233,6 +273,9 @@ class LibraryFragment : Fragment() {
      * seguem visíveis na raiz pra nada sumir da tela. */
     private fun render() {
         val b = _binding ?: return
+        // v0.22.5: BUSCA com texto? a tela inteira vira resultado — o resto
+        // deste método (pastas daqui, raiz/pasta, fila local) não roda
+        if (query.isNotBlank()) return renderSearch(b)
         val shown = all.filter { it.isVideoKind == showVideos }
         // v0.22.3 FIX (o "porque as pastas de MP3 aparecem em vídeos?"):
         // a seção PASTAS listava `folders` cru, IGNORANDO o chip — a pasta
@@ -328,9 +371,14 @@ class LibraryFragment : Fragment() {
         }
         adapter.submit(rows)
         // vazio: dentro de pasta a frase ensina o caminho (mover pra cá /
-        // subpasta); na raiz vale a mensagem estática de sempre (XML)
+        // subpasta); na raiz vale a mensagem estática de sempre (XML).
+        // v0.22.5: a raiz REAPITA o texto de sempre — a busca trocou o
+        // tvEmpty ("Nada encontrado") e o texto errado não pode sobrar
+        // depois de limpar o campo
         if (currentFolder.isNotBlank()) {
             b.tvEmpty.text = getString(R.string.lib_empty_folder_view)
+        } else {
+            b.tvEmpty.text = getString(R.string.lib_empty_audio)
         }
         // v0.22.1 FIX (o “não consigo voltar”): a linha de VOLTAR tem que
         // viver mesmo em pasta vazia — antes, rows=[Up] não tinha File nem
@@ -365,6 +413,89 @@ class LibraryFragment : Fragment() {
             getString(R.string.lib_filter_video),
             all.count { it.isVideoKind }
         )
+    }
+
+    // ---------- BUSCA (v0.22.5) ----------
+
+    /**
+     * A TELA DA BUSCA: pastas (de QUALQUER nível) e faixas do filtro atual
+     * (Músicas/Vídeos) cujo nome casa com o digitado — sem acento e sem
+     * caixa ("forro" acha "Forró", "LV" acha "lv doedel"). Cada faixa diz
+     * ONDE mora (pasta · tamanho · idade). A fila do player espelha a
+     * vista da busca, mesma regra do resto do app.
+     */
+    private fun renderSearch(b: FragmentLibraryBinding) {
+        val q = query.trim().norm()
+        val shownFolders = if (q.isEmpty()) {
+            emptyList()
+        } else {
+            allFolderKeys.filter { k -> k.substringAfterLast('/').norm().contains(q) }
+                .map { k ->
+                    val prefix = "$k/"
+                    val items = all.count {
+                        it.fromTuneGrab && it.isVideoKind == showVideos &&
+                            (it.folder == k || it.folder?.startsWith(prefix) == true)
+                    }
+                    LibraryFolders.LibFolder(k, k.substringAfterLast('/'), items)
+                }
+        }
+        val shown = all.filter {
+            it.isVideoKind == showVideos && it.name.norm().contains(q)
+        }
+        val own = shown.filter { it.fromTuneGrab }
+        val others = shown.filter { !it.fromTuneGrab }
+        val rows = buildList {
+            if (shownFolders.isNotEmpty()) {
+                add(
+                    LibRow.Section(
+                        getString(R.string.lib_folders_section),
+                        shownFolders.size,
+                        own = true,
+                        folders = true
+                    )
+                )
+                addAll(shownFolders.map { LibRow.Folder(it) })
+            }
+            if (own.isNotEmpty()) {
+                add(LibRow.Section(getString(R.string.lib_section_own), own.size, own = true))
+                addAll(own.map { LibRow.File(it, locationLabel(it)) })
+            }
+            if (others.isNotEmpty()) {
+                add(
+                    LibRow.Section(getString(R.string.lib_section_others), others.size, own = false)
+                )
+                addAll(others.map { LibRow.File(it, locationLabel(it)) })
+            }
+        }
+        adapter.submit(rows)
+        b.tvEmpty.text = getString(R.string.lib_search_empty)
+        // nada achou = a frase de busca; achou qualquer coisa = lista
+        val hasRows = rows.any { it is LibRow.File || it is LibRow.Folder }
+        b.tvEmpty.isVisible = !hasRows
+        b.list.isVisible = hasRows
+        // fila espelha a vista da busca (igual raiz/pasta)
+        audioQueue = if (showVideos) emptyList() else own + others
+    }
+
+    /** Onde a faixa mora, pro resultado da busca: o nome da pasta
+     *  ("Forró"), a raiz ("TuneGrab") ou nada (sem pasta navegável —
+     *  mídia própria fora do destino). Pasta de nome em branco ganha o
+     *  rótulo de sempre. */
+    private fun locationLabel(e: LibraryEntry): String? {
+        val f = e.folder ?: return null
+        if (f.isEmpty()) return LibraryFolders.rootLabel(requireContext())
+        val nm = f.substringAfterLast('/')
+        return if (nm.isBlank()) getString(R.string.lib_folder_blank) else nm
+    }
+
+    /** Caixa e acento fora: "Forró" e "FORRO" viram a mesma coisa. NFD
+     *  separa o acento da letra e a regex leva as marcas embora. */
+    private fun String.norm(): String = try {
+        java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .lowercase()
+    } catch (t: Throwable) {
+        lowercase()
     }
 
     // ---------- ações ----------
@@ -825,7 +956,12 @@ sealed class LibRow {
         val folders: Boolean = false
     ) : LibRow()
 
-    data class File(val entry: LibraryEntry) : LibRow()
+    data class File(
+        val entry: LibraryEntry,
+        // v0.22.5: nos resultados da BUSCA a faixa diz onde mora
+        // ("Forró · 3,2 MB · há 2 dias"); fora da busca é null
+        val location: String? = null
+    ) : LibRow()
 
     /** PASTAS (v0.22.0): linha de pasta que abre ao toque. */
     data class Folder(val folder: LibraryFolders.LibFolder) : LibRow()
@@ -1048,7 +1184,9 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 val whenTxt = DateUtils.getRelativeTimeSpanString(
                     entry.modifiedMs, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS
                 )
-                b.tvMeta.text = ctx.getString(R.string.lib_meta_line, size, whenTxt.toString())
+                val meta = ctx.getString(R.string.lib_meta_line, size, whenTxt.toString())
+                // v0.22.5: nos resultados da BUSCA, a faixa diz ONDE mora
+                b.tvMeta.text = row.location?.let { "$it · $meta" } ?: meta
                 if (entry.isVideoKind) {
                     b.icon.setImageResource(R.drawable.ic_movie)
                     b.icon.setColorFilter(ContextCompat.getColor(ctx, R.color.secondary))

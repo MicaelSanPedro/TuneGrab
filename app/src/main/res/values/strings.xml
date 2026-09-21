@@ -303,6 +303,11 @@
     <string name="lib_err_folder_name">Escreve um nome pra pasta (sem “/”)</string>
     <!-- v0.22.4: pasta de nome em branco (criada fora do app) ganha rótulo -->
     <string name="lib_folder_blank">(pasta sem nome)</string>
+    <!-- v0.22.5: BUSCA da biblioteca — campo minimalista no topo; acha pasta
+         e faixa em qualquer lugar, sem acento e sem maiúscula -->
+    <string name="lib_search_hint">Buscar músicas e pastas</string>
+    <string name="lib_search_clear">Limpar busca</string>
+    <string name="lib_search_empty">Nada encontrado.\nTenta outro nome — acento e maiúscula não contam.</string>
     <string name="lib_err_folder_exists">Já existe uma pasta com esse nome aqui</string>
     <string name="lib_err_folder_create">Não foi possível criar a pasta.</string>
     <!-- v0.22.3: renomear e apagar pastas (micaelsan: "eu não consigo

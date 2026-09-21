@@ -71,19 +71,28 @@ jobs:
           cp app/build/outputs/apk/release/*.apk "app/build/outputs/apk/release/TuneGrab-${VERSION}.apk"
           cp app/build/outputs/apk/debug/*.apk "app/build/outputs/apk/debug/TuneGrab-${VERSION}-debug.apk"
 
-      - name: Release notes (commits desde a tag anterior)
+      - name: Release notes (leigas e curtas — RELEASE_NOTES.md)
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          {
-            echo "### Novidades"
-            echo
-            PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
-            if [ -n "$PREV" ]; then
-              git log --format='- %s' "${PREV}..${GITHUB_REF_NAME}"
-            else
-              echo "- Primeira release pública 🎉"
-            fi
-          } > body.md
+          # v0.22.5: as notas da release NUNCA mais nascem do log de commits —
+          # elas aparecem DENTRO do app (card de atualização) e texto de dev
+          # não é pra quem usa. O RELEASE_NOTES.md no repo É a nota da
+          # release (leiga e curta, escrita na mão); sem o arquivo, cai pro
+          # formato velho de commits como fallback.
+          if [ -f RELEASE_NOTES.md ]; then
+            cp RELEASE_NOTES.md body.md
+          else
+            {
+              echo "### Novidades"
+              echo
+              PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+              if [ -n "$PREV" ]; then
+                git log --format='- %s' "${PREV}..${GITHUB_REF_NAME}"
+              else
+                echo "- Primeira release pública 🎉"
+              fi
+            } > body.md
+          fi
           echo "--- body.md ---"; cat body.md
 
       - name: Publish GitHub Release
