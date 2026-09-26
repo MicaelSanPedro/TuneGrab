@@ -124,6 +124,14 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
             android:theme="@style/Theme.TuneGrab" />
 
+        <!-- GERADOR DE LETRA (v0.22.7): tela da letra da faixa tocando —
+             só interface, o som continua no PlaybackService (mesma religião
+             da PlayerActivity). Não é aberta de fora do app. -->
+        <activity
+            android:name=".LyricsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TuneGrab" />
+
         <activity
             android:name=".CrashReportActivity"
             android:exported="false"

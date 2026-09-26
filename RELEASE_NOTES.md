@@ -1,1 +1,1 @@
-Mover músicas e pastas agora funciona igual no gerenciador de arquivos do celular: é só navegar até a pasta certa e tocar em "Mover aqui"!
+Agora o player mostra a letra da música! Toca no botão "Letra" e canta junto: a letra rola sozinha no tempo do som.

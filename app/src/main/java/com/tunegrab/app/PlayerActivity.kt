@@ -490,6 +490,19 @@ class PlayerActivity : AppCompatActivity() {
             }
         })
 
+        // GERADOR DE LETRA (v0.22.7, pedido do autor: "Faça o gerador de
+        // letra"): abre a tela da letra — o LyricsActivity conversa com o
+        // MESMO PlaybackService, então a linha acende no tempo do som e a
+        // tela anda sozinha (estilo Spotify/YouTube Music). A música segue
+        // tocando do jeito que está — aqui é só abrir a interface.
+        binding.btnLyrics.setOnClickListener {
+            val svc = playback
+            val uri = svc?.currentUri() ?: initialUri ?: return@setOnClickListener
+            val title = svc?.currentTitle() ?: initialTitle
+            val dur = svc?.duration() ?: 0
+            startActivity(LyricsActivity.start(this, uri.toString(), title, dur))
+        }
+
         tickHandler.post(tick)
         setupVisualizer()
         loadCover(uri)

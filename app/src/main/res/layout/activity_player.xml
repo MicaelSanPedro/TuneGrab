@@ -81,6 +81,28 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
+        <!-- GERADOR DE LETRA (v0.22.7, pedido do autor): pastilha "Letra" —
+             abre a letra da faixa na tela inteira (sincronizada quando
+             existe: a linha acende no tempo do som e a tela anda sozinha) -->
+        <TextView
+            android:id="@+id/btnLyrics"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_lyrics_pill"
+            android:contentDescription="@string/player_lyrics_desc"
+            android:drawablePadding="7dp"
+            android:drawableTint="@color/primary"
+            android:paddingStart="18dp"
+            android:paddingTop="9dp"
+            android:paddingEnd="18dp"
+            android:paddingBottom="9dp"
+            android:text="@string/player_lyrics"
+            android:textColor="@color/on_background"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:drawableStartCompat="@drawable/ic_lyrics" />
+
         <!-- Barrinhas de DJ (v0.18.9): espectro REAL do áudio que está
              tocando — o SpectrumProcessor espia o PCM dentro do próprio
              player (SEM permissão nenhuma). Grave no centro, agudo nas

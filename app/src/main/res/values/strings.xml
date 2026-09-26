@@ -369,6 +369,19 @@
     <string name="player_buffering">Carregando…</string>
     <string name="player_fullscreen">Tela cheia</string>
     <string name="player_exit_fullscreen">Sair da tela cheia</string>
+
+    <!-- GERADOR DE LETRA (v0.22.7, pedido do autor: "Faça o gerador de
+         letra"): botão no player + estados da tela da letra. A fonte é
+         pública e grátis (LRCLIB) — o crédito fica no pé da tela -->
+    <string name="player_lyrics">Letra</string>
+    <string name="player_lyrics_desc">Ver a letra da música</string>
+    <string name="lyrics_back">Voltar</string>
+    <string name="lyrics_searching">Procurando a letra…</string>
+    <string name="lyrics_not_found">Não achamos a letra dessa faixa.\nTenta outra música ou baixa ela com o nome certinho!</string>
+    <string name="lyrics_error">Não deu pra buscar a letra agora.\nConfere a internet e tenta de novo.</string>
+    <string name="lyrics_retry">Tentar de novo</string>
+    <string name="lyrics_instrumental">Essa faixa é instrumental — é só curtir a música!</string>
+    <string name="lyrics_credit">Letras: LRCLIB</string>
     <string name="notif_channel_playback">Reprodução</string>
     <string name="notif_channel_playback_desc">Controles da música que está tocando em segundo plano</string>
     <string name="dl_not_found">Arquivo não encontrado para compartilhar — confira na aba Biblioteca.</string>
