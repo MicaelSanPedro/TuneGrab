@@ -1,1 +1,1 @@
-Adicionada uma barra de pesquisa minimalista e funcional que agora permite buscar pastas e músicas! Aproveite!
+Mover músicas e pastas agora funciona igual no gerenciador de arquivos do celular: é só navegar até a pasta certa e tocar em "Mover aqui"!

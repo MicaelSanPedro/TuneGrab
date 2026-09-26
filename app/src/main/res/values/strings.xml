@@ -313,12 +313,17 @@
     <!-- v0.22.3: renomear e apagar pastas (micaelsan: "eu não consigo
          deletar pastas ou renomear elas") -->
     <string name="lib_folder_more">Opções da pasta</string>
+    <!-- v0.22.6: a pasta também muda de lugar (mesmo modo do mover de faixas) -->
+    <string name="lib_folder_opt_move">Mover pasta</string>
     <string name="lib_folder_opt_rename">Renomear</string>
     <string name="lib_folder_opt_delete">Apagar pasta</string>
     <string name="lib_folder_rename_title">Renomear pasta</string>
     <string name="lib_folder_rename_ok">Renomear</string>
     <string name="lib_folder_renamed">Pasta renomeada ✓</string>
     <string name="lib_err_folder_rename">Não foi possível renomear a pasta.</string>
+    <!-- v0.22.6: mover pasta de lugar -->
+    <string name="lib_folder_moved">Pasta movida ✓</string>
+    <string name="lib_err_folder_move">Não foi possível mover a pasta.</string>
     <string name="lib_folder_delete_title">Apagar pasta</string>
     <string name="lib_folder_delete_empty">Apagar a pasta “%1$s” vazia?</string>
     <string name="lib_folder_deleted">Pasta apagada ✓</string>
@@ -331,14 +336,17 @@
         <item quantity="one">A pasta foi, mas %1$d item ficou pra trás (não é do TuneGrab)</item>
         <item quantity="other">A pasta foi, mas %1$d itens ficaram pra trás (não são do TuneGrab)</item>
     </plurals>
-    <string name="lib_move_title">Mover pra pasta</string>
-    <string name="lib_move_root">TuneGrab (fora da pasta)</string>
-    <string name="lib_move_ok">Mover</string>
+    <!-- v0.22.6: MOVER IGUAL GERENCIADOR DE ARQUIVOS — acabou o diálogo:
+         navega até a pasta e confirma em "Mover aqui"; PASTA também muda
+         de lugar (menos pra dentro de si mesma) -->
+    <string name="lib_move_to">Mover para: %1$s</string>
+    <string name="lib_move_here">Mover aqui</string>
+    <string name="lib_move_blocked">Não dá pra mover a pasta pra dentro dela mesma</string>
+    <string name="lib_move_none">O que você marcou não é do TuneGrab — só o que o app baixou pode ser movido</string>
     <string name="lib_moved_one">Movido ✓</string>
     <string name="lib_moved_many">%1$d movidos ✓</string>
     <string name="lib_move_partial">Movei %1$d de %2$d — o resto não pôde ser movido</string>
     <string name="lib_move_same">Já está nessa pasta</string>
-    <string name="lib_move_nofolders">Você ainda não tem pastas — toque no botão de pasta com + no topo pra criar a primeira</string>
     <string name="lib_err_move">Não foi possível mover — pode já existir arquivo com o mesmo nome no destino.</string>
     <string name="lib_err_move_one">Não foi possível mover este arquivo.</string>
     <string name="cd_move">Mover pra pasta</string>

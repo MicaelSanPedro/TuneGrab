@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.RecoverableSecurityException
 import android.content.Intent
 import android.content.res.ColorStateList
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.IntentSenderRequest
 import android.net.Uri
 import android.os.Build
@@ -50,6 +51,10 @@ import androidx.documentfile.provider.DocumentFile
  * com contador + Todos + lixeira) pra apagar em lote. v0.22.0: PASTAS DE
  * VERDADE — botão de nova pasta (diretório real dentro da TuneGrab), linhas
  * de pasta navegáveis e mover músicas pra dentro/fora (individual e lote).
+ * v0.22.6: MOVER IGUAL GERENCIADOR DE ARQUIVOS — acabou o diálogo de lista:
+ * mover virou modo "escolher pasta" (confirme o que quer mover, NAVEGUE até
+ * o destino e toque em "Mover aqui") e PASTA também muda de lugar (⋮ dela),
+ * menos pra dentro de si mesma.
  */
 class LibraryFragment : Fragment() {
 
@@ -85,6 +90,15 @@ class LibraryFragment : Fragment() {
     /** BUSCA (v0.22.5): TODAS as chaves de pasta do destino (a busca acha
      *  pasta em QUALQUER nível, não só as filhas da pasta aberta). */
     private var allFolderKeys: List<String> = emptyList()
+
+    /** MOVER (v0.22.6): modo "escolher pasta" — null = desligado. Faixas
+     *  (individual ou lote) ou a pasta inteira esperando o destino que a
+     *  pessoa navegar na própria tela. */
+    private var movePick: MovePick? = null
+
+    /** VOLTAR do sistema no modo mover cancela a escolha (não sai da aba) —
+     *  fica ligado só enquanto o modo está valendo. */
+    private var moveBack: OnBackPressedCallback? = null
 
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -137,11 +151,13 @@ class LibraryFragment : Fragment() {
             enterFolder(f.folder.key)
         }
         adapter.onGoUp = { goUp() }
-        adapter.onMove = { e -> moveDialog(listOf(e)) }
+        adapter.onMove = { e -> startMovePick(MovePick.Files(listOf(e))) }
         // v0.22.3: segurar na pasta (ou o ⋮ dela) abre renomear/apagar
         adapter.onFolderOptions = { f -> folderOptions(f) }
         binding.btnNewFolder.setOnClickListener { askNewFolder() }
-        binding.btnMoveSel.setOnClickListener { moveDialog(adapter.selectedEntries()) }
+        binding.btnMoveSel.setOnClickListener {
+            startMovePick(MovePick.Files(adapter.selectedEntries()))
+        }
         // v0.19.7: barra contextual da seleção múltipla (contador/Todos/lixeira)
         adapter.onSelectCount = { n -> onSelCount(n) }
         binding.btnSelClose.setOnClickListener { adapter.exitSelection() }
@@ -181,6 +197,20 @@ class LibraryFragment : Fragment() {
                 render()
             }
         })
+        // v0.22.6: MOVER IGUAL GERENCIADOR — a barra do modo: Cancelar
+        // desiste, "Mover aqui" confirma com a pasta aberta como destino
+        binding.btnMoveCancel.setOnClickListener { cancelMovePick() }
+        binding.btnMoveHere.setOnClickListener { confirmMoveHere() }
+        // VOLTAR do sistema no modo mover: cancela a escolha ANTES de sair
+        // da aba (mesma religião da web do YoutubeFragment) — desligado fora
+        // do modo, o voltar segue fazendo o que sempre fez
+        val back = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                cancelMovePick()
+            }
+        }
+        moveBack = back
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, back)
     }
 
     override fun onResume() {
@@ -284,7 +314,8 @@ class LibraryFragment : Fragment() {
         // a contagem da linha passa a contar esse tipo (o que você vê ao
         // entrar bate com o número). Vazia de verdade: aparece nos 2 chips
         // (pasta vazia precisa continuar achável pra ser preenchida).
-        val shownFolders = folders.mapNotNull { f ->
+        val movingKey = (movePick as? MovePick.Folder)?.key
+        val shownFolders = folders.filter { it.key != movingKey }.mapNotNull { f ->
             val prefix = "${f.key}/"
             val sub = all.filter {
                 it.fromTuneGrab && (it.folder == f.key || it.folder?.startsWith(prefix) == true)
@@ -413,6 +444,9 @@ class LibraryFragment : Fragment() {
             getString(R.string.lib_filter_video),
             all.count { it.isVideoKind }
         )
+        // v0.22.6: a barra do modo mover acompanha a navegação — destino é
+        // a pasta aberta agora, botão desabilitado quando o destino é inválido
+        updateMoveChrome()
     }
 
     // ---------- BUSCA (v0.22.5) ----------
@@ -671,47 +705,105 @@ class LibraryFragment : Fragment() {
         }
     }
 
+    // ---------- MOVER IGUAL GERENCIADOR DE ARQUIVOS (v0.22.6) ----------
+
     /**
-     * MOVER: diálogo com a lista de pastas (raiz + todas, indentadas por
-     * profundidade). A pasta onde o arquivo já está aparece, mas mover pra
-     * onde já está é contado como "same" — nada de surpresa.
+     * MOVER: nada de diálogo com lista de pastas decorada de espaços — o
+     * padrão agora é o dos gerenciadores de arquivos de celular (Files by
+     * Google & cia): você confirma o que quer mover, NAVEGA até a pasta de
+     * destino (as pastas da tela continuam abrindo e o voltar do sistema
+     * cancela) e toca em "Mover aqui" na barra. Enquanto o modo está
+     * valendo, a busca dorme, as faixas ficam mudas e a pasta em movimento
+     * (quando é ela que viaja) some da própria lista — nem ela nem a
+     * descendência podem virar destino.
      */
-    private fun moveDialog(entries: List<LibraryEntry>) {
-        val owned = entries.filter { it.fromTuneGrab }
-        if (owned.isEmpty()) return cant(R.string.lib_move_nofolders)
-        val ctx0 = context ?: return
-        lifecycleScope.launch {
-            val keys = withContext(Dispatchers.IO) { LibraryFolders.listAllKeys(ctx0) }
-            if (!isAdded) return@launch
-            val ctx = context ?: return@launch
-            val options = mutableListOf("" to ctx.getString(R.string.lib_move_root))
-            keys.forEach { k ->
-                val depth = k.count { c -> c == '/' }
-                // v0.22.4: nome em branco ganha rótulo — e a chave "" da raiz
-                // não vem mais da listagem (era linha sem nome aqui)
-                val nm = k.substringAfterLast('/')
-                options.add(
-                    k to "    ".repeat(depth) +
-                        if (nm.isBlank()) ctx.getString(R.string.lib_folder_blank) else nm
-                )
+
+    /** Entra no modo (⋮ da faixa, barra da seleção ou ⋮ da pasta). */
+    private fun startMovePick(pick: MovePick) {
+        when (pick) {
+            is MovePick.Files -> {
+                val owned = pick.entries.filter { it.fromTuneGrab }
+                // mídia de outro app não é do app pra mover (mesma regra de
+                // sempre) — seleção 100% de fora avisa e nem entra no modo
+                if (owned.isEmpty()) {
+                    cant(R.string.lib_move_none)
+                    return
+                }
+                movePick = MovePick.Files(owned)
             }
-            var chosen = -1
-            MaterialAlertDialogBuilder(ctx)
-                .setTitle(R.string.lib_move_title)
-                .setSingleChoiceItems(options.map { it.second }.toTypedArray(), -1) { _, which ->
-                    chosen = which
-                }
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.lib_move_ok) { _, _ ->
-                    if (chosen in options.indices) {
-                        moveSelected(owned, options[chosen].first)
-                    }
-                }
-                .show()
+            is MovePick.Folder -> movePick = pick
+        }
+        // a busca dorme no modo (mesmo caminho do X — o listener é o dono)
+        if (query.isNotEmpty()) binding.searchInput.setText("")
+        adapter.exitSelection() // a barra da seleção sai, a do mover entra
+        render()
+    }
+
+    /** Sai do modo sem mover (Cancelar na barra ou o voltar do sistema). */
+    private fun cancelMovePick() {
+        if (movePick == null) return
+        movePick = null
+        render()
+    }
+
+    /** A barra do modo: destino = a pasta aberta agora; no mover de PASTA,
+     *  o botão desabilita quando o destino é ela mesma, a descendência dela
+     *  ou o lugar onde ela já está (a frase explica o porquê). */
+    private fun updateMoveChrome() {
+        val b = _binding ?: return
+        val pick = movePick
+        adapter.pickMode = pick != null
+        b.moveBar.isVisible = pick != null
+        b.searchBar.isVisible = pick == null
+        moveBack?.isEnabled = pick != null
+        if (pick == null) return
+        b.tvMoveTarget.text = getString(R.string.lib_move_to, crumbsLabel())
+        val blocked = pick is MovePick.Folder && (
+            currentFolder == pick.key ||
+                currentFolder.startsWith("${pick.key}/") ||
+                currentFolder == pick.key.substringBeforeLast('/', "")
+            )
+        b.btnMoveHere.isEnabled = !blocked
+        b.tvMoveHint.isVisible = blocked
+    }
+
+    /** "Mover aqui": o toque final. Faixas seguem pro moveSelected de
+     *  sempre; PASTA segue pro moveFolder novo (a pasta inteira muda de
+     *  casa de uma vez — os arquivos dentro dela não são tocados um a um). */
+    private fun confirmMoveHere() {
+        val pick = movePick ?: return
+        when (pick) {
+            is MovePick.Files -> moveSelected(pick.entries, currentFolder)
+            is MovePick.Folder -> moveFolderNow(pick.key)
+        }
+    }
+
+    /** MOVER PASTA: chama o LibraryFolders.moveFolder e trata a resposta —
+     *  sucesso com a lista recarregando, colisão e falha com aviso. */
+    private fun moveFolderNow(key: String) {
+        val ctx = requireContext()
+        val target = currentFolder
+        movePick = null
+        updateMoveChrome()
+        lifecycleScope.launch {
+            val res = withContext(Dispatchers.IO) {
+                LibraryFolders.moveFolder(ctx, key, target)
+            }
+            if (_binding == null) return@launch // a aba saiu da tela no meio
+            when (res) {
+                LibraryFolders.MoveFolderResult.Moved ->
+                    Toast.makeText(ctx, R.string.lib_folder_moved, Toast.LENGTH_SHORT).show()
+                LibraryFolders.MoveFolderResult.Exists ->
+                    cant(R.string.lib_err_folder_exists)
+                else -> cant(R.string.lib_err_folder_move)
+            }
+            load()
         }
     }
 
     private fun moveSelected(entries: List<LibraryEntry>, targetKey: String) {
+        movePick = null
+        updateMoveChrome()
         val ctx = requireContext()
         lifecycleScope.launch {
             val res = withContext(Dispatchers.IO) {
@@ -745,7 +837,7 @@ class LibraryFragment : Fragment() {
 
     // ---------- PASTAS (v0.22.3): renomear e apagar ----------
 
-    /** Segurar na pasta (ou o ⋮): as duas ações que faltavam. */
+    /** Segurar na pasta (ou o ⋮): mover de lugar, renomear e apagar. */
     private fun folderOptions(row: LibRow.Folder) {
         val f = row.folder
         val ctx = context ?: return
@@ -756,12 +848,14 @@ class LibraryFragment : Fragment() {
             )
             .setItems(
                 arrayOf(
+                    ctx.getString(R.string.lib_folder_opt_move),
                     ctx.getString(R.string.lib_folder_opt_rename),
                     ctx.getString(R.string.lib_folder_opt_delete)
                 )
             ) { _, which ->
                 when (which) {
-                    0 -> askRenameFolder(f)
+                    0 -> startMovePick(MovePick.Folder(f.key))
+                    1 -> askRenameFolder(f)
                     else -> confirmFolderDelete(f)
                 }
             }
@@ -940,6 +1034,13 @@ class LibraryFragment : Fragment() {
         context?.let { Toast.makeText(it, msgRes, Toast.LENGTH_SHORT).show() }
     }
 
+    /** MOVER (v0.22.6): o que está esperando destino no modo "escolher
+     *  pasta" — faixas (individual ou lote) ou a pasta inteira. */
+    private sealed class MovePick {
+        data class Files(val entries: List<LibraryEntry>) : MovePick()
+        data class Folder(val key: String) : MovePick()
+    }
+
     companion object {
         private const val TAG = "TuneGrab"
     }
@@ -992,8 +1093,17 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     var onEnterFolder: ((LibRow.Folder) -> Unit)? = null
     var onGoUp: (() -> Unit)? = null
     var onMove: ((LibraryEntry) -> Unit)? = null
-    // v0.22.3: segurar na pasta (ou o ⋮) — renomear/apagar
+    // v0.22.3: segurar na pasta (ou o ⋮) — mover/renomear/apagar
     var onFolderOptions: ((LibRow.Folder) -> Unit)? = null
+
+    // v0.22.6: modo "escolher pasta" — faixas mudas, pastas seguem navegando
+    var pickMode = false
+        set(value) {
+            if (field != value) {
+                field = value
+                notifyDataSetChanged()
+            }
+        }
 
     // ---------- seleção múltipla (v0.19.7) ----------
 
@@ -1142,10 +1252,13 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 b.chevron.isVisible = true
                 b.root.setOnClickListener { onEnterFolder?.invoke(row) }
                 // v0.22.3: as ações que faltavam — o ⋮ VISÍVEL e o segurar
-                // (mesmo gesto das faixas) abrem renomear/apagar
-                b.btnMore.isVisible = true
-                b.btnMore.setOnClickListener { onFolderOptions?.invoke(row) }
+                // (mesmo gesto das faixas) abrem mover/renomear/apagar.
+                // v0.22.6: no modo mover as opções dormem — a pasta navegando
+                // É o fluxo; renomear/apagar no meio da escolha não rola
+                b.btnMore.isVisible = !pickMode
+                b.btnMore.setOnClickListener { if (!pickMode) onFolderOptions?.invoke(row) }
                 b.root.setOnLongClickListener { v ->
+                    if (pickMode) return@setOnLongClickListener false
                     v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     onFolderOptions?.invoke(row)
                     true
@@ -1196,16 +1309,19 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 }
 
                 // v0.19.7: no modo seleção os 4 botões saem e o círculo de
-                // check entra; o cartão marcado ganha fundo roxo + borda violeta
+                // check entra; o cartão marcado ganha fundo roxo + borda violeta.
+                // v0.22.6: no modo mover TUDO dorme na faixa (destino se
+                // escolhe navegando — a faixa não é clicável por engano)
                 val isSel = selectionMode && key(entry) in selected
-                b.selBox.isVisible = selectionMode
+                val pick = pickMode
+                b.selBox.isVisible = selectionMode && !pick
                 b.chk.setImageResource(if (isSel) R.drawable.bg_sel_on else R.drawable.bg_sel_off)
-                b.btnPlay.isVisible = !selectionMode
-                b.btnShare.isVisible = !selectionMode
+                b.btnPlay.isVisible = !selectionMode && !pick
+                b.btnShare.isVisible = !selectionMode && !pick
                 // v0.22.0: MOVER só em faixa do TuneGrab — o app é dono dos
                 // próprios downloads; mídia de outro app não é dele pra mover
-                b.btnMove.isVisible = !selectionMode && entry.fromTuneGrab
-                b.btnDelete.isVisible = !selectionMode
+                b.btnMove.isVisible = !selectionMode && !pick && entry.fromTuneGrab
+                b.btnDelete.isVisible = !selectionMode && !pick
                 b.root.setCardBackgroundColor(
                     ContextCompat.getColor(ctx, if (isSel) R.color.sel_card else R.color.surface)
                 )
@@ -1217,10 +1333,14 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                         ContextCompat.getColor(ctx, if (isSel) R.color.primary else R.color.stroke)
                     )
                 )
+                // v0.22.6: no modo mover a faixa fica muda — nada de abrir,
+                // marcar ou disparar ação no meio da escolha do destino
                 b.root.setOnClickListener {
+                    if (pick) return@setOnClickListener
                     if (selectionMode) toggle(entry) else onOpen?.invoke(entry)
                 }
                 b.root.setOnLongClickListener { v ->
+                    if (pick) return@setOnLongClickListener false
                     v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     if (selectionMode) toggle(entry) else enterSelection(entry)
                     true

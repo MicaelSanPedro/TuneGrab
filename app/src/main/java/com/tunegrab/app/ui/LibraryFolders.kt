@@ -85,6 +85,15 @@ object LibraryFolders {
         object Failed : RenameResult()
     }
 
+    /** v0.22.6: resultado de MOVER PASTA — cada caso tem frase própria. */
+    sealed class MoveFolderResult {
+        object Moved : MoveFolderResult()
+        object Same : MoveFolderResult()
+        object Invalid : MoveFolderResult() // pra dentro de si mesma/descendência
+        object Exists : MoveFolderResult()
+        object Failed : MoveFolderResult()
+    }
+
     // ---------- raiz e chaves ----------
 
     /** Raiz padrão: Downloads/TuneGrab (mesma conta do DownloadService). */
@@ -364,6 +373,74 @@ object LibraryFolders {
             if (move(ctx, e, targetKey)) moved++
         }
         return MoveResult(moved, same)
+    }
+
+    /**
+     * MOVER PASTA (v0.22.6) — micaelsan: "o jeito de mover pastas é muito
+     * estranho. Procura como os gerenciadores de arquivos de celular fazem,
+     * e replique". Gerenciador de verdade move a PASTA de lugar (não só
+     * renomeia): mesma ordem do renameFolder — colisão primeiro (nunca em
+     * cima do vizinho), File renameTo do DIRETÓRIO (a pasta inteira muda de
+     * casa numa tacada — os arquivos dentro dela não são tocados um a um),
+     * MediaStore em lote corrigindo o índice (29+), SAF moveDocument no
+     * destino escolhido. Guardas: a raiz nunca; nem pra dentro de si mesma
+     * nem pra dentro da própria descendência (a UI já desabilita o botão —
+     * aqui é a rede de segurança); pasta de nome em branco fica de fora (o
+     * índice não segue chave com segmento vazio — renomear resolve).
+     */
+    fun moveFolder(ctx: Context, key: String, targetKey: String): MoveFolderResult {
+        if (key.isEmpty()) return MoveFolderResult.Failed // a raiz nunca
+        if (targetKey == key) return MoveFolderResult.Same
+        if (targetKey.startsWith("$key/")) return MoveFolderResult.Invalid
+        if (targetKey == key.substringBeforeLast('/', "")) return MoveFolderResult.Same
+        val name = key.substringAfterLast('/')
+        if (name.isBlank()) return MoveFolderResult.Failed
+        val newKey = joinKey(targetKey, name)
+        return try {
+            if (isCustomTree(ctx)) {
+                val targetDoc = navigateDoc(ctx, targetKey) ?: return MoveFolderResult.Failed
+                val parentDoc = navigateDoc(ctx, key.substringBeforeLast('/', ""))
+                    ?: return MoveFolderResult.Failed
+                val dir = navigateDoc(ctx, key) ?: return MoveFolderResult.Failed
+                if (targetDoc.findFile(name)?.exists() == true) return MoveFolderResult.Exists
+                // moveDocument muda a pasta de diretório SEM copiar bytes
+                if (DocumentsContract.moveDocument(
+                        ctx.contentResolver, dir.uri, parentDoc.uri, targetDoc.uri
+                    ) != null
+                ) MoveFolderResult.Moved else MoveFolderResult.Failed
+            } else {
+                val root = defaultRoot()
+                // 1) colisão no destino: o MediaStore indexa (29+) e o disco confirma
+                if (Build.VERSION.SDK_INT >= 29 &&
+                    mediaStoreCountUnder(ctx, relOf(newKey)) > 0
+                ) return MoveFolderResult.Exists
+                val targetParent = navigateFile(root, targetKey)
+                    ?: File(root, targetKey).takeIf { it.isDirectory || it.mkdirs() }
+                    ?: return MoveFolderResult.Failed
+                val dir = navigateFile(root, key)
+                if (dir?.isDirectory != true) return MoveFolderResult.Failed
+                val target = File(targetParent, name)
+                if (target.exists()) return MoveFolderResult.Exists
+                // 2) rename do DIRETÓRIO por caminho (24–28 legado e 30+ FUSE)
+                var ok = dir.renameTo(target)
+                if (ok) {
+                    MediaScannerConnection.scanFile(
+                        ctx.applicationContext,
+                        arrayOf(dir.absolutePath, target.absolutePath), null, null
+                    )
+                } else if (Build.VERSION.SDK_INT >= 29) {
+                    // 3) rede de segurança: MediaStore em lote (a MESMA
+                    //    operação do renameFolder — o índice move por conta
+                    //    própria e a velha vazia some no fim)
+                    ok = mediaStoreRenamePath(ctx, relOf(key), relOf(newKey)) > 0
+                    if (ok) try { dir.delete() } catch (_: Throwable) {}
+                }
+                if (ok) MoveFolderResult.Moved else MoveFolderResult.Failed
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "mover pasta falhou (key=$key → $targetKey)", t)
+            MoveFolderResult.Failed
+        }
     }
 
     /**
