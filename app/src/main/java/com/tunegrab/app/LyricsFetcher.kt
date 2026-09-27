@@ -16,7 +16,8 @@ import java.util.LinkedHashMap
 import java.util.concurrent.TimeUnit
 
 /**
- * GERADOR DE LETRA (v0.22.7, pedido do autor: "Faça o gerador de letra"):
+ * GERADOR DE LETRA (v0.22.7, pedido do autor: "Faça o gerador de letra";
+ * v0.22.8 conserta a busca que não achava NADA):
  * busca a letra da faixa na LRCLIB (lrclib.net — API pública, GRÁTIS, SEM
  * chave, SEM servidor nosso — a mesma religião "sem servidor" do app). O
  * pedido sai DAQUI do aparelho, direto pra API, e volta com:
@@ -24,12 +25,22 @@ import java.util.concurrent.TimeUnit
  *    de karaoke) → a tela acende a linha no tempo do som;
  *  - plainLyrics: letra simples (sem tempo) → só o texto.
  *
+ * FIX v0.22.8 (autor: "Não pegou em nenhuma música"): a URL da API estava
+ * SEM o prefixo /api — o site respondia 200 com a PÁGINA HTML do site e o
+ * JSON.parse morria em silêncio: TODA música virava "não achou". Agora vai
+ * pra /api/get e /api/search de verdade. A escada também ganhou dois degraus
+ * provados em sonda real (28/28 com nomes sujos do YouTube): cada degrau só
+ * vale se TROUXE LETRA (registro achado sem letra não para a escada) e há um
+ * degrau final só-com-o-nome-da-faixa (acha "Favela Vive 2", "Tudo Bem").
+ *
  * O nome do arquivo do YouTube nunca vem limpo ("Artista - Música (Official
  * Video).mp3"), então o buildQuery LAVA o título: tira a extensão, tira os
  * blocos de lixo entre parênteses/colchetes (official video, lyrics, ao
- * vivo, feat...) e quebra no " - " pra separar artista da faixa. Arquivo
- * LOCAL com metadados embutidos (o yt-dlp grava título/artista na hora do
- * download)? Esses valem MAIS que o nome do arquivo.
+ * vivo, slowed+reverb, feat...), arranca os blocos SEM palavra-chave que
+ * sobraram NO FIM ("(Marília Canta Thomaz)", "[Ultra Records]") e quebra no
+ * " - " pra separar artista da faixa. Arquivo LOCAL com metadados embutidos
+ * (o yt-dlp grava título/artista na hora do download)? Esses valem MAIS que
+ * o nome do arquivo.
  */
 data class LyricLine(val timeMs: Int, val text: String)
 
@@ -50,7 +61,9 @@ data class TrackQuery(val artist: String, val title: String, val durationMs: Int
 
 object LyricsFetcher {
 
-    private const val API = "https://lrclib.net"
+    // ⚠️ /api é OBRIGATÓRIO: sem ele o site responde 200 com HTML (página do
+    // site), não com JSON — foi o bug da v0.22.7 que zerou TUDO.
+    private const val API = "https://lrclib.net/api"
 
     /** A API pede User-Agent identificando o app — honestidade básica. */
     private val UA: String
@@ -82,12 +95,22 @@ object LyricsFetcher {
     )
 
     // Blocos de lixo entre parênteses/colchetes: (Official Video), [Lyrics],
-    // (Áudio Oficial), (Ao Vivo), (feat. X)... tudo que o YouTube coloca no
-    // título e que só atrapalha o casamento com a letra
+    // (Áudio Oficial), (Ao Vivo), (feat. X), (Slowed + Reverb)... tudo que o
+    // YouTube coloca no título e que só atrapalha o casamento com a letra
     private val JUNK = Regex(
-        """\s*[\(\[][^\)\]]*(official|vide[oó]|[áa]udios?|lyrics?|letras?|clipe?|clip|visuali[sz]er|remaster(?:izado)?|explicit|h\.?q|4k|2160p|1080p|karaok[êe]|instrumental|fanmade|legendad[oa]|tradu[cç][ãa]o|sub\s*esp|legendas?|ao\s+vivo|live|feat\.?|part\.?)[^\)\]]*[\)\]]""",
+        """\s*[\(\[][^\)\]]*(official|oficial|vide[oó]|[áa]udios?|lyrics?|letras?|clipe?|clip|visuali[sz]er|remaster(?:izado)?|explicit|h\.?q|4k|2160p|1080p|720p|karaok[êe]|instrumental|fanmade|legendad[oa]|tradu[cç][ãa]o|sub\s*esp|legendas?|ao\s+vivo|live|feat\.?|ft\.?|part\.?|slowed|reverb|lofi|lo-fi|nightcore|sped\s*up|speed\s*up|extended|remix)[^\)\]]*[\)\]]""",
         RegexOption.IGNORE_CASE
     )
+
+    // Blocos SEM palavra-chave que sobraram NO FIM do título — nome de álbum
+    // ou gravadora que o YouTube cola depois da música: "Todo Mundo Vai
+    // Sofrer (Marília Canta Thomaz)", "Hear Me Now [Ultra Records]". Só no
+    // fim (o que está no meio pode ser parte do nome da música) e enquanto
+    // sobrar título de verdade (o casamento exato precisa do nome limpo).
+    private val TRAILING_BLOCK = Regex("""(?:\s*[\(\[][^\)\]]*[\)\]])+\s*$""")
+
+    // Separador que sobrou solto no fim depois da lavagem ("Música -")
+    private val DANGLE_SEP = Regex("""\s+[-–—]\s*$""")
 
     // "Artista - Música" (também aceita – e —)
     private val SEP = Regex("""\s+[-–—]\s+""")
@@ -108,8 +131,15 @@ object LyricsFetcher {
     ): TrackQuery {
         var name = EXT.replace(displayTitle.trim(), "")
         name = JUNK.replace(name, " ")
+        // blocos sem palavra-chave no FIM (nome de álbum/gravadora): tira
+        // enquanto sobrar título de verdade — nunca deixa o nome em branco
+        while (true) {
+            val stripped = TRAILING_BLOCK.replace(name, "").trim()
+            if (stripped.isNotEmpty() && stripped != name.trim()) name = stripped else break
+        }
         var artist = ""
         var title = SPACES.replace(name, " ").trim()
+        title = DANGLE_SEP.replace(title, "").trim()
         val sep = SEP.find(title)
         if (sep != null) {
             artist = title.substring(0, sep.range.first).trim()
@@ -154,27 +184,44 @@ object LyricsFetcher {
         val key = "${q.artist.lowercase()}|${q.title.lowercase()}|${q.durationMs / 1000}"
         lookup(key)?.let { return@withContext it }
         val durSec = (q.durationMs / 1000).takeIf { it > 0 }
-        // Escada de busca: casamento exato (artista+faixa+duração) → busca
-        // com artista+faixa → busca solta (q=artista faixa). Sem artista
-        // (título sem " - ")? Vai direto pro q=.
-        val found: JSONObject? = if (q.artist.isBlank()) {
-            pick(search("q" to q.title), durSec)
+        // Escada de busca (v0.22.8, provada em sonda real 28/28):
+        //  1. casamento exato artista+faixa (SEM duration no pedido — a
+        //     duração do arquivo vira de nome de vídeo, e duração errada aqui
+        //     derruba o exato; ela vale no ESCORE do degrau de baixo);
+        //  2. busca artista+faixa;
+        //  3. busca solta q="artista faixa";
+        //  4. busca só-com-a-faixa (achou "Favela Vive 2" e "Tudo Bem" —
+        //     nomes comuns que a busca cheia engole).
+        // Cada degrau só vale se TROUXE LETRA: registro achado sem letra
+        // (plainLyrics/syncedLyrics null) NÃO para a escada — antes, parava.
+        // Sem artista (título sem " - ")? Vai direto pros degraus de busca.
+        val res: LyricsResult? = if (q.artist.isBlank()) {
+            ladder(durSec, "q" to q.title)
         } else {
-            get(q, durSec)
-                ?: pick(search("track_name" to q.title, "artist_name" to q.artist), durSec)
-                ?: pick(search("q" to "${q.artist} ${q.title}"), durSec)
+            get(q)?.let(::parse)
+                ?: ladder(durSec, "track_name" to q.title, "artist_name" to q.artist)
+                ?: ladder(durSec, "q" to "${q.artist} ${q.title}")
+                ?: ladder(durSec, "track_name" to q.title)
         }
-        val res = found?.let { parse(it) }
         if (res != null) remember(key, res)
         res
     }
 
-    /** /api/get — casamento exato; 404 devolve null (cai pra busca). */
-    private fun get(q: TrackQuery, durSec: Int?): JSONObject? {
+    /**
+     * Um degrau de /api/search: pede, escolhe o melhor candidato e DEVOLVE
+     * só se veio letra de verdade (parse null = degrau escada abaixo).
+     */
+    private fun ladder(durSec: Int?, vararg params: Pair<String, String>): LyricsResult? {
+        val arr = search(*params) ?: return null
+        val best = pick(arr, durSec) ?: return null
+        return parse(best)
+    }
+
+    /** /api/get — casamento exato; 404/sem-JSON devolve null (cai pra busca). */
+    private fun get(q: TrackQuery): JSONObject? {
         val url = StringBuilder(API)
             .append("/get?track_name=").append(enc(q.title))
             .append("&artist_name=").append(enc(q.artist))
-        if (durSec != null) url.append("&duration=").append(durSec)
         val req = Request.Builder().url(url.toString()).header("User-Agent", UA).build()
         return try {
             http.newCall(req).execute().use { r ->
@@ -187,7 +234,8 @@ object LyricsFetcher {
         }
     }
 
-    /** /api/search — lista de candidatos; quem escolhe é o pick(). */
+    /** /api/search — lista de candidatos; quem escolhe é o pick().
+     *  IOException NÃO é engolida: rede caída sobe pra tela de Tentar de novo. */
     private fun search(vararg params: Pair<String, String>): JSONArray? {
         val url = StringBuilder(API).append("/search?")
         params.forEachIndexed { i, (k, v) ->
