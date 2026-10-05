@@ -96,7 +96,7 @@ class VisualizerView @JvmOverloads constructor(
         color = 0xE6E7E9F0.toInt() // on_background translúcido — legível sobre o gradiente
     }
     private val idlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0x30A78BFA // grade "apagada": mostra onde as barras nascem
+        color = 0x30E8C158 // grade "apagada": mostra onde as barras nascem
     }
     private val barRect = RectF()
     private var gradient: LinearGradient? = null
@@ -233,10 +233,10 @@ class VisualizerView @JvmOverloads constructor(
         if (w <= 0 || h <= 0) return
 
         if (gradient == null || gradientW != w || gradientH != h) {
-            // gradiente do app: violeta escuro (base) → violeta → fúcsia (topo)
+            // gradiente do app: dourado escuro (base) → dourado → dourado claro (topo)
             gradient = LinearGradient(
                 0f, h.toFloat(), 0f, 0f,
-                intArrayOf(0xFF6D28D9.toInt(), 0xFFA78BFA.toInt(), 0xFFF472B6.toInt()),
+                intArrayOf(0xFFA06E12.toInt(), 0xFFE8C158.toInt(), 0xFFF5D161.toInt()),
                 floatArrayOf(0f, 0.55f, 1f),
                 Shader.TileMode.CLAMP
             )

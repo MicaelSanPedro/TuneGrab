@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Círculo da ilustração do tutorial (v0.19.6): o MESMO gradiente do
-     ícone do app (violeta → fúcsia, icon_bg_start → icon_bg_end) — cada
+     ícone do app (dourado escuro → dourado claro, icon_bg_start → icon_bg_end) — cada
      página do tour tem um glifo branco no centro deste círculo -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Check do modo seleção múltipla (v0.19.7): círculo violeta preenchido com
+<!-- Check do modo seleção múltipla (v0.19.7): círculo dourado preenchido com
      o ic_check branco no centro (a própria fonte do check já é branca) -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>

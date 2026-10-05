@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="background">#0F1117</color>
-    <color name="surface">#1A1E29</color>
-    <color name="stroke">#2A3040</color>
-    <color name="primary">#A78BFA</color>
-    <color name="secondary">#F472B6</color>
-    <color name="on_background">#E7E9F0</color>
-    <color name="on_surface_variant">#9AA0B2</color>
-    <color name="icon_bg_start">#6D28D9</color>
-    <color name="icon_bg_end">#C026D3</color>
+    <!-- Paleta dourada (v0.22.9): a marca sai do violeta e veste ouro sobre
+         neutros quentes. Contrastes conferidos (AA): primary como texto sobre
+         fundo 11:1; texto sobre botão dourado (onPrimary) 9.6:1;
+         on_surface_variant sobre surface 6.3:1; on_background 16:1 -->
+    <color name="background">#14120D</color>
+    <color name="surface">#211E15</color>
+    <color name="stroke">#3A3320</color>
+    <color name="primary">#E8C158</color>
+    <color name="secondary">#C9974C</color>
+    <color name="on_background">#F1EEE5</color>
+    <color name="on_surface_variant">#A79F8C</color>
+    <color name="icon_bg_start">#A06E12</color>
+    <color name="icon_bg_end">#F5D161</color>
     <color name="state_done">#4ADE80</color>
     <color name="state_failed">#F87171</color>
-    <!-- Cartão selecionado na Biblioteca (v0.19.7): o tom roxo da pill antiga
-         da barra (nav_pill, aposentada na v0.19.6) volta como destaque da
-         faixa marcada no modo de seleção múltipla -->
-    <color name="sel_card">#2E2749</color>
+    <!-- Cartão selecionado na Biblioteca (v0.19.7): o destaque da faixa
+         marcada no modo de seleção múltipla. Era o roxo da pill antiga
+         (herdado até a v0.22.8); a paleta dourada troca pelo café-dourado -->
+    <color name="sel_card">#372E0F</color>
 </resources>

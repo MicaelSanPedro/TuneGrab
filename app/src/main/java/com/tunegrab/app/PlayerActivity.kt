@@ -561,7 +561,7 @@ class PlayerActivity : AppCompatActivity() {
                 binding.imgArt.clipToOutline = true
                 binding.imgArtIcon.visibility = View.GONE
             } else {
-                // sem capa (ou ilegível): gradiente violeta + ícone de sempre
+                // sem capa (ou ilegível): gradiente dourado + ícone de sempre
                 binding.imgArt.setImageDrawable(null)
                 binding.imgArtIcon.visibility = View.VISIBLE
             }

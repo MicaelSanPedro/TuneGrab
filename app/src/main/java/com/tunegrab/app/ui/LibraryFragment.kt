@@ -1309,7 +1309,7 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 }
 
                 // v0.19.7: no modo seleção os 4 botões saem e o círculo de
-                // check entra; o cartão marcado ganha fundo roxo + borda violeta.
+                // check entra; o cartão marcado ganha fundo dourado + borda dourada.
                 // v0.22.6: no modo mover TUDO dorme na faixa (destino se
                 // escolhe navegando — a faixa não é clicável por engano)
                 val isSel = selectionMode && key(entry) in selected

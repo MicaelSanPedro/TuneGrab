@@ -2,7 +2,7 @@
 <resources>
     <style name="Theme.TuneGrab" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
-        <item name="colorOnPrimary">#1B1032</item>
+        <item name="colorOnPrimary">#2A1D04</item>
         <item name="colorSecondary">@color/secondary</item>
         <item name="android:colorBackground">@color/background</item>
         <item name="colorSurface">@color/surface</item>

@@ -20,7 +20,7 @@ import kotlin.math.roundToInt
  * pra quando abrir o app pela primeira vez, de como usar — bem explicado e
  * bonito"): 5 páginas deslizáveis no ViewPager2 — Bem-vindo · Cole o link ·
  * Aba YouTube · Central de Downloads · Biblioteca — cada uma com a ilustração
- * no MESMO gradiente do ícone do app (violeta → fúcsia), título grande e
+ * no MESMO gradiente do ícone do app (dourado escuro → dourado claro), título grande e
  * texto direto ao ponto.
  *
  * O Splash roteia pra cá ANTES da barra na 1ª abertura (pref "onboarding");
@@ -72,7 +72,7 @@ class OnboardingActivity : AppCompatActivity() {
         }
     }
 
-    /** Bolinhas do indicador: a ativa estica pra pílula de 20dp violeta
+    /** Bolinhas do indicador: a ativa estica pra pílula de 20dp dourado
      *  (animateLayoutChanges no XML anima a troca de largura de graça). */
     private fun buildDots() {
         pages.forEach { _ ->

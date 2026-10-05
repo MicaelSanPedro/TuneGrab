@@ -26,9 +26,9 @@ class LedTextView @JvmOverloads constructor(
 
     private var sweep: ValueAnimator? = null
 
-    // Faixa de luz: lavanda médio → quase branco → lavanda médio (sino de luz)
-    private val glowMid = 0xFFC4B5FD.toInt()
-    private val glowHot = 0xFFF5F1FF.toInt()
+    // Faixa de luz: dourado médio → quase branco quente → dourado médio (sino de luz)
+    private val glowMid = 0xFFEED988.toInt()
+    private val glowHot = 0xFFFFF6DC.toInt()
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)

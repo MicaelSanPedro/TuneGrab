@@ -30,7 +30,7 @@
     <!-- Controles de ÁUDIO — estilo minimalista da referência (v0.18.8):
          cartão de arte grande com cantos bem redondos, waveform fina do som
          REAL, progresso fino, botão de play circular CHEIO e slider de
-         volume — tudo na paleta violeta/fúcsia do app -->
+         volume — tudo na paleta dourada do app -->
     <LinearLayout
         android:id="@+id/audioControls"
         android:layout_width="match_parent"
@@ -47,10 +47,10 @@
 
             <!-- CAPA da música (v0.19.0; centerCrop v0.19.1): quando o
                  arquivo tem capa embutida, o bitmap COBRE o cartão inteiro —
-                 centerCrop recorta a capa pra NADA do fundo violeta aparecer
+                 centerCrop recorta a capa pra NADA do fundo dourado aparecer
                  (autor: a capa SUBSTITUI o ícone, não fica em cima dele);
                  clipToOutline usa o contorno arredondado do bg_album_art.
-                 Sem capa: o gradiente violeta de sempre -->
+                 Sem capa: o gradiente dourado de sempre -->
             <ImageView
                 android:id="@+id/imgArt"
                 android:layout_width="match_parent"
@@ -169,7 +169,7 @@
                 app:tint="@color/on_background" />
 
             <!-- Play/PAUSE: disco circular cheio (estilo da referência), ícone
-                 escuro por cima do violeta -->
+                 escuro por cima do dourado -->
             <ImageButton
                 android:id="@+id/btnPlay"
                 android:layout_width="76dp"

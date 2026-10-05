@@ -16,7 +16,7 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <!-- Indicador de pontos: o ativo estica pra pílula violeta (animateLayout
+    <!-- Indicador de pontos: o ativo estica pra pílula dourada (animateLayout
          Changes anima a troca de largura de graça) -->
     <LinearLayout
         android:id="@+id/dots"

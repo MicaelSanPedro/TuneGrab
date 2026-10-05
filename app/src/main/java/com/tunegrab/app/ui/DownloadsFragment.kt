@@ -184,7 +184,7 @@ class DownloadsFragment : Fragment() {
         b.emptyState.isVisible = shown.isEmpty()
         // RAIZ DO BUG DO PRINT: lista e vazio dividem a altura em peso 1:99 —
         // com a lista VISIBLE (mesmo sem itens) o estado vazio ficava com 1%
-        // da tela: só uma barrinha violeta cortada embaixo dos chips. Escondendo
+        // da tela: só uma barrinha dourado cortada embaixo dos chips. Escondendo
         // a lista, o estado vazio toma a tela inteira.
         b.list.isVisible = shown.isNotEmpty()
         if (shown.isEmpty()) {
@@ -328,7 +328,7 @@ class DownloadsAdapter : RecyclerView.Adapter<DownloadsAdapter.VH>() {
                 b.progress.isVisible = true
                 b.progress.isIndeterminate = item.indeterminate
                 b.progress.progress = item.percent
-                // fase visível: baixando = violeta; processando/salvando = verde
+                // fase visível: baixando = dourado; processando/salvando = verde
                 val finishingPhase = item.phase == ctx.getString(R.string.notif_phase_convert) ||
                     item.phase == ctx.getString(R.string.notif_phase_save)
                 b.progress.progressTintList = ColorStateList.valueOf(

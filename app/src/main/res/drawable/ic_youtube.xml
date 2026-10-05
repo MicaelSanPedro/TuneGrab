@@ -4,7 +4,7 @@
      Material que parecia uma TV — pedido do autor: "o de youtube mesmo,
      só que não colorido". O furo do triângulo sai pelo fillType evenOdd
      (dois sub-caminhos no mesmo path). A cor vem do tint da barra
-     (cinza inativo / violeta ativo) — monocromático como os demais.
+     (cinza inativo / dourado ativo) — monocromático como os demais.
      v0.19.4: group com scale 0.8 — o logo é full-bleed (preenche 91% da
      altura do viewport) e virava um BLOCO gigante ao lado dos Material
      Symbols da barra (casa/download têm ~67-73% de conteúdo); em 73% de

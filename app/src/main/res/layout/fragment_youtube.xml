@@ -28,7 +28,7 @@
         android:progressBackgroundTint="@android:color/transparent"
         android:visibility="gone" />
 
-    <!-- Botão BAIXAR (só existe em página de vídeo): mesmo roxo do app,
+    <!-- Botão BAIXAR (só existe em página de vídeo): mesmo dourado do app,
          canto inferior direito, flutuando sobre a página -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnGrab"

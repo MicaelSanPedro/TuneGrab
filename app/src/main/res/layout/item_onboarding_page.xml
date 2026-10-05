@@ -10,7 +10,7 @@
     android:paddingStart="36dp"
     android:paddingEnd="36dp">
 
-    <!-- Ilustração: halo de 10% do violeta atrás, círculo gradiente (o mesmo
+    <!-- Ilustração: halo de 10% do dourado atrás, círculo gradiente (o mesmo
          do ícone do app) no meio e o glifo da página por cima -->
     <FrameLayout
         android:layout_width="176dp"
