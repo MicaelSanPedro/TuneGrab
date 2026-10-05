@@ -4,6 +4,19 @@
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">#2A1D04</item>
         <item name="colorSecondary">@color/secondary</item>
+        <!-- Container roles (v0.22.10): sem eles, botão tonal (Reproduzir),
+             chips marcados e switches caem no roxo baseline do Material 3
+             Dark — a "fog roxa" que escapou da v0.22.9 -->
+        <item name="colorPrimaryContainer">@color/primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/on_primary_container</item>
+        <item name="colorSecondaryContainer">@color/secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/on_secondary_container</item>
+        <item name="colorTertiaryContainer">@color/tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/on_tertiary_container</item>
+        <item name="colorSurfaceVariant">@color/stroke</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
+        <item name="colorOutline">@color/outline</item>
+        <item name="colorOutlineVariant">@color/stroke</item>
         <item name="android:colorBackground">@color/background</item>
         <item name="colorSurface">@color/surface</item>
         <item name="android:statusBarColor">@color/background</item>

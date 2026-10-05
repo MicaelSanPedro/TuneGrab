@@ -15,6 +15,17 @@
     <color name="icon_bg_end">#F5D161</color>
     <color name="state_done">#4ADE80</color>
     <color name="state_failed">#F87171</color>
+    <!-- Container roles do Material 3 (v0.22.10): botão tonal, chips marcados
+         e switches leem esses roles. Sem eles o Material veste o baseline
+         ROXO de fábrica — a "fog roxa" no botão Reproduzir (v0.22.9) nasceu
+         aí. Contraste conferido: on_secondary_container sobre container 6.7:1 -->
+    <color name="primary_container">#3E3414</color>
+    <color name="on_primary_container">#F5D161</color>
+    <color name="secondary_container">#50421F</color>
+    <color name="on_secondary_container">#F5D161</color>
+    <color name="tertiary_container">#5C471F</color>
+    <color name="on_tertiary_container">#FFF0C2</color>
+    <color name="outline">#8A8270</color>
     <!-- Cartão selecionado na Biblioteca (v0.19.7): o destaque da faixa
          marcada no modo de seleção múltipla. Era o roxo da pill antiga
          (herdado até a v0.22.8); a paleta dourada troca pelo café-dourado -->

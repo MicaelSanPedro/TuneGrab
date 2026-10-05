@@ -1,1 +1,1 @@
-O app trocou de roupa: saiu o roxo e entrou o dourado! Mesma rapidez de sempre, agora com visual de peso. Atualiza e conta o que achou!
+Achamos um roxinho escondido: o botão de ouvir tinha um fundo roxo de fábrica. Agora ele é dourado igual a tudo o resto!
