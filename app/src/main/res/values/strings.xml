@@ -208,8 +208,23 @@
     <!-- Botão flutuante do navegador do YouTube (v0.19.2) -->
     <string name="yt_grab">Baixar</string>
     <string name="nav_downloads">Downloads</string>
+    <string name="nav_favorites">Favoritos</string>
     <string name="nav_library">Biblioteca</string>
     <string name="nav_settings">Config.</string>
+
+    <!-- Favoritos (v0.22.11) -->
+    <string name="fav_title">Favoritos</string>
+    <string name="fav_count_one">1 música salva</string>
+    <string name="fav_count_many">%d músicas salvas</string>
+    <string name="fav_empty_title">Nenhum favorito ainda</string>
+    <string name="fav_empty_body">Ouça uma música no player e toque no coração pra guardar ela aqui.</string>
+    <string name="fav_removed">Saiu dos favoritos</string>
+    <string name="fav_added">Salvo nos favoritos</string>
+    <string name="fav_play_desc">Ouvir agora</string>
+    <string name="fav_download_desc">Baixar de novo</string>
+    <string name="fav_remove_desc">Tirar dos favoritos</string>
+    <string name="player_fav">Favorito</string>
+    <string name="player_fav_desc">Salvar nos favoritos</string>
 
     <!-- Central de downloads -->
     <string name="dl_title">Central de downloads</string>

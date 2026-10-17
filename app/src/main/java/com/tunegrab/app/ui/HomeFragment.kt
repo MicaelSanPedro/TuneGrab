@@ -99,7 +99,13 @@ class HomeFragment : Fragment() {
         setStatus(getString(R.string.status_idle))
         bindFooter()
         // link compartilhado que chegou antes desta aba existir
-        (activity as? MainActivity)?.consumePendingSharedUrl()?.let { handleSharedUrl(it) }
+        // (v0.22.11: o MODO via junto — baixar de sempre, ouvir quando o
+        // link vem de um toque num card da aba Favoritos)
+        val main = activity as? MainActivity
+        val pending = main?.consumePendingSharedUrl()
+        if (pending != null) {
+            handleSharedUrl(pending, autoplay = main?.consumePendingAutoPlay() == true)
+        }
         // Atualização (v0.19.9): o card de versão nova agora vive NO INÍCIO
         // (era na Central). Consulta a release mais recente com o mesmo
         // cache/throttle de sempre (abertura fria consulta; falha é
@@ -141,11 +147,18 @@ class HomeFragment : Fragment() {
         _binding = null
     }
 
-    /** Link vindo de "Compartilhar → TuneGrab" ou de abrir uma URL do YouTube. */
-    fun handleSharedUrl(shared: String) {
+    /** Link vindo de "Compartilhar → TuneGrab" ou de abrir uma URL do YouTube.
+     *  v0.22.11: [autoplay] — a aba Favoritos reabre músicas por aqui: link no
+     *  campo + play disparado, MESMO fluxo do botão Reproduzir (busca, retry,
+     *  rotação anti-bot, player). false = comportamento de sempre (baixar). */
+    fun handleSharedUrl(shared: String, autoplay: Boolean = false) {
         binding.inputUrl.setText(shared)
-        // link compartilhado do YouTube → abre o seletor de formato direto
-        onDownloadClicked()
+        if (autoplay) {
+            onPlayClicked()
+        } else {
+            // link compartilhado do YouTube → abre o seletor de formato direto
+            onDownloadClicked()
+        }
     }
 
     /**
@@ -248,6 +261,9 @@ class HomeFragment : Fragment() {
             try {
                 val verified = fetchAndVerify(url)
                 val title = verified.info.name
+                // Favoritos (v0.22.11): o link DA PÁGINA (não o do stream) vai
+                // no player — é ele que o coração guarda pra reabrir depois
+                val sourceUrl = verified.info.originalUrl ?: url
                 val video = verified.video.firstOrNull()
                 val audio = verified.audio.firstOrNull()
                 when {
@@ -265,13 +281,22 @@ class HomeFragment : Fragment() {
                         val intent = when {
                             hd != null -> PlayerActivity.remoteVideoHd(
                                 requireContext(), hd.first, hd.second, title,
-                                fallbackUrl = video?.url
+                                fallbackUrl = video?.url,
+                                sourceUrl = sourceUrl,
+                                sourceAuthor = verified.info.uploaderName,
+                                sourceDurationSec = verified.info.duration
                             )
                             video != null -> PlayerActivity.remoteVideo(
-                                requireContext(), video.url!!, title
+                                requireContext(), video.url!!, title,
+                                sourceUrl = sourceUrl,
+                                sourceAuthor = verified.info.uploaderName,
+                                sourceDurationSec = verified.info.duration
                             )
                             else -> PlayerActivity.remoteAudio(
-                                requireContext(), audio!!.url!!, title
+                                requireContext(), audio!!.url!!, title,
+                                sourceUrl = sourceUrl,
+                                sourceAuthor = verified.info.uploaderName,
+                                sourceDurationSec = verified.info.duration
                             )
                         }
                         startActivity(intent)

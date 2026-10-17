@@ -35,7 +35,7 @@ import kotlin.math.roundToInt
  * pra esquerda, exatamente o efeito pedido).
  *
  * API enxuta no lugar do BottomNavigationView:
- *  - addTab(itemId, icon, label): monta as 5 abas (BottomNav.setup, em código)
+ *  - addTab(itemId, icon, label): monta as abas (BottomNav.setup, em código)
  *  - selectedItemId: lê/troca a aba (MainActivity.openTab usa como antes)
  *  - setOnItemSelectedListener: callback de troca (fun interface, SAM)
  * A troca SEMPRE anima, menos a montagem inicial (select animate=false) —
@@ -62,7 +62,7 @@ class ExpandingNavBar @JvmOverloads constructor(
         var animator: ValueAnimator? = null
     }
 
-    private val tabs = ArrayList<Tab>(5)
+    private val tabs = ArrayList<Tab>(6)
     private var listener: Listener? = null
     private var selectedId = View.NO_ID
 
@@ -94,7 +94,10 @@ class ExpandingNavBar @JvmOverloads constructor(
         val item = LinearLayout(context).apply {
             orientation = HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), 0, dp(12), 0)
+            // v0.22.11: 12→9dp de respiro lateral — a barra ganhou a 6ª aba
+            // (Favoritos) e o empurrão precisa caber numa tela de 360dp com
+            // o nome da aba ativa esticado. 2dp de margem externa segue junto.
+            setPadding(dp(9), 0, dp(9), 0)
             isClickable = true
             isFocusable = true
             contentDescription = title
@@ -107,7 +110,10 @@ class ExpandingNavBar @JvmOverloads constructor(
         }
         val label = TextView(context).apply {
             text = title
-            textSize = 12.5f
+            // v0.22.11: 12.5→12sp — letra do label 4% menor pra 6 abas
+            // caberem com a mesma graça em telas estreitas (o nome ainda é
+            // bold e dourado, mudou só o fio da altura)
+            textSize = 12f
             setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD))
             setTextColor(colorActive)
             // v0.19.4: SEM quebra de linha — com a largura animando de 0, um
@@ -123,8 +129,8 @@ class ExpandingNavBar @JvmOverloads constructor(
         addView(
             item,
             LayoutParams(LayoutParams.WRAP_CONTENT, dp(42)).apply {
-                marginStart = dp(3)
-                marginEnd = dp(3)
+                marginStart = dp(2)
+                marginEnd = dp(2)
             }
         )
         // medida do texto uma vez (animação usa este alvo)
@@ -139,7 +145,9 @@ class ExpandingNavBar @JvmOverloads constructor(
                 // v0.19.4: gap 6→10dp — com 6dp o nome nascia colado no ícone
                 // (o logo do YouTube encosta na borda da caixa, os glifos do
                 // Material Symbols têm folga própria); 10dp nivela todos.
-                dp(10)
+                // v0.22.11: 10→8dp — com 6 abas, cada ponto conta; 8dp ainda
+                // dá folga visível entre glifo e nome.
+                dp(8)
             )
         )
     }

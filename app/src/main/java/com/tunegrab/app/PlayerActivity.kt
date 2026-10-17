@@ -106,6 +106,12 @@ class PlayerActivity : AppCompatActivity() {
     // cá SOZINHO em vez de morrer no erro
     private var fallbackUri: Uri? = null
 
+    // FAVORITOS (v0.22.11): identidade da faixa do YouTube que está tocando.
+    // Nulos = faixa LOCAL (Biblioteca/Central) — o coração nem aparece.
+    private var sourceUrl: String? = null
+    private var sourceAuthor: String? = null
+    private var sourceDurationSec: Long = 0L
+
     // MINIPLAYER (v0.18.0): saiu do app com vídeo tocando? O som passa pro
     // PlaybackService (foreground service) DE ONDE PAROU e vira o cartão de
     // mídia do sistema (lá embaixo no shade/tela de bloqueio). Ao voltar, o
@@ -185,6 +191,13 @@ class PlayerActivity : AppCompatActivity() {
         val videoUrl = intent.getStringExtra(EXTRA_VIDEO_URL)
         val audioUrl = intent.getStringExtra(EXTRA_AUDIO_URL)
         fallbackUri = intent.getStringExtra(EXTRA_FALLBACK_URL)?.let(Uri::parse)
+        // Favoritos (v0.22.11): identidade da faixa vinda do YouTube — link
+        // da página, canal e duração. É o que o coração guarda (arquivo
+        // local não carrega nada disso e o coração nem aparece).
+        sourceUrl = intent.getStringExtra(EXTRA_SOURCE_URL)
+        sourceAuthor = intent.getStringExtra(EXTRA_SOURCE_AUTHOR)
+        sourceDurationSec = intent.getLongExtra(EXTRA_SOURCE_DURATION, 0L)
+        setupFavoriteButton()
         when {
             // HD (v0.17.1): DASH do YouTube — vídeo até 720p + áudio separados,
             // MERGIDOS no ExoPlayer; se falhar na hora de tocar, cai pro muxed
@@ -402,6 +415,46 @@ class PlayerActivity : AppCompatActivity() {
             WindowCompat.setDecorFitsSystemWindows(window, true)
             controller.show(WindowInsetsCompat.Type.systemBars())
         }
+    }
+
+    private fun setupFavoriteButton() {
+        val url = sourceUrl
+        if (url == null) {
+            binding.btnFavorite.visibility = View.GONE
+            return
+        }
+        binding.btnFavorite.visibility = View.VISIBLE
+        renderFavoriteState(FavoritesStore.contains(this, url))
+        binding.btnFavorite.setOnClickListener {
+            val saved = FavoritesStore.contains(this, url)
+            if (saved) {
+                FavoritesStore.remove(this, url)
+                Toast.makeText(this, R.string.fav_removed, Toast.LENGTH_SHORT).show()
+            } else {
+                FavoritesStore.add(
+                    this,
+                    FavoritesStore.Fav(
+                        url = url,
+                        title = binding.tvTitle.text.toString().ifBlank { url },
+                        author = sourceAuthor,
+                        durationSec = sourceDurationSec,
+                        addedAt = System.currentTimeMillis()
+                    )
+                )
+                Toast.makeText(this, R.string.fav_added, Toast.LENGTH_SHORT).show()
+            }
+            renderFavoriteState(!saved)
+        }
+    }
+
+    /** Coração apagado (branco) = não salvo; coração cheio dourado = salvo. */
+    private fun renderFavoriteState(saved: Boolean) {
+        binding.btnFavorite.setImageResource(
+            if (saved) R.drawable.ic_heart_fill else R.drawable.ic_heart
+        )
+        binding.btnFavorite.setColorFilter(
+            getColor(if (saved) R.color.primary else R.color.on_background)
+        )
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -824,6 +877,7 @@ class PlayerActivity : AppCompatActivity() {
     /** Dentro da janelinha: só o vídeo — o sistema dá fechar/expandir. */
     private fun enterPipUi() {
         binding.btnClose.visibility = View.GONE
+        binding.btnFavorite.visibility = View.GONE
         binding.btnFullscreen.visibility = View.GONE
         binding.playerView.useController = false
         binding.playerView.hideController()
@@ -832,6 +886,8 @@ class PlayerActivity : AppCompatActivity() {
     /** Voltou pra tela normal (expandiu a janelinha): controles de volta. */
     private fun exitPipUi() {
         binding.btnClose.visibility = View.VISIBLE
+        // o coração volta só se ele existe (faixa do YouTube)
+        if (sourceUrl != null) binding.btnFavorite.visibility = View.VISIBLE
         if (isVideo) {
             binding.btnFullscreen.visibility = View.VISIBLE
             binding.playerView.useController = true
@@ -975,6 +1031,12 @@ class PlayerActivity : AppCompatActivity() {
         const val EXTRA_AUDIO_URL = "audio_url"
         const val EXTRA_FALLBACK_URL = "fallback_url"
 
+        /** Favoritos (v0.22.11): identidade da faixa do YouTube — o coração
+         *  do canto guarda isto (link da página + canal + duração). */
+        const val EXTRA_SOURCE_URL = "source_url"
+        const val EXTRA_SOURCE_AUTHOR = "source_author"
+        const val EXTRA_SOURCE_DURATION = "source_duration"
+
         /** Aberto pelo cartão de mídia do sistema: o serviço já está tocando
          *  esta faixa — a activity só conecta a UI (NÃO reinicia do zero). */
         const val EXTRA_FROM_CARD = "from_card"
@@ -989,11 +1051,19 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         /** Abre o player tocando um VÍDEO direto da rede (sem baixar nada). */
-        fun remoteVideo(ctx: Context, url: String, title: String): Intent =
+        fun remoteVideo(
+            ctx: Context, url: String, title: String,
+            sourceUrl: String? = null,
+            sourceAuthor: String? = null,
+            sourceDurationSec: Long = 0L
+        ): Intent =
             Intent(ctx, PlayerActivity::class.java)
                 .setData(Uri.parse(url))
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_IS_VIDEO, true)
+                .putExtra(EXTRA_SOURCE_URL, sourceUrl)
+                .putExtra(EXTRA_SOURCE_AUTHOR, sourceAuthor)
+                .putExtra(EXTRA_SOURCE_DURATION, sourceDurationSec)
 
         /**
          * Abre o player em HD (v0.17.1): vídeo DASH (até 720p, video-only) +
@@ -1007,7 +1077,10 @@ class PlayerActivity : AppCompatActivity() {
             videoUrl: String,
             audioUrl: String,
             title: String,
-            fallbackUrl: String? = null
+            fallbackUrl: String? = null,
+            sourceUrl: String? = null,
+            sourceAuthor: String? = null,
+            sourceDurationSec: Long = 0L
         ): Intent =
             Intent(ctx, PlayerActivity::class.java)
                 .setData(Uri.parse(videoUrl))
@@ -1016,12 +1089,23 @@ class PlayerActivity : AppCompatActivity() {
                 .putExtra(EXTRA_VIDEO_URL, videoUrl)
                 .putExtra(EXTRA_AUDIO_URL, audioUrl)
                 .putExtra(EXTRA_FALLBACK_URL, fallbackUrl)
+                .putExtra(EXTRA_SOURCE_URL, sourceUrl)
+                .putExtra(EXTRA_SOURCE_AUTHOR, sourceAuthor)
+                .putExtra(EXTRA_SOURCE_DURATION, sourceDurationSec)
 
         /** Abre o player tocando só o ÁUDIO da rede (fallback do modo remote). */
-        fun remoteAudio(ctx: Context, url: String, title: String): Intent =
+        fun remoteAudio(
+            ctx: Context, url: String, title: String,
+            sourceUrl: String? = null,
+            sourceAuthor: String? = null,
+            sourceDurationSec: Long = 0L
+        ): Intent =
             Intent(ctx, PlayerActivity::class.java)
                 .setData(Uri.parse(url))
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_IS_VIDEO, false)
+                .putExtra(EXTRA_SOURCE_URL, sourceUrl)
+                .putExtra(EXTRA_SOURCE_AUTHOR, sourceAuthor)
+                .putExtra(EXTRA_SOURCE_DURATION, sourceDurationSec)
     }
 }

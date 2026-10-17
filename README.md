@@ -7,79 +7,85 @@
 **Baixe músicas e vídeos do YouTube no seu Android — direto no aparelho,
 sem servidor, sem anúncios, sem complicação.**
 
-![Build](https://github.com/MicaelSanPedro/TuneGrab/actions/workflows/build.yml/badge.svg)
-![Release](https://img.shields.io/github/v/release/MicaelSanPedro/TuneGrab)
-![License](https://img.shields.io/github/license/MicaelSanPedro/TuneGrab)
+[![Build](https://github.com/MicaelSanPedro/TuneGrab/actions/workflows/build.yml/badge.svg)](https://github.com/MicaelSanPedro/TuneGrab/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/MicaelSanPedro/TuneGrab)](https://github.com/MicaelSanPedro/TuneGrab/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/MicaelSanPedro/TuneGrab/total)](https://github.com/MicaelSanPedro/TuneGrab/releases)
+[![License](https://img.shields.io/github/license/MicaelSanPedro/TuneGrab)](LICENSE)
 ![Android](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-1.9-7F52FF?logo=kotlin&logoColor=white)
+
+[**⬇️ Baixar a última versão (APK)**](https://github.com/MicaelSanPedro/TuneGrab/releases/latest)
 
 </div>
 
 ---
 
-TuneGrab é um app Android que baixa **áudio (MP3, M4A, OPUS)** e **vídeo (MP4)**
-do YouTube e salva tudo em **Downloads/TuneGrab**. A partir da **v0.4.0**, o app
-vem com um **motor yt-dlp completo embutido no APK** (Python + yt-dlp + ffmpeg):
-ele funciona de fábrica, roda tudo em silêncio no seu celular e se
-**auto-atualiza sozinho** sempre que o YouTube mudar alguma coisa — sem root,
-sem servidor, sem depender de nada instalado no aparelho.
+TuneGrab é um app Android que baixa **áudio (MP3, M4A, OPUS)** e **vídeo (MP4/MKV)**
+do YouTube e salva tudo em **Downloads/TuneGrab**. O app vem com um **motor yt-dlp
+completo embutido no APK** (Python + yt-dlp + ffmpeg): ele funciona de fábrica, roda
+tudo em silêncio no seu celular e se **auto-atualiza sozinho** sempre que o YouTube
+mudar alguma coisa — sem root, sem servidor, sem depender de nada instalado no aparelho.
+
+E não para no download: **ouça dentro do app** (player com visualizador de espectro
+real e letra sincronizada), **guarde suas músicas preferidas** nos favoritos e
+**organize tudo em pastas** na Biblioteca.
 
 ## ✨ Funcionalidades
 
 - **Cole o link e toque em "Baixar"** — funciona de primeira, sem configurar nada
-- **Player embutido** — toque no ▶ na aba Biblioteca para ouvir (com barra de
-  progresso e play/pause) ou assistir ao vídeo dentro do próprio app, em tela
-  cheia **sem deformar** (proporção real preservada em qualquer tela)
-- **Música em segundo plano** — a música continua tocando com o app fechado
-  ou a tela apagada, com **notificação de mídia** (play/pause/fechar) e botão
-  nas configurações de som do aparelho
-- **Vídeo em tela cheia de verdade** — botão de tela cheia no player **gira o
-  app** para paisagem (dos dois lados), esconde as barras do sistema e mantém
-  a proporção do vídeo (nada de imagem esticada)
-- **Downloads rodam em segundo plano** — serviço em primeiro plano com
-  notificação de progresso: pode fechar o app e deixar baixando
-- **Compartilhar em 1 toque** — botão de compartilhar na Central de Downloads
-  (concluídos) e na aba Biblioteca
-- **Menu de navegação inferior com 4 abas** (troca instantânea, sem recarregar):
-  - **Início** — cole o link e baixe
+- **Favoritos (v0.22.11)** — coração no canto do player guarda a música numa aba só
+  dela, na barra de navegação. Toque no card para **ouvir de novo** (mesmo fluxo de
+  reprodução de sempre) ou no botão de download para **baixar de novo**
+- **Letra sincronizada** — botão "Letra" no player puxa a letra da música (fonte
+  aberta [LRCLIB](https://lrclib.net)): a linha acende no tempo do som e a tela anda
+  sozinha, estilo Spotify/YouTube Music. Mais de 89% de cobertura em testes reais
+- **Player embutido** — ouça com barra de progresso, fila anterior/próxima da
+  Biblioteca, **espectro de áudio real** (barrinhas de DJ que dançam com o som, sem
+  permissão nenhuma) e capa do arquivo; assista ao vídeo em tela cheia **sem deformar**
+- **Música em segundo plano** — a música continua tocando com o app fechado ou a tela
+  apagada, com **notificação de mídia** (play/pause/fechar) e janelinha de vídeo
+  **picture-in-picture** igual YouTube Premium
+- **Downloads em segundo plano** — serviço em primeiro plano com notificação de
+  progresso por fases (baixando → processando → salvando): pode fechar o app e deixar
+  baixando; downloads interrompidos **retomam de onde pararam**
+- **6 abas na navegação inferior** (troca instantânea, com o empurrão da aba ativa):
+  - **Início** — cole o link e baixe (ou toque em ▶ para ouvir sem baixar)
+  - **YouTube** — navegador do YouTube dentro do app, com botão "Baixar" flutuante
   - **Downloads** — central em tempo real (fase, % e **velocidade**), com **pausar,
-    continuar e cancelar** no meio do download — na notificação também. Músicas
-    e vídeos separados por filtro (Tudo / Músicas / Vídeos)
-  - **Biblioteca** — músicas (áudio) e VÍDEOS em abas separadas, com contagem,
-    abrir / compartilhar / apagar. Sobrevive a atualizar e até a
-    desinstalar/reinstalar: pastas TuneGrab são reencontradas pelo MediaStore,
-    e o banner de permissão traz TODAS as músicas do aparelho (mesmo as de
-    pasta personalizada)
-  - **Config.** — qualidades e pasta de download
-- **Escolha onde salvar** — qualquer pasta do aparelho em ⚙️ Configurações → Pasta
-  de download (padrão: `Downloads/TuneGrab`, com fallback automático)
-- **4 formatos, qualidades configuradas separadamente** (em ⚙️ Configurações):
+    continuar e cancelar** no meio do download — na notificação também. Filtro
+    Tudo / Músicas / Vídeos
+  - **Favoritos** — as músicas que você guardou com o coração
+  - **Biblioteca** — músicas e vídeos com **pastas de verdade** (criar, renomear,
+    mover estilo gerenciador de arquivos), **busca**, seleção múltipla pra apagar,
+    abrir / compartilhar / apagar. Sobrevive a atualizar e até a reinstalar: as
+    pastas TuneGrab são reencontradas pelo MediaStore
+  - **Config.** — formatos, qualidades, pasta de download, visualizador e mais
+- **Trava de acesso por convite** — o app abre atrás de senha: cada senha nasce de
+  um convite e **fica presa ao aparelho** que ativou (não adianta passar pro outro)
+- **Escolha onde salvar** — qualquer pasta do aparelho em Config. → Pasta de download
+  (padrão: `Downloads/TuneGrab`, com fallback automático)
+- **4 formatos, qualidades configuradas separadamente** (em Config.):
   - **MP3 320/256/192/128 kbps** — convertido no próprio celular com o ffmpeg
     embutido, com tags ID3 e nome da música
   - **M4A** — o áudio original do YouTube, sem reconversão (melhor fidelidade)
   - **OPUS** — o áudio original em WebM, máxima qualidade por bit
   - **Vídeo (MP4/MKV)** — até **4K (2160p)**, com **todas as qualidades sempre
-    liberadas**: acima de 720p o YouTube separa vídeo e áudio, então o app
-    baixa os dois e junta com o ffmpeg embutido **sem re-codificar**. Pediu
-    4K num vídeo de 1080p? Baixa em 1080p — o máximo que o vídeo tem — e a
-    notificação final **confirma a resolução do arquivo salvo** (motor
-    reserva: até 720p, com aviso). Até 1080p o arquivo sai em **MP4/H.264**
-    (abre em qualquer lugar); **1440p/4K saem em MKV** — o contêiner nativo
-    do YouTube nessas resoluções (VP9/AV1 dentro de MP4 o Android lê como
-    arquivo corrompido)
+    liberadas**: acima de 720p o YouTube separa vídeo e áudio, então o app baixa os
+    dois e junta com o ffmpeg embutido **sem re-codificar**. Até 1080p o arquivo sai
+    em **MP4/H.264** (abre em qualquer lugar); **1440p/4K saem em MKV** — o contêiner
+    nativo do YouTube nessas resoluções. A notificação final **confirma a resolução
+    do arquivo salvo**
+- **Playlist inteira** — link com `list=` no modo Playlist: formato/qualidade
+  escolhidos 1×, os vídeos entram na fila um a um (até 100 por vez)
 - **Motor yt-dlp embutido e auto-atualizável** — o app atualiza o motor sozinho
-  (canal estável, 1 checagem por versão), então quando o YouTube mudar algo o
-  TuneGrab "se conserta" na próxima abertura, sem precisar de versão nova
-- **Fallback duplo em silêncio**: se o yt-dlp falhar por qualquer motivo, um
-  segundo motor (NewPipeExtractor + PoToken/BotGuard) assume e tenta de novo
-  automaticamente — você só vê o arquivo (ou um erro honesto, com o motivo real)
-- Compartilhe direto do YouTube (**"Compartilhar → TuneGrab"**) e o seletor abre
+  (canal estável), então quando o YouTube mudar algo o TuneGrab "se conserta" na
+  próxima abertura, sem precisar de versão nova
+- **Fallback duplo em silêncio**: se o yt-dlp falhar, um segundo motor
+  (NewPipeExtractor + PoToken/BotGuard) assume e tenta de novo automaticamente
+- Compartilhe direto do YouTube (**"Compartilhar → TuneGrab"**) e o download começa
   na hora
-- Download com **notificação de progresso por fases** e **retomada** de
-  downloads interrompidos (continua de onde parou)
-- O app **lembra a última escolha** de formato e qualidade
-- Ícone de colar da área de transferência no campo de link
-- Suporte a links `youtube.com`, `m.youtube.com`, `music.youtube.com`, `youtu.be`
-  e Shorts
+- Suporte a links `youtube.com`, `m.youtube.com`, `music.youtube.com`, `youtu.be`,
+  Shorts e playlists
 
 ## 📥 Instalação
 
@@ -112,19 +118,27 @@ YouTube ──▶ TuneGrab (no seu celular) ──▶ Downloads/TuneGrab
              │     desafio anti-bot e minta PoTokens; cada URL é testado com
              │     um probe HTTP antes de baixar; retomada com Range/.part
              │
+             ├─ ♻️ RESGATE · se o anti-bot travar a extração, o yt-dlp lê os
+             │     metadados (título, canal, qualidades) e o seletor abre
+             │     com a mesma cara de sempre — o download sai pelo Plano A
+             │
+             ├─ 🎵 LETRAS · [LRCLIB](https://lrclib.net) — busca em escada
+             │     (exato → artista+faixa → solto → só faixa) escolhe o
+             │     melhor candidato por duração e sincronia; cache local
+             │
              └─ 💾 ffmpeg embutido: converte MP3/OPUS e junta vídeo+áudio do MP4
 ```
 
 ### 🥇 Plano A — yt-dlp embutido (motor principal)
 
-O yt-dlp é o downloader de YouTube mais maduro que existe, e agora mora dentro
-do APK. Ele faz todo o trabalho pesado: resolve os streams, baixa com até 5
-tentativas, converte com o ffmpeg e entrega o arquivo pronto em
-`Downloads/TuneGrab`. O app checa atualizações do motor **uma vez por versão do
-app** (canal estável) — se o YouTube mudar algo amanhã, o TuneGrab se conserta
-sozinho, sem você precisar baixar versão nova. A preparação do motor acontece
-em segundo plano logo na abertura do app, para o primeiro download sair sem
-espera.
+O yt-dlp é o downloader de YouTube mais maduro que existe, e mora dentro do APK.
+Ele faz todo o trabalho pesado: resolve os streams, baixa com até 5 tentativas,
+converte com o ffmpeg e entrega o arquivo pronto em `Downloads/TuneGrab`. O app
+checa atualizações do motor **uma vez por versão do app** (canal estável) — se o
+YouTube mudar algo amanhã, o TuneGrab se conserta sozinho, sem você precisar
+baixar versão nova. Opcionalmente, você pode **logar sua conta do YouTube**
+(WebView no app ou import de `cookies.txt`) quando o anti-bot apertar — os cookies
+ficam guardados só no aparelho.
 
 ### 🥈 Plano B — NewPipeExtractor + PoToken (fallback)
 
@@ -144,10 +158,13 @@ motores independentes; se um falhar, o outro assume).
 | Camada | Tecnologia |
 |---|---|
 | Linguagem | Kotlin |
-| UI | Material 3 (Views + ViewBinding) |
+| UI | Material 3 (Views + ViewBinding), paleta dourada própria |
 | Motor principal | [yt-dlp](https://github.com/yt-dlp/yt-dlp) embutido via [youtubedl-android](https://github.com/JunkFood02/youtubedl-android) — Python + QuickJS no APK |
 | Conversão/Merge | ffmpeg embutido (MP3, OPUS, MP4) |
 | Fallback | [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) — [fork compatível com Android antigo](https://github.com/MicaelSanPedro/NewPipeExtractor) + PoToken/BotGuard |
+| Letras sincronizadas | [LRCLIB](https://lrclib.net) (API aberta, sem chave) |
+| Player | MediaPlayer (local/muxed) + Media3/ExoPlayer (DASH HD) + PiP |
+| Espectro de áudio | FFT próprio (2048 pontos, 28 bandas log) espiando o PCM no ExoPlayer |
 | Conversão legada | LAME 3.100 (libmp3lame) via NDK + MediaCodec |
 | Rede | OkHttp |
 | Imagens | Coil |
@@ -237,41 +254,37 @@ clients anônimos com iOS à frente.
 - [x] Configurações de qualidade por formato
 - [x] Bypass do anti-bot (PoToken/BotGuard via WebView)
 - [x] **Motor yt-dlp embutido, auto-atualizável, com fallback duplo** (v0.4.0)
-- [x] **Menu de navegação inferior + central de downloads + biblioteca de músicas + pasta de download escolhível** (v0.5.0)
+- [x] **Navegação inferior + central de downloads + biblioteca de músicas + pasta de download escolhível** (v0.5.0)
 - [x] **MP4 até 1080p de verdade (merge vídeo+áudio) e qualidades honestas** (v0.6.0)
 - [x] **Player embutido (áudio/vídeo) + compartilhar nos baixados + navegação instantânea em 1 activity** (v0.7.0)
 - [x] **MP4 até 4K (2160p) com resolução verificada e confirmada no arquivo salvo** (v0.8.0)
 - [x] **Música em segundo plano (notificação de mídia) + vídeo em tela cheia girando o app** (v0.9.0)
-- [x] **4K/1440p em MKV (arquivos que abrem de verdade) + teto 4K** (v0.9.1)
+- [x] **4K/1440p em MKV + teto 4K** (v0.9.1)
 - [x] **Pausar/continuar/cancelar download + velocidade na notificação e na Central + fila** (v0.10.0)
 - [x] **Biblioteca reencontra músicas baixadas após atualizar ou reinstalar o app** (v0.10.0)
 - [x] **Biblioteca separa Músicas e Vídeos (com contagem) + padrões 1080p/320 kbps no seletor + tela cheia sem deformar o vídeo** (v0.10.1)
-- [x] **Identidade visual: fonte Poppins em toda a interface + ícones Material Symbols Rounded (navegação com contorno/preenchido)** (v0.10.2)
-- [x] **Motor de download tolerante ao bot-check do YouTube: re-tentativa automática com processo novo + mantém fallback PoToken** (v0.10.4)
-- [x] **Anti-bot-check de verdade: yt-dlp atualiza pelo canal NIGHTLY (correções diárias) + rotação de client android_vr nas re-tentativas + --sleep-requests + botão de copiar detalhes do erro na Central** (v0.10.5)
-- [x] **Barra da Central vira VERDE ao processar/salvar + labels de fase em maiúsculas (Baixando/Processando arquivo/Salvando arquivo)** (v0.10.6)
-- [x] **Fase 1 do update automático: card "nova versão disponível" na Central com changelog + link da release (consulta o GitHub, throttle 6h, falha silenciosa)** (v0.10.7)
-- [x] **Biblioteca enxerga a pasta do PRÓPRIO app mesmo quando o MediaStore falha (listagem direta Download/Music/TuneGrab) + verificação dupla ao apagar arquivo** (v0.10.8)
-- [x] **Card de atualização consulta a cada abertura do app (a janela de 6h escondia releases novas; agora: gap mínimo 10 min + 1 consulta/hora por processo)** (v0.10.9)
-- [x] **Fase 2 do update automático: baixar o APK dentro do app com barra de progresso + "Instalar agora" via instalador do sistema + confirmação antes de gastar rede móvel** (v0.11.0)
-- [x] **Reproduzir sem baixar: botão ▶ ao lado do Baixar toca o vídeo do link direto no player + estado vazio da Central de downloads com cara de app** (v0.12.0)
-- [x] **Downloader de PLAYLIST (formato/qualidade 1×, vídeos entram na fila um a um) + Biblioteca em seções com destaque pro que foi baixado pelo TuneGrab + estado vazio da Central de verdade (o peso do layout engolia a mensagem)** (v0.13.0)
-- [x] **Seletor Vídeo/Playlist no topo do Início (modo Playlist aceita watch?v&list e puxa a lista inteira) + fila da playlist à prova de bloqueio: item que falha na extração entra via yt-dlp direto (plano A) em vez de somar falha** (v0.14.0)
-- [x] **Loader de abertura: "Bem-vindo" em cursiva (Great Vibes) + assinatura "feito por micaelsan" discreta com o nome brilhando em efeito de led passando** (v0.15.0)
-- [x] **Ajuste da splash: "bem-vindo" em minúsculas (o B maiúsculo da cursiva tem um swash que parecia um "o" solto na tela) + espaço pro rabinho do "o" final não cortar** (v0.15.1)
-- [x] **"bem-vindo" na ASTON SCRIPT (fonte do autor, em TTF) com autoSize (nunca mais corta "bem vin…" em nenhuma tela/escala de fonte) + nome do app no Início virou LETREIRO DE LED ROLANTE (texto desliza e acende na faixa de luz)** (v0.16.0)
-- [x] **FIM do pisca-pisca: o "TuneGrab" do Início voltou a ser igual à assinatura do splash (texto PARADO, a luz varre — o letreiro rolante movia o texto por uma faixa fixa e apagava fora dela) + "bem-vindo" com altura FIXA (o autoSize com wrap_content deixava a view mais baixa que a linha da fonte e cortava o texto ao meio)** (v0.16.1)
-- [x] **Botão de play em 1080p (era 360p!) — o play do Início tocava a faixa muxada (vídeo+áudio juntos) que o YouTube só entrega até 360p; agora o ExoPlayer/Media3 junta a faixa DASH de vídeo (H.264/avc1 até 1080p, VP9 de plano B) com o áudio de maior bitrate, em streaming, sem baixar nada — e se o YouTube bloquear as faixas DASH, cai pro muxed de sempre** (v0.17.0)
-- [x] **Play em 720p + FIM do erro "confere a internet" — o teto de qualidade voltou pra 720p (a 1080p o YouTube anda bloqueando as faixas DASH sem aviso: o teste de URL passa, mas o request completo leva 403) e, quando isso acontece, o player CAI SOZINHO pro muxed de sempre em vez de morrer no erro — a mensagem enganosa virou "tenta de novo em instantes" e só aparece se TUDO falhar** (v0.17.1)
-- [x] **MINIPLAYER: saiu do app com vídeo ou música tocando? O som continua no cartão de mídia do sistema (lá embaixo no shade e na tela de bloqueio) — vídeo remoto DASH, vídeo muxado e vídeo baixado entregam o áudio pro serviço de reprodução NA POSIÇÃO exata (handoff) e, ao voltar pro app, o vídeo retoma de onde o som estava; músicas baixadas e áudio do botão de play já seguem no serviço e agora com a barra de progresso no cartão (duração nos metadados da sessão)** (v0.18.0)
-- [x] **CONSERTOS do miniplayer + FIM do áudio fantasma — o handoff do vídeo morria porque o MediaPlayer do serviço pedia o stream SEM o User-Agent que o googlevideo exige (o vídeo na tela usava o UA certo; o serviço, não) e porque o áudio escolhido era Opus (que o MediaPlayer de muitos aparelhos recusa): agora o serviço usa o MESMO UA da extração e o handoff pega M4A; o handoff também subiu pro onUserLeaveHint (app ainda em foreground, início de serviço inbloqueável no Android 12+) com o onStop de rede de segurança e prova de crash; E O ÁUDIO FANTASMA ACABOU: fechar o app dos recentes PARA a música (onTaskRemoved) e arrastar o cartão de mídia pra fora TAMBÉM (deleteIntent) — nunca mais forçar parada** (v0.18.1)
-- [x] **MINIPLAYER DE VÍDEO IGUAL YOUTUBE PREMIUM (PiP) — saiu do app com o vídeo tocando? O vídeo segue numa JANELINHA FLUTUANTE de verdade (picture-in-picture), no MESMO player e na MESMA posição (nada de recomeçar do zero), com proporção real do vídeo (retrato vira janelinha em pé); fechar a janelinha PARA tudo (sem áudio fantasma), expandir volta pro player e o fim do vídeo fecha a janelinha sozinho; sem PiP (Android < 8), o cartão de áudio da v0.18.1 segue como plano B; E o bug do "recomeça do zero" morreu: tocar no cartão de mídia não recria mais a faixa — a tela só conecta no que já está tocando** (v0.18.2)
-- [x] **Botão de PLAY/PAUSE dentro da janelinha PiP (igual YouTube Premium) — RemoteAction com ícone que alterna no estado real do player (pausa quando tocando, play quando pausado, inclusive em pausa de buffering), pausa e retoma SEM expandir o vídeo, no caminho ExoPlayer (DASH) e no VideoView (muxado/local); receiver no manifesto com PendingIntent explícito (imune às pegadinhas de broadcast do Android 13/14) repassando pro player vivo via gancho** (v0.18.3)
-- [x] **MODO DE RESGATE anti-bot — o bot-check do YouTube ("Sign in to confirm you're not a bot") voltou a travar a extração normal (NewPipe + PoToken/BotGuard depende do WebView do aparelho e do limite por IP do GenerateIT)? O app entra sozinho no modo de resgate: o yt-dlp EMBUTIDO lê os metadados (título, canal, bitrates, resoluções) e o seletor de formato abre com a mesma cara de sempre; o download sai pelo motor yt-dlp (Plano A), que não depende de PoToken nem de URL direta nenhuma. Vale para download único, para vídeo com todas as faixas bloqueadas e para PLAYLIST inteira (--flat-playlist + fallback por item que a fila já tinha)** (v0.18.4)
-- [x] **RESGATE blindado contra o bot-check — a leitura de metadados do resgate (yt-dlp) agora tem a MESMA rotação de clients comprovada do motor de download (default → visionos → tv_embedded, com processo novo e respiro crescente entre tentativas): o client default bloqueado não derruba mais o resgate de primeira; se MESMO assim o YouTube bloquear tudo, o erro vira orientação honesta (trocar de rede Wi-Fi ↔ 4G/5G e aguardar) em vez de dump técnico em inglês** (v0.18.5)
-- [x] **LOGIN DO YOUTUBE com cookies — a cura definitiva do anti-bot, exatamente o que o yt-dlp pede no erro ("use --cookies"): duas formas de logar (WebView do youtube.com dentro do app, capturando a sessão com um toque em "Salvar cookies", ou importar um cookies.txt exportado no PC) e a sessão passa a valer em TODOS os downloads e no resgate; cookies ficam guardados SÓ dentro do app, nunca enviados a ninguém, com botão para remover; sem cookies o app segue 100% anônimo como sempre (o gancho é no-op)** (v0.18.6)
-- [x] **BARRINHAS DE DJ no player de áudio — espectro REAL, não é animação: o Visualizer do Android (mix de saída global) entrega o FFT do som que está tocando e 28 bandas logarítmicas dançam com ataque instantâneo, decaimento suave e pico caindo de volta (graves à esquerda, agudos à direita, gradiente violeta→fúcsia do app); pausou, as barras morrem sozinhas; funciona com música do PlaybackService, vídeo DASH e VideoView SEM acoplar em nenhum player; toggle nas Configurações (com aviso honesto sobre a permissão de áudio que o Android exige para ler espectro — o app não grava nada)** (v0.18.7)
-- [x] **PLAYER NOVO NO ESTILO MINIMALISTA + BARRINHAS 100% REAIS SEM PERMISSÃO — o print de referência virou o player de música: cartão de arte grande com cantos redondos, faixa de waveform fina, progresso fino, botão de play circular cheio e slider de volume (controle real do volume de mídia), tudo na paleta violeta/fúcsia do app. E as barrinhas deixaram de depender do Visualizer do Android (que exigia permissão de áudio e em muitos aparelhos voltava vazio): um processador de áudio DENTRO do ExoPlayer do PlaybackService espia o PCM que o próprio app toca e um FFT próprio (2048 pontos, 28 bandas logarítmicas) alimenta as barras — espectro de verdade, sem permissão nenhuma; pausou, as barras caem sozinhas. A versão agora vive no rodapé da tela de boas-vindas e do Início, com o "feito por micaelsan" ao lado do número** (v0.18.8)
+- [x] **Identidade visual: fonte Poppins + ícones Material Symbols Rounded** (v0.10.2)
+- [x] **Motor tolerante ao bot-check: re-tentativa automática com processo novo + rotação de clients (visionOS/tv_embedded) + yt-dlp nightly** (v0.10.4–0.10.5)
+- [x] **Update automático: card de versão nova + baixar o APK dentro do app com barra de progresso + instalar pelo sistema** (v0.10.7–0.11.0)
+- [x] **Reproduzir sem baixar (▶ no Início) + downloader de PLAYLIST com fila à prova de bloqueio + seletor Vídeo/Playlist** (v0.12.0–0.14.0)
+- [x] **Splash de boas-vindas cursiva com assinatura em efeito LED + letreiro LED no Início** (v0.15.0–0.16.1)
+- [x] **Play em 720p/1080p via ExoPlayer (DASH) com queda silenciosa pro muxed quando o YouTube bloqueia as faixas** (v0.17.0–0.17.1)
+- [x] **MINIPLAYER + FIM do áudio fantasma: som continua no cartão de mídia do sistema, fechar o app PARA a música, retomada exata ao voltar** (v0.18.0–0.18.1)
+- [x] **Vídeo em janelinha PiP igual YouTube Premium, com play/pause dentro da janelinha** (v0.18.2–0.18.3)
+- [x] **Modo de RESGATE anti-bot + orientação honesta (trocar rede) quando tudo bloqueia + login por cookies do YouTube (WebView ou cookies.txt)** (v0.18.4–0.18.6)
+- [x] **Player minimalista com espectro REAL sem permissão (FFT próprio espiando o PCM no ExoPlayer) + arte grande + waveform** (v0.18.8)
+- [x] **Fila anterior/próxima da Biblioteca no player + capa embutida dos áudios** (v0.19.0)
+- [x] **Aba do YOUTUBE dentro do app (navegador com botão Baixar) + fade entre abas + download direto pra Central** (v0.19.2)
+- [x] **Barra "EMPURRA": a aba clicada cresce (ícone + nome) deslizando os vizinhos + auto-detecção música/playlist** (v0.19.3)
+- [x] **Ícones flutuantes na barra + tutorial de primeira abertura** (v0.19.6)
+- [x] **Barra de download full-width + login automático do YouTube + múltipla escolha pra apagar na Biblioteca** (v0.19.7–0.19.8)
+- [x] **Configurações em pastas (estilo YouTube) + aviso de update no Início** (v0.19.9)
+- [x] **Reprodução automática POR MÚSICA (estilo YouTube) com regente nas Configurações** (v0.19.20–0.19.21)
+- [x] **TRAVA DE ACESSO POR CONVITE: senha de uso único derivada do nome + senha presa no aparelho que ativou** (v0.20.0–0.21.0)
+- [x] **PASTAS DE VERDADE na Biblioteca: criar, navegar, mover estilo gerenciador de arquivos, renomear e apagar + BUSCA** (v0.22.0–0.22.6)
+- [x] **GERADOR DE LETRA: linha acende no tempo do som e a tela anda sozinha (LRCLIB, escada de busca com 89% de cobertura real)** (v0.22.7–0.22.8)
+- [x] **PALETA DOURADA: o app sai do violeta e veste ouro (contrastes AA conferidos dígito a dígito)** (v0.22.9)
+- [x] **FAVORITOS: coração no player + aba própria na barra de navegação** (v0.22.11)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

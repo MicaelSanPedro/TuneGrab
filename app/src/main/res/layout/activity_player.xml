@@ -248,6 +248,23 @@
         android:src="@drawable/ic_back"
         app:tint="@color/on_background" />
 
+    <!-- CORAÇÃO (v0.22.11): salva a música nos Favoritos. Vive no canto
+         oposto ao fechar, POR CIMA de qualquer modo (áudio ou vídeo) —
+         o play HD não usa os controles de áudio, então o coração não pode
+         depender deles. Só nasce quando a faixa veio de um link do YouTube:
+         arquivo local da Biblioteca não tem link pra guardar. -->
+    <ImageButton
+        android:id="@+id/btnFavorite"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/player_fav_desc"
+        android:src="@drawable/ic_heart"
+        android:visibility="gone"
+        app:tint="@color/on_background" />
+
     <!-- Tela cheia do VÍDEO: gira o app para paisagem (só aparece no vídeo) -->
     <ImageButton
         android:id="@+id/btnFullscreen"

@@ -12,8 +12,8 @@ import com.tunegrab.app.ui.BottomNav
 import com.tunegrab.app.ui.HomeFragment
 
 /**
- * Hospedeiro das 5 abas (Início · YouTube · Downloads · Músicas ·
- * Configurações). Só cuida da barra de navegação e dos intents de
+ * Hospedeiro das abas (Início · YouTube · Downloads · Favoritos ·
+ * Biblioteca · Configurações). Só cuida da barra de navegação e dos intents de
  * COMPARTILHAR/ABRIR link do YouTube (que caem sempre na aba Início).
  * Todo o resto vive nos fragments.
  */
@@ -23,6 +23,13 @@ class MainActivity : AppCompatActivity() {
 
     /** Link compartilhado que chegou antes da aba Início estar pronta. */
     private var pendingSharedUrl: String? = null
+
+    /**
+     * Modo do link pendente (v0.22.11): false = fluxo de baixar (padrão de
+     * sempre), true = fluxo de OUVIR. Só faz sentido junto do
+     * [pendingSharedUrl] — é consumido quando o Início processa o link.
+     */
+    private var pendingAutoPlay: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +96,27 @@ class MainActivity : AppCompatActivity() {
             return
         }
         pendingSharedUrl = url
+        pendingAutoPlay = false // baixar é o padrão; limpa resíduo de um play pendente
         openTab(R.id.navHome)
     }
+
+    /**
+     * OUVIR UM FAVORITO (v0.22.11): o toque no card da aba Favoritos manda o
+     * link aqui — cai no MESMO fluxo do play da aba Início (busca + rotação
+     * anti-bot + player), só que com o play disparado sozinho. Nenhuma
+     * lógica de stream nasce aqui: favorito é um atalho pro caminho principal.
+     */
+    fun openPlayFor(url: String) {
+        val current = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
+        if (current is HomeFragment && current.isAdded) {
+            current.handleSharedUrl(url, autoplay = true)
+            return
+        }
+        pendingSharedUrl = url
+        pendingAutoPlay = true
+        openTab(R.id.navHome)
+    }
+
+    /** Consumido pelo Início junto do link pendente (openPlayFor seta true). */
+    fun consumePendingAutoPlay(): Boolean = pendingAutoPlay.also { pendingAutoPlay = false }
 }

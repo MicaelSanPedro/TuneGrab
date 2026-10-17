@@ -5,10 +5,11 @@ import androidx.appcompat.app.AppCompatActivity
 import com.tunegrab.app.R
 
 /**
- * Barra de navegação inferior (Início · YouTube · Downloads · Biblioteca ·
- * Configurações).
+ * Barra de navegação inferior (Início · YouTube · Downloads · Favoritos ·
+ * Biblioteca · Configurações — a aba Favoritos entrou na v0.22.11, entre a
+ * Central e a Biblioteca: as duas são "minhas músicas", fazem par).
  *
- * PADRÃO SINGLE-ACTIVITY: as 5 abas são fragments dentro da MainActivity e a
+ * PADRÃO SINGLE-ACTIVITY: as abas são fragments dentro da MainActivity e a
  * troca é um replace() com um FADE curtinho (v0.19.2, pedido do autor — a
  * troca seca virou cruzamento de 140ms), sem recriar a janela. Foi
  * exatamente a recriação da activity (multi-activity antigo) que dava aquele
@@ -25,6 +26,7 @@ object BottomNav {
         nav.addTab(R.id.navHome, R.drawable.ic_nav_home, R.string.nav_home)
         nav.addTab(R.id.navYouTube, R.drawable.ic_youtube, R.string.nav_youtube)
         nav.addTab(R.id.navDownloads, R.drawable.ic_nav_downloads, R.string.nav_downloads)
+        nav.addTab(R.id.navFavorites, R.drawable.ic_nav_favorites, R.string.nav_favorites)
         nav.addTab(R.id.navLibrary, R.drawable.ic_nav_library, R.string.nav_library)
         nav.addTab(R.id.navSettings, R.drawable.ic_nav_settings, R.string.nav_settings)
         // seleção inicial SEM animação e ANTES do listener: não dispara
@@ -46,6 +48,7 @@ object BottomNav {
             R.id.navHome -> "home"
             R.id.navYouTube -> "youtube"
             R.id.navDownloads -> "downloads"
+            R.id.navFavorites -> "favorites"
             R.id.navLibrary -> "library"
             R.id.navSettings -> "settings"
             else -> return
@@ -63,6 +66,7 @@ object BottomNav {
             R.id.navHome -> HomeFragment()
             R.id.navYouTube -> YoutubeFragment()
             R.id.navDownloads -> DownloadsFragment()
+            R.id.navFavorites -> FavoritesFragment()
             R.id.navLibrary -> LibraryFragment()
             R.id.navSettings -> SettingsFragment()
             else -> return

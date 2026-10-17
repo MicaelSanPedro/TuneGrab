@@ -1,1 +1,1 @@
-Achamos um roxinho escondido: o botão de ouvir tinha um fundo roxo de fábrica. Agora ele é dourado igual a tudo o resto!
+Chegou o coração! Ouça uma música e toque no coração ali no player: ela fica guardada na aba nova de Favoritos, na barra de baixo. Toque no card pra ouvir de novo ou no botão pra baixar de novo. O restinho do app segue igualzinho, na mesma rapidez de sempre.
