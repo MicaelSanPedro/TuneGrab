@@ -27,6 +27,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.tunegrab.app.FavoritesStore
 import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentLibraryBinding
@@ -1318,6 +1319,48 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 b.chk.setImageResource(if (isSel) R.drawable.bg_sel_on else R.drawable.bg_sel_off)
                 b.btnPlay.isVisible = !selectionMode && !pick
                 b.btnShare.isVisible = !selectionMode && !pick
+                // v0.22.12: CORAÇÃO na lista — favorita na hora, sem abrir o
+                // player. Nasce sempre que o arquivo tem uri (a identidade do
+                // favorito é a MESMA que o player guarda: o uri do arquivo).
+                val favUri = LibraryFiles.shareableUri(ctx, entry)
+                val canFav = favUri != Uri.EMPTY && !selectionMode && !pick
+                b.btnFav.isVisible = canFav
+                if (canFav) {
+                    val favUrl = favUri.toString()
+                    fun paintFav(saved: Boolean) {
+                        b.btnFav.setImageResource(
+                            if (saved) R.drawable.ic_heart_fill else R.drawable.ic_heart
+                        )
+                        b.btnFav.setColorFilter(
+                            ContextCompat.getColor(
+                                ctx,
+                                if (saved) R.color.primary else R.color.on_surface_variant
+                            )
+                        )
+                    }
+                    paintFav(FavoritesStore.contains(ctx, favUrl))
+                    b.btnFav.setOnClickListener {
+                        val saved = FavoritesStore.contains(ctx, favUrl)
+                        if (saved) {
+                            FavoritesStore.remove(ctx, favUrl)
+                            Toast.makeText(ctx, R.string.fav_removed, Toast.LENGTH_SHORT).show()
+                        } else {
+                            FavoritesStore.add(
+                                ctx,
+                                FavoritesStore.Fav(
+                                    url = favUrl,
+                                    title = entry.name,
+                                    author = null,
+                                    durationSec = 0L,
+                                    isVideo = entry.isVideoKind,
+                                    addedAt = System.currentTimeMillis()
+                                )
+                            )
+                            Toast.makeText(ctx, R.string.fav_added, Toast.LENGTH_SHORT).show()
+                        }
+                        paintFav(!saved)
+                    }
+                }
                 // v0.22.0: MOVER só em faixa do TuneGrab — o app é dono dos
                 // próprios downloads; mídia de outro app não é dele pra mover
                 b.btnMove.isVisible = !selectionMode && !pick && entry.fromTuneGrab

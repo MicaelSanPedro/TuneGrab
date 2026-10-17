@@ -212,14 +212,15 @@
     <string name="nav_library">Biblioteca</string>
     <string name="nav_settings">Config.</string>
 
-    <!-- Favoritos (v0.22.11) -->
+    <!-- Favoritos (v0.22.11 · coração em todo lugar v0.22.12) -->
     <string name="fav_title">Favoritos</string>
     <string name="fav_count_one">1 música salva</string>
     <string name="fav_count_many">%d músicas salvas</string>
     <string name="fav_empty_title">Nenhum favorito ainda</string>
-    <string name="fav_empty_body">Ouça uma música no player e toque no coração pra guardar ela aqui.</string>
+    <string name="fav_empty_body">Toque no coração de uma música — no player ou na Biblioteca — pra guardar ela aqui.</string>
     <string name="fav_removed">Saiu dos favoritos</string>
     <string name="fav_added">Salvo nos favoritos</string>
+    <string name="fav_on_device">salva no aparelho</string>
     <string name="fav_play_desc">Ouvir agora</string>
     <string name="fav_download_desc">Baixar de novo</string>
     <string name="fav_remove_desc">Tirar dos favoritos</string>

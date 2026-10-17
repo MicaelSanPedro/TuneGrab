@@ -1,1 +1,2 @@
-Chegou o coração! Ouça uma música e toque no coração ali no player: ela fica guardada na aba nova de Favoritos, na barra de baixo. Toque no card pra ouvir de novo ou no botão pra baixar de novo. O restinho do app segue igualzinho, na mesma rapidez de sempre.
+O coração ficou bonito e espalhou! O ícone novo é um coração mais gordinho, e agora TODA música tem o botãozinho de coração pra salvar nos Favoritos: no player (funciona até pra arquivo da Biblioteca, que antes não tinha coração nenhum — culpa nossa!) e no card de cada música na Biblioteca. Toque no coração de uma música na Biblioteca e ela já cai na aba Favoritos; toque no favorito e ela toca na hora, direto do aparelho.
+

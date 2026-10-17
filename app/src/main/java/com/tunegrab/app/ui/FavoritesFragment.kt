@@ -1,15 +1,19 @@
 package com.tunegrab.app.ui
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import android.view.View
 import com.tunegrab.app.FavoritesStore
 import com.tunegrab.app.MainActivity
+import com.tunegrab.app.PlayerActivity
 import com.tunegrab.app.R
 import com.tunegrab.app.databinding.FragmentFavoritesBinding
 import com.tunegrab.app.databinding.ItemFavoriteBinding
@@ -18,11 +22,17 @@ import com.tunegrab.app.databinding.ItemFavoriteBinding
  * Aba Favoritos (v0.22.11, pedido do autor): as músicas guardadas com o
  * coração no player, numa aba só delas na barra de baixo.
  *
- * O card NÃO baixa nem toca aqui dentro: ele devolve a música pro mesmo
- * fluxo do Início — toque no card = ouvir (link no campo + play), botão de
- * download = baixar de novo (seletor de formato de sempre). Assim os
- * favoritos aproveitam 100% do fetch com retry, da rotação anti-bot, do
- * seletor de formato e da Central — ZERO lógica duplicada pra manutenir.
+ * v0.22.12: favorito tem duas ORIGENS agora, e o card respeita a de cada:
+ *  - LINK do YouTube (coração no player de stream): toque = devolve pro
+ *    fluxo do Início (link no campo + play — fetch com retry, rotação
+ *    anti-bot, seletor de formato) e o botão BAIXA DE NOVO continua lá.
+ *  - ARQUIVO LOCAL (coração na Biblioteca / player de arquivo): o uri
+ *    guardado É o conteúdo — toque abre o player direto com o arquivo
+ *    (mime pelo ContentResolver, vídeo quando o favorito diz que é vídeo).
+ *    Não existe "baixar de novo" de um arquivo que JÁ está no aparelho —
+ *    o botão nem nasce.
+ * ZERO lógica de stream duplicada: remota segue pelo mesmo caminho de
+ * sempre; local segue pelo mesmo Intent que a Biblioteca usa.
  */
 class FavoritesFragment : Fragment() {
 
@@ -85,10 +95,15 @@ class FavoritesFragment : Fragment() {
 
         override fun onBindViewHolder(holder: VH, position: Int) {
             val fav = items[position]
+            val local = isLocal(fav)
             holder.b.tvTitle.text = fav.title.ifBlank { fav.url }
             holder.b.tvMeta.text = metaLine(fav)
+            // arquivo local não volta pro YouTube — o card toca direto e o
+            // "baixar de novo" não existe pra ele
+            holder.b.btnDownload.isVisible = !local
             holder.b.root.setOnClickListener {
-                (activity as? MainActivity)?.openPlayFor(fav.url)
+                val act = activity as? MainActivity ?: return@setOnClickListener
+                if (local) playLocal(fav) else act.openPlayFor(fav.url)
             }
             holder.b.btnDownload.setOnClickListener {
                 (activity as? MainActivity)?.openDownloadFor(fav.url)
@@ -101,11 +116,42 @@ class FavoritesFragment : Fragment() {
             }
         }
 
+        /** Favorito LOCAL (v0.22.12): o url guardado é um content:// ou
+         *  file:// — não é link de site, é o próprio arquivo. */
+        private fun isLocal(fav: FavoritesStore.Fav): Boolean {
+            val s = fav.url
+            return s.startsWith("content://") || s.startsWith("file://")
+        }
+
+        /** Toca o arquivo do favorito local: MESMO intent da Biblioteca
+         *  (uri + mime + grant de leitura + modo áudio/vídeo do favorito). */
+        private fun playLocal(fav: FavoritesStore.Fav) {
+            val ctx = context ?: return
+            val uri = Uri.parse(fav.url)
+            try {
+                val mime = ctx.contentResolver.getType(uri) ?: "*/*"
+                ctx.startActivity(
+                    Intent(ctx, PlayerActivity::class.java)
+                        .setDataAndType(uri, mime)
+                        .putExtra(PlayerActivity.EXTRA_TITLE, fav.title.ifBlank { fav.url })
+                        .putExtra(PlayerActivity.EXTRA_IS_VIDEO, fav.isVideo)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                )
+            } catch (t: Throwable) {
+                Toast.makeText(ctx, R.string.player_err, Toast.LENGTH_SHORT).show()
+            }
+        }
+
         private fun metaLine(fav: FavoritesStore.Fav): String {
             val parts = ArrayList<String>(2)
-            fav.author?.takeIf { it.isNotBlank() }?.let { parts.add(it) }
-            val dur = formatDuration(fav.durationSec)
-            if (dur != null) parts.add(dur)
+            // favorito local não tem canal nem duração anotados — a linha
+            // diz DE ONDE ele vem (o arquivo tá no aparelho)
+            if (isLocal(fav)) {
+                parts.add(getString(R.string.fav_on_device))
+            } else {
+                fav.author?.takeIf { it.isNotBlank() }?.let { parts.add(it) }
+                formatDuration(fav.durationSec)?.let { parts.add(it) }
+            }
             return parts.joinToString("  ·  ")
         }
 

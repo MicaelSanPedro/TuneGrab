@@ -192,8 +192,10 @@ class PlayerActivity : AppCompatActivity() {
         val audioUrl = intent.getStringExtra(EXTRA_AUDIO_URL)
         fallbackUri = intent.getStringExtra(EXTRA_FALLBACK_URL)?.let(Uri::parse)
         // Favoritos (v0.22.11): identidade da faixa vinda do YouTube — link
-        // da página, canal e duração. É o que o coração guarda (arquivo
-        // local não carrega nada disso e o coração nem aparece).
+        // da página, canal e duração. É o que o coração guarda. v0.22.12:
+        // faixa LOCAL também tem coração — quando não há link do YouTube,
+        // a identidade é o próprio uri do arquivo (o mesmo intent.data que
+        // Biblioteca/Downloads/cartão de mídia já mandam pra cá).
         sourceUrl = intent.getStringExtra(EXTRA_SOURCE_URL)
         sourceAuthor = intent.getStringExtra(EXTRA_SOURCE_AUTHOR)
         sourceDurationSec = intent.getLongExtra(EXTRA_SOURCE_DURATION, 0L)
@@ -417,8 +419,15 @@ class PlayerActivity : AppCompatActivity() {
         }
     }
 
+    /** Identidade da faixa pro coração: o link do YouTube quando existe
+     *  (guarda autor/duração junto), senão o uri do ARQUIVO LOCAL — todo
+     *  caminho que abre o player seta intent.data (Biblioteca, Downloads,
+     *  cartão de mídia), então o coração nasce em TODOS os modos. */
+    private fun favoriteIdentity(): String? =
+        sourceUrl ?: intent.data?.toString()
+
     private fun setupFavoriteButton() {
-        val url = sourceUrl
+        val url = favoriteIdentity()
         if (url == null) {
             binding.btnFavorite.visibility = View.GONE
             return
@@ -435,9 +444,12 @@ class PlayerActivity : AppCompatActivity() {
                     this,
                     FavoritesStore.Fav(
                         url = url,
+                        // local: o uri É o conteúdo (tocar = abrir direto);
+                        // YouTube: link da página (tocar = refazer o fluxo)
                         title = binding.tvTitle.text.toString().ifBlank { url },
                         author = sourceAuthor,
                         durationSec = sourceDurationSec,
+                        isVideo = isVideo,
                         addedAt = System.currentTimeMillis()
                     )
                 )
@@ -886,8 +898,9 @@ class PlayerActivity : AppCompatActivity() {
     /** Voltou pra tela normal (expandiu a janelinha): controles de volta. */
     private fun exitPipUi() {
         binding.btnClose.visibility = View.VISIBLE
-        // o coração volta só se ele existe (faixa do YouTube)
-        if (sourceUrl != null) binding.btnFavorite.visibility = View.VISIBLE
+        // o coração volta só se ele existe (toda faixa tem identidade:
+        // link do YouTube ou uri do arquivo local)
+        if (favoriteIdentity() != null) binding.btnFavorite.visibility = View.VISIBLE
         if (isVideo) {
             binding.btnFullscreen.visibility = View.VISIBLE
             binding.playerView.useController = true

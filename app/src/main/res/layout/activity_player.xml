@@ -251,8 +251,9 @@
     <!-- CORAÇÃO (v0.22.11): salva a música nos Favoritos. Vive no canto
          oposto ao fechar, POR CIMA de qualquer modo (áudio ou vídeo) —
          o play HD não usa os controles de áudio, então o coração não pode
-         depender deles. Só nasce quando a faixa veio de um link do YouTube:
-         arquivo local da Biblioteca não tem link pra guardar. -->
+         depender deles. v0.22.12: nasce em TODOS os modos — faixa do
+         YouTube guarda o link; arquivo local (Biblioteca/Downloads/cartão)
+         guarda o próprio uri do arquivo. -->
     <ImageButton
         android:id="@+id/btnFavorite"
         android:layout_width="44dp"

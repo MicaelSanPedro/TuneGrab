@@ -18,12 +18,16 @@ import org.json.JSONObject
  */
 object FavoritesStore {
 
-    /** Um favorito. [url] é a identidade (página watch do YouTube). */
+    /** Um favorito. [url] é a identidade: link da página watch do YouTube
+     *  (faixa remota) OU o uri do arquivo local (v0.22.12 — coração na
+     *  Biblioteca e no player de arquivo). [isVideo] só manda no replay
+     *  do favorito local (áudio x tela de vídeo); remota não usa. */
     data class Fav(
         val url: String,
         val title: String,
         val author: String?,
         val durationSec: Long,
+        val isVideo: Boolean = false,
         val addedAt: Long
     )
 
@@ -48,6 +52,7 @@ object FavoritesStore {
                     title = o.optString("title"),
                     author = o.optString("author").takeIf { it.isNotBlank() },
                     durationSec = o.optLong("durationSec"),
+                    isVideo = o.optBoolean("isVideo", false),
                     addedAt = o.optLong("addedAt")
                 )
             }.sortedByDescending { it.addedAt }
@@ -83,6 +88,7 @@ object FavoritesStore {
                     .put("title", f.title)
                     .put("author", f.author ?: "")
                     .put("durationSec", f.durationSec)
+                    .put("isVideo", f.isVideo)
                     .put("addedAt", f.addedAt)
             )
         }

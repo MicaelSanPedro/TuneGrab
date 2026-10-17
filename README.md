@@ -33,9 +33,10 @@ real e letra sincronizada), **guarde suas músicas preferidas** nos favoritos e
 ## ✨ Funcionalidades
 
 - **Cole o link e toque em "Baixar"** — funciona de primeira, sem configurar nada
-- **Favoritos (v0.22.11)** — coração no canto do player guarda a música numa aba só
-  dela, na barra de navegação. Toque no card para **ouvir de novo** (mesmo fluxo de
-  reprodução de sempre) ou no botão de download para **baixar de novo**
+- **Favoritos (v0.22.12)** — coração em TODA música: no canto do player **e no card de cada
+  música da Biblioteca**. O favorito salvo aparece numa aba só dele, na barra de navegação.
+  Toque no card para **ouvir de novo** — favorito do YouTube refaz o fluxo de sempre;
+  favorito de arquivo toca **na hora, direto do aparelho**
 - **Letra sincronizada** — botão "Letra" no player puxa a letra da música (fonte
   aberta [LRCLIB](https://lrclib.net)): a linha acende no tempo do som e a tela anda
   sozinha, estilo Spotify/YouTube Music. Mais de 89% de cobertura em testes reais
@@ -54,7 +55,7 @@ real e letra sincronizada), **guarde suas músicas preferidas** nos favoritos e
   - **Downloads** — central em tempo real (fase, % e **velocidade**), com **pausar,
     continuar e cancelar** no meio do download — na notificação também. Filtro
     Tudo / Músicas / Vídeos
-  - **Favoritos** — as músicas que você guardou com o coração
+  - **Favoritos** — as músicas que você guardou com o coração (player ou Biblioteca)
   - **Biblioteca** — músicas e vídeos com **pastas de verdade** (criar, renomear,
     mover estilo gerenciador de arquivos), **busca**, seleção múltipla pra apagar,
     abrir / compartilhar / apagar. Sobrevive a atualizar e até a reinstalar: as
@@ -284,7 +285,7 @@ clients anônimos com iOS à frente.
 - [x] **PASTAS DE VERDADE na Biblioteca: criar, navegar, mover estilo gerenciador de arquivos, renomear e apagar + BUSCA** (v0.22.0–0.22.6)
 - [x] **GERADOR DE LETRA: linha acende no tempo do som e a tela anda sozinha (LRCLIB, escada de busca com 89% de cobertura real)** (v0.22.7–0.22.8)
 - [x] **PALETA DOURADA: o app sai do violeta e veste ouro (contrastes AA conferidos dígito a dígito)** (v0.22.9)
-- [x] **FAVORITOS: coração no player + aba própria na barra de navegação** (v0.22.11)
+- [x] **FAVORITOS: coração no player e na Biblioteca + aba própria na barra de navegação; favorito local toca direto do aparelho** (v0.22.11–0.22.12)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 
