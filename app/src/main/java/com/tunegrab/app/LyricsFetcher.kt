@@ -67,7 +67,7 @@ object LyricsFetcher {
 
     /** A API pede User-Agent identificando o app — honestidade básica. */
     private val UA: String
-        get() = "TuneGrab/${BuildConfig.VERSION_NAME} (+https://github.com/MicaelSanPedro/TuneGrab)"
+        get() = "TuneGrab/${BuildConfig.VERSION_NAME} (+https://github.com/micsxnn/TuneGrab)"
 
     private val http: OkHttpClient by lazy {
         OkHttpClient.Builder()

@@ -1,28 +1,35 @@
 <div align="center">
 
-<img src="assets/icon.png" width="128" alt="Ícone do TuneGrab"/>
+<img src="assets/icon.png" width="160" alt="Logo do TuneGrab — ícone dourado com nota musical branca"/>
 
 # TuneGrab
 
 **Baixe músicas e vídeos do YouTube no seu Android — direto no aparelho,
 sem servidor, sem anúncios, sem complicação.**
 
-[![Build](https://github.com/MicaelSanPedro/TuneGrab/actions/workflows/build.yml/badge.svg)](https://github.com/MicaelSanPedro/TuneGrab/actions/workflows/build.yml)
-[![Release](https://img.shields.io/github/v/release/MicaelSanPedro/TuneGrab)](https://github.com/MicaelSanPedro/TuneGrab/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/MicaelSanPedro/TuneGrab/total)](https://github.com/MicaelSanPedro/TuneGrab/releases)
-[![License](https://img.shields.io/github/license/MicaelSanPedro/TuneGrab)](LICENSE)
+[![Build](https://github.com/micsxnn/TuneGrab/actions/workflows/build.yml/badge.svg)](https://github.com/micsxnn/TuneGrab/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/micsxnn/TuneGrab)](https://github.com/micsxnn/TuneGrab/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/micsxnn/TuneGrab/total)](https://github.com/micsxnn/TuneGrab/releases)
+[![License](https://img.shields.io/github/license/micsxnn/TuneGrab)](LICENSE)
 ![Android](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-1.9-7F52FF?logo=kotlin&logoColor=white)
 
-[**⬇️ Baixar a última versão (APK)**](https://github.com/MicaelSanPedro/TuneGrab/releases/latest)
+<br>
+
+[**⬇️ Baixar a última versão (APK)**](https://github.com/micsxnn/TuneGrab/releases/latest) ·
+[**📖 Instalação**](#-instalação) ·
+[**🔧 Como funciona**](#-como-funciona) ·
+[**🗺️ Roadmap**](#-roadmap)
 
 </div>
 
 ---
 
+## 💡 Em uma frase
+
 TuneGrab é um app Android que baixa **áudio (MP3, M4A, OPUS)** e **vídeo (MP4/MKV)**
-do YouTube e salva tudo em **Downloads/TuneGrab**. O app vem com um **motor yt-dlp
-completo embutido no APK** (Python + yt-dlp + ffmpeg): ele funciona de fábrica, roda
+do YouTube e salva tudo em **Downloads/TuneGrab**. Ele carrega um **motor yt-dlp
+completo embutido no APK** (Python + yt-dlp + ffmpeg): funciona de fábrica, roda
 tudo em silêncio no seu celular e se **auto-atualiza sozinho** sempre que o YouTube
 mudar alguma coisa — sem root, sem servidor, sem depender de nada instalado no aparelho.
 
@@ -32,42 +39,14 @@ real e letra sincronizada), **guarde suas músicas preferidas** nos favoritos e
 
 ## ✨ Funcionalidades
 
+### 📥 Downloads
+
 - **Cole o link e toque em "Baixar"** — funciona de primeira, sem configurar nada
-- **Favoritos (v0.22.12)** — coração em TODA música: no canto do player **e no card de cada
-  música da Biblioteca**. O favorito salvo aparece numa aba só dele, na barra de navegação.
-  Toque no card para **ouvir de novo** — favorito do YouTube refaz o fluxo de sempre;
-  favorito de arquivo toca **na hora, direto do aparelho**
-- **Letra sincronizada** — botão "Letra" no player puxa a letra da música (fonte
-  aberta [LRCLIB](https://lrclib.net)): a linha acende no tempo do som e a tela anda
-  sozinha, estilo Spotify/YouTube Music. Mais de 89% de cobertura em testes reais
-- **Player embutido** — ouça com barra de progresso, fila anterior/próxima da
-  Biblioteca, **espectro de áudio real** (barrinhas de DJ que dançam com o som, sem
-  permissão nenhuma) e capa do arquivo (a thumbnail entra **inteira** num
-  retângulo 16:9 de largura cheia, sem barra sobrando); assista ao vídeo em tela
-  cheia **sem deformar**
-- **Música em segundo plano** — a música continua tocando com o app fechado ou a tela
-  apagada, com **notificação de mídia** (play/pause/fechar) e janelinha de vídeo
-  **picture-in-picture** igual YouTube Premium
 - **Downloads em segundo plano** — serviço em primeiro plano com notificação de
   progresso por fases (baixando → processando → salvando): pode fechar o app e deixar
   baixando; downloads interrompidos **retomam de onde pararam**
-- **6 abas na navegação inferior** (troca instantânea, com o empurrão da aba ativa):
-  - **Início** — cole o link e baixe (ou toque em ▶ para ouvir sem baixar)
-  - **YouTube** — navegador do YouTube dentro do app, com botão "Baixar" flutuante
-  - **Downloads** — central em tempo real (fase, % e **velocidade**), com **pausar,
-    continuar e cancelar** no meio do download — na notificação também. Filtro
-    Tudo / Músicas / Vídeos
-  - **Favoritos** — as músicas que você guardou com o coração (player ou Biblioteca)
-  - **Biblioteca** — músicas e vídeos com **pastas de verdade** (criar, renomear,
-    mover estilo gerenciador de arquivos), **busca**, seleção múltipla pra apagar
-    e **menu de três pontinhos** em cada música (Favoritar, Compartilhar, Mover
-    pra pasta, Apagar). Sobrevive a atualizar e até a reinstalar: as
-    pastas TuneGrab são reencontradas pelo MediaStore
-  - **Config.** — formatos, qualidades, pasta de download, visualizador e mais
-- **Trava de acesso por convite** — o app abre atrás de senha: cada senha nasce de
-  um convite e **fica presa ao aparelho** que ativou (não adianta passar pro outro)
-- **Escolha onde salvar** — qualquer pasta do aparelho em Config. → Pasta de download
-  (padrão: `Downloads/TuneGrab`, com fallback automático)
+- **Playlist inteira** — link com `list=` no modo Playlist: formato/qualidade
+  escolhidos 1×, os vídeos entram na fila um a um (até 100 por vez)
 - **4 formatos, qualidades configuradas separadamente** (em Config.):
   - **MP3 320/256/192/128 kbps** — convertido no próprio celular com o ffmpeg
     embutido, com tags ID3 e nome da música
@@ -79,21 +58,66 @@ real e letra sincronizada), **guarde suas músicas preferidas** nos favoritos e
     em **MP4/H.264** (abre em qualquer lugar); **1440p/4K saem em MKV** — o contêiner
     nativo do YouTube nessas resoluções. A notificação final **confirma a resolução
     do arquivo salvo**
-- **Playlist inteira** — link com `list=` no modo Playlist: formato/qualidade
-  escolhidos 1×, os vídeos entram na fila um a um (até 100 por vez)
+- **Escolha onde salvar** — qualquer pasta do aparelho em Config. → Pasta de download
+  (padrão: `Downloads/TuneGrab`, com fallback automático)
 - **Motor yt-dlp embutido e auto-atualizável** — o app atualiza o motor sozinho
   (canal estável), então quando o YouTube mudar algo o TuneGrab "se conserta" na
   próxima abertura, sem precisar de versão nova
 - **Fallback duplo em silêncio**: se o yt-dlp falhar, um segundo motor
   (NewPipeExtractor + PoToken/BotGuard) assume e tenta de novo automaticamente
-- Compartilhe direto do YouTube (**"Compartilhar → TuneGrab"**) e o download começa
-  na hora
+- **Compartilhe direto do YouTube** (**"Compartilhar → TuneGrab"**) e o download
+  começa na hora
 - Suporte a links `youtube.com`, `m.youtube.com`, `music.youtube.com`, `youtu.be`,
   Shorts e playlists
 
+### 🎧 Player
+
+- **Player embutido** — barra de progresso, **espectro de áudio real** (barrinhas de
+  DJ que dançam com o som, sem permissão nenhuma) e capa do arquivo (a thumbnail
+  entra **inteira** num retângulo 16:9 de largura cheia, sem barra sobrando);
+  assista ao vídeo em tela cheia **sem deformar**
+- **Letra sincronizada** — botão "Letra" no player puxa a letra da música (fonte
+  aberta [LRCLIB](https://lrclib.net)): a linha acende no tempo do som e a tela anda
+  sozinha, estilo Spotify/YouTube Music. Mais de 89% de cobertura em testes reais
+- **Música em segundo plano** — a música continua tocando com o app fechado ou a tela
+  apagada, com **notificação de mídia** (play/pause/fechar) e janelinha de vídeo
+  **picture-in-picture** igual YouTube Premium
+- **Fila anterior/próxima** da Biblioteca direto no player, com **reprodução
+  automática** por música (estilo YouTube, regida pelas Configurações)
+- **❤️ Favoritos** — coração em TODA música: no canto do player **e no card de cada
+  música da Biblioteca**. O favorito salvo aparece numa aba só dele, na barra de
+  navegação. Toque no card para **ouvir de novo** — favorito do YouTube refaz o
+  fluxo de sempre; favorito de arquivo toca **na hora, direto do aparelho**
+
+### 🗂️ Biblioteca e navegação
+
+**6 abas na barra inferior** (troca instantânea, com o empurrão da aba ativa):
+
+| Aba | O que faz |
+|---|---|
+| **Início** | Cole o link e baixe (ou toque em ▶ para ouvir sem baixar) |
+| **YouTube** | Navegador do YouTube dentro do app, com botão "Baixar" flutuante |
+| **Downloads** | Central em tempo real (fase, % e **velocidade**), com **pausar, continuar e cancelar** no meio do download — na notificação também. Filtro Tudo / Músicas / Vídeos |
+| **Favoritos** | As músicas que você guardou com o coração (player ou Biblioteca) |
+| **Biblioteca** | Músicas e vídeos com **pastas de verdade** (criar, renomear, mover estilo gerenciador de arquivos), **busca**, seleção múltipla pra apagar e **menu de três pontinhos** em cada música (Favoritar, Compartilhar, Mover pra pasta, Apagar) |
+| **Config.** | Formatos, qualidades, pasta de download, visualizador e mais |
+
+A Biblioteca **sobrevive a atualizar e até a reinstalar o app**: as pastas TuneGrab
+são reencontradas pelo MediaStore.
+
+### 🔒 Controle e segurança
+
+- **Trava de acesso por convite** — o app abre atrás de senha: cada senha nasce de
+  um convite e **fica presa ao aparelho** que ativou (não adianta passar pro outro)
+- **Atualização automática** — o card de versão nova aparece no Início, com o
+  changelog em texto leigo; baixar e instalar acontecem **dentro do app**, com barra
+  de progresso e confirmação final do sistema. Se a consulta à API do GitHub falhar
+  (rede instável ou limite de requisições), o app tenta um **segundo canal** antes
+  de desistir — o aviso não morre por causa de um 403
+
 ## 📥 Instalação
 
-1. Vá até a página de [**Releases**](https://github.com/MicaelSanPedro/TuneGrab/releases)
+1. Vá até a página de [**Releases**](https://github.com/micsxnn/TuneGrab/releases)
 2. Baixe o `TuneGrab-x.y.z.apk` da release **Latest** (estável)
 3. Abra o APK (permita "instalar de fontes desconhecidas" se solicitado)
 4. Pronto! Cole um link e baixe sua primeira música 🎵
@@ -165,7 +189,7 @@ motores independentes; se um falhar, o outro assume).
 | UI | Material 3 (Views + ViewBinding), paleta dourada própria |
 | Motor principal | [yt-dlp](https://github.com/yt-dlp/yt-dlp) embutido via [youtubedl-android](https://github.com/JunkFood02/youtubedl-android) — Python + QuickJS no APK |
 | Conversão/Merge | ffmpeg embutido (MP3, OPUS, MP4) |
-| Fallback | [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) — [fork compatível com Android antigo](https://github.com/MicaelSanPedro/NewPipeExtractor) + PoToken/BotGuard |
+| Fallback | [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) — [fork compatível com Android antigo](https://github.com/micsxnn/NewPipeExtractor) + PoToken/BotGuard |
 | Letras sincronizadas | [LRCLIB](https://lrclib.net) (API aberta, sem chave) |
 | Player | MediaPlayer (local/muxed) + Media3/ExoPlayer (DASH HD) + PiP |
 | Espectro de áudio | FFT próprio (2048 pontos, 28 bandas log) espiando o PCM no ExoPlayer |
@@ -208,7 +232,7 @@ perfil. A v0.26.5 oficial usa `URLDecoder.decode(String, Charset)`,
 `URLEncoder.encode(String, Charset)` (Java 10) e `String.isBlank()` (Java 11) —
 APIs que só existem no **Android 13 (API 33)+**. Em aparelhos mais antigos isso
 lança `NoSuchMethodError`. O
-[fork `MicaelSanPedro/NewPipeExtractor`](https://github.com/MicaelSanPedro/NewPipeExtractor)
+[fork `micsxnn/NewPipeExtractor`](https://github.com/micsxnn/NewPipeExtractor)
 corrige isso e adiciona proteções contra as mudanças recentes do YouTube:
 
 1. **Compatibilidade Android < 13** — overloads legacy de URLDecoder/URLEncoder
@@ -291,6 +315,7 @@ clients anônimos com iOS à frente.
 - [x] **FAVORITOS: coração no player e na Biblioteca + aba própria na barra de navegação; favorito local toca direto do aparelho** (v0.22.11–0.22.12)
 - [x] **BIBLIOTECA LIMPA: menu de três pontinhos (⋮) no lugar da fileira de botões + thumbnail inteira no player** (v0.22.13)
 - [x] **MOLDURA PERFEITA: thumbnail em retângulo 16:9 de largura cheia (zero barra sobrando) + coração que segue a fila da Biblioteca** (v0.22.14)
+- [x] **UPDATE SEMPRE ATENTO: endpoint no endereço novo do projeto + canal reserva (feed de releases) quando a API do GitHub falha + logo dourada no README** (v0.22.15)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

@@ -12,14 +12,25 @@ import java.util.concurrent.TimeUnit
  * Fase 1 do update automático: só DETECTA e informa.
  *
  * Consulta a release "latest" do GitHub (a mesma que o CI publica), compara
- * com a versão instalada e devolve os dados do card da Central. Regras:
+ * com a versão instalada e devolve os dados do card do Início. DUAS ROTAS:
+ *  - ROTA 1 (API oficial): JSON completo — inclui os ASSETS (link e tamanho
+ *    do APK). Vivia com o DONO ANTIGO do repositório (MicaelSanPedro) e
+ *    dependia de redirect de conta renomeada — depois da mudança pra
+ *    micsxnn o card começou a depender de um redirect frágil (morre se
+ *    alguém registrar o nome antigo) e da cota da API;
+ *  - ROTA 2 (fallback, feed releases.atom do github.com): SEM rate limit
+ *    de API — a API sem login aceita 60 pedidos/hora POR IP, e o 4G
+ *    brasileiro é CGNAT (milhares de pessoas no mesmo IP público): chegava
+ *    em 403 silencioso e o card nunca nascia. O atom não tem assets, então
+ *    o link do APK é montado do padrão do CI (TuneGrab-vX.apk) e o tamanho
+ *    fica 0 (desconhecido — o instalador lê o content-length real).
+ * Regras:
  *  - Throttle: rede no máximo 1x a cada 6h; entre consultas, o último
  *    resultado fica em cache e o card reaparece sem custo;
  *  - "Dispensar" esconde o card SÓ daquela versão (nova versão = avisa de novo);
  *  - Qualquer falha (rede, JSON, parse) = null: o card não aparece e a vida
  *    segue — update NUNCA pode atrapalhar o funcionamento do app;
- *  - Zero permissão nova: usa a INTERNET que o app já tem. O link abre a
- *    página da release no navegador (Fase 2 troca por instalação in-app).
+ *  - Zero permissão nova: usa a INTERNET que o app já tem.
  */
 object UpdateChecker {
 
@@ -31,7 +42,11 @@ object UpdateChecker {
         val apkSize: Long = 0L    // tamanho em bytes (0 = desconhecido)
     )
 
-    private const val API = "https://api.github.com/repos/MicaelSanPedro/TuneGrab/releases/latest"
+    // ROTA 1: API oficial (JSON completo, com os assets) — DONO NOVO do
+    // repositório, sem redirect de conta renomeada no meio do caminho
+    private const val API = "https://api.github.com/repos/micsxnn/TuneGrab/releases/latest"
+    // ROTA 2: feed de releases do github.com — for a da cota da API
+    private const val ATOM = "https://github.com/micsxnn/TuneGrab/releases.atom"
     private const val PREFS = "update_checker"
     private const val KEY_LAST_CHECK = "last_check_ms"
     private const val KEY_CACHE = "cached_update_json"
@@ -77,23 +92,40 @@ object UpdateChecker {
 
         try {
             prefs.edit().putLong(KEY_LAST_CHECK, now).apply()
-            val request = Request.Builder()
-                .url(API)
-                .header("Accept", "application/vnd.github+json")
-                .build()
-            val json = http.newCall(request).execute().use { resp ->
-                if (!resp.isSuccessful) return@withContext readCache(prefs)
-                JSONObject(resp.body?.string() ?: return@withContext readCache(prefs))
-            }
+            // Rota 1 (API) falhou (403 rate limit, rede, parse)? Rota 2 (atom).
+            val info = fetchViaApi() ?: fetchViaAtom()
+            val current = currentVersion(appCtx) ?: return@withContext readCache(prefs)
+            val update = info?.takeIf { isNewer(it.version, current) }
+
+            prefs.edit()
+                .putString(KEY_CACHE, update?.let { toJson(it) })
+                .apply()
+            update
+        } catch (t: Throwable) {
+            // Falhou a rede? Mostra o que tiver em cache; senão, nada.
+            readCache(prefs)
+        }
+    }
+
+    /** ROTA 1 — API oficial: JSON completo com os assets da release
+     *  (link e tamanho reais do APK). Qualquer falha = null (cai pro atom). */
+    private fun fetchViaApi(): UpdateInfo? = try {
+        val request = Request.Builder()
+            .url(API)
+            .header("Accept", "application/vnd.github+json")
+            .build()
+        http.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) return null
+            val json = JSONObject(resp.body?.string() ?: return null)
 
             val version = json.optString("tag_name", "").trim()
                 .removePrefix("v").removePrefix("V").trim()
             val url = json.optString("html_url", "").trim()
             val notes = json.optString("body", "").trim()
-            if (version.isBlank() || url.isBlank()) return@withContext readCache(prefs)
+            if (version.isBlank() || url.isBlank()) return null
 
-            // Fase 2: acha o APK instalável entre os assets da release
-            // (TuneGrab-vX.apk — o -debug fica de fora).
+            // acha o APK instalável entre os assets (TuneGrab-vX.apk — o
+            // -debug fica de fora)
             var apkUrl = ""
             var apkSize = 0L
             val assets = json.optJSONArray("assets")
@@ -110,21 +142,62 @@ object UpdateChecker {
                     }
                 }
             }
-
-            val current = currentVersion(appCtx) ?: return@withContext readCache(prefs)
-            val info = if (isNewer(version, current)) {
-                UpdateInfo(version, notes, url, apkUrl, apkSize)
-            } else null
-
-            prefs.edit()
-                .putString(KEY_CACHE, info?.let { toJson(it) })
-                .apply()
-            info
-        } catch (t: Throwable) {
-            // Falhou a rede? Mostra o que tiver em cache; senão, nada.
-            readCache(prefs)
+            UpdateInfo(version, notes, url, apkUrl, apkSize)
         }
+    } catch (t: Throwable) {
+        null
     }
+
+    /** ROTA 2 — feed releases.atom do github.com: MESMAS releases, SEM o
+     *  rate limit da API. O feed lista as mais recentes primeiro; pula
+     *  pré-release declarada no título (mesma regra do "latest" da API,
+     *  que só devolve release estável). */
+    private fun fetchViaAtom(): UpdateInfo? = try {
+        val request = Request.Builder().url(ATOM).build()
+        http.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) return null
+            val xml = resp.body?.string() ?: return null
+
+            val entryRegex = Regex("<entry>(.*?)</entry>", RegexOption.DOT_MATCHES_ALL)
+            val tagRegex = Regex("releases/tag/(v?[0-9][^\"<&?]+)")
+            val titleRegex = Regex("<title>([^<]*)</title>")
+            val contentRegex = Regex("<content[^>]*>(.*?)</content>", RegexOption.DOT_MATCHES_ALL)
+            val preRelease = Regex("(?i)\\b(beta|rc|alpha|prerelease)\\b")
+
+            for (entry in entryRegex.findAll(xml)) {
+                val e = entry.groupValues[1]
+                val tag = tagRegex.find(e)?.groupValues?.get(1)?.trim() ?: continue
+                val version = tag.removePrefix("v").removePrefix("V").trim()
+                if (version.isBlank()) continue
+                val title = titleRegex.find(e)?.groupValues?.get(1)?.trim() ?: ""
+                if (preRelease.containsMatchIn(title)) continue
+
+                val url = "https://github.com/micsxnn/TuneGrab/releases/tag/$tag"
+                val notes = contentRegex.find(e)?.groupValues?.get(1)
+                    ?.let(::stripHtml) ?: ""
+                // APK com o nome determinístico do CI; tamanho 0 = desconhecido
+                // (o instalador lida: usa o content-length da resposta real)
+                val apkUrl =
+                    "https://github.com/micsxnn/TuneGrab/releases/download/$tag/TuneGrab-$tag.apk"
+                return UpdateInfo(version, notes, url, apkUrl, 0L)
+            }
+            null
+        }
+    } catch (t: Throwable) {
+        null
+    }
+
+    /** O content do atom vem com o corpo da release já RENDERIZADO em HTML
+     *  (escapado) — desescapa, tira as tags e colapsa espaço pro diálogo. */
+    private fun stripHtml(raw: String): String = raw
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&amp;", "&")
+        .replace(Regex("<[^>]*>"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
 
     /** A versão dispensada volta a avisar só quando sair uma NOVA versão. */
     fun dismiss(context: Context, version: String) {

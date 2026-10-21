@@ -11,8 +11,8 @@ android {
         applicationId = "com.tunegrab.app"
         minSdk = 24
         targetSdk = 34
-        versionCode = 87
-        versionName = "0.22.14"
+        versionCode = 88
+        versionName = "0.22.15"
 
         // ABIs do motor yt-dlp embutido (python + ffmpeg são nativos).
         // x86/x86_64 ficam de fora para o APK não dobrar de tamanho —
@@ -108,7 +108,7 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.4.1")
 
     // Extração do YouTube — mesma engine usada pelo app NewPipe.
-    // Fork próprio (https://github.com/MicaelSanPedro/NewPipeExtractor, tag v0.26.5-android4):
+    // Fork próprio (https://github.com/micsxnn/NewPipeExtractor, tag v0.26.5-android4):
     //  1) compatibilidade Android < 13 (a v0.26.5 oficial usa URLDecoder/URLEncoder com
     //     Charset — Java 10 — e String.isBlank() — Java 11 —, que causam NoSuchMethodError
     //     em aparelhos antigos);
