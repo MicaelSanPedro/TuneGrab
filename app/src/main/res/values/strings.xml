@@ -282,6 +282,10 @@
          modo de marcar; a lixeira da barra apaga todas de uma vez -->
     <string name="cd_sel_close">Sair da seleção</string>
     <string name="lib_sel_all">Todos</string>
+    <!-- Menu dos três pontinhos do card da Biblioteca (v0.22.13) -->
+    <string name="lib_menu_desc">Mais opções</string>
+    <string name="lib_menu_fav_add">Favoritar</string>
+    <string name="lib_menu_fav_remove">Tirar dos favoritos</string>
     <string name="cd_sel_delete">Apagar as selecionadas</string>
     <plurals name="lib_sel_count">
         <item quantity="one">%1$d selecionada</item>

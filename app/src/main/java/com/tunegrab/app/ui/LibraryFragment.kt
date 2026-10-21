@@ -20,6 +20,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -1318,53 +1319,13 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 b.selBox.isVisible = selectionMode && !pick
                 b.chk.setImageResource(if (isSel) R.drawable.bg_sel_on else R.drawable.bg_sel_off)
                 b.btnPlay.isVisible = !selectionMode && !pick
-                b.btnShare.isVisible = !selectionMode && !pick
-                // v0.22.12: CORAÇÃO na lista — favorita na hora, sem abrir o
-                // player. Nasce sempre que o arquivo tem uri (a identidade do
-                // favorito é a MESMA que o player guarda: o uri do arquivo).
-                val favUri = LibraryFiles.shareableUri(ctx, entry)
-                val canFav = favUri != Uri.EMPTY && !selectionMode && !pick
-                b.btnFav.isVisible = canFav
-                if (canFav) {
-                    val favUrl = favUri.toString()
-                    fun paintFav(saved: Boolean) {
-                        b.btnFav.setImageResource(
-                            if (saved) R.drawable.ic_heart_fill else R.drawable.ic_heart
-                        )
-                        b.btnFav.setColorFilter(
-                            ContextCompat.getColor(
-                                ctx,
-                                if (saved) R.color.primary else R.color.on_surface_variant
-                            )
-                        )
-                    }
-                    paintFav(FavoritesStore.contains(ctx, favUrl))
-                    b.btnFav.setOnClickListener {
-                        val saved = FavoritesStore.contains(ctx, favUrl)
-                        if (saved) {
-                            FavoritesStore.remove(ctx, favUrl)
-                            Toast.makeText(ctx, R.string.fav_removed, Toast.LENGTH_SHORT).show()
-                        } else {
-                            FavoritesStore.add(
-                                ctx,
-                                FavoritesStore.Fav(
-                                    url = favUrl,
-                                    title = entry.name,
-                                    author = null,
-                                    durationSec = 0L,
-                                    isVideo = entry.isVideoKind,
-                                    addedAt = System.currentTimeMillis()
-                                )
-                            )
-                            Toast.makeText(ctx, R.string.fav_added, Toast.LENGTH_SHORT).show()
-                        }
-                        paintFav(!saved)
-                    }
-                }
-                // v0.22.0: MOVER só em faixa do TuneGrab — o app é dono dos
-                // próprios downloads; mídia de outro app não é dele pra mover
-                b.btnMove.isVisible = !selectionMode && !pick && entry.fromTuneGrab
-                b.btnDelete.isVisible = !selectionMode && !pick
+                // v0.22.13: TRÊS PONTINHOS — o card tinha 5 botões espremidos
+                // (favoritar, play, compartilhar, mover, apagar) e a faixa de
+                // 360dp virava poluição; agora é o Play (ação principal, um
+                // toque) + o menu ⋮ com TODO o resto, montado POR FAIXA:
+                // favoritar reflete o estado atual, mover só existe pra faixa
+                // do TuneGrab. (O coração segue vivo no player e na aba.)
+                b.btnMore.isVisible = !selectionMode && !pick
                 b.root.setCardBackgroundColor(
                     ContextCompat.getColor(ctx, if (isSel) R.color.sel_card else R.color.surface)
                 )
@@ -1389,11 +1350,60 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                     true
                 }
                 b.btnPlay.setOnClickListener { onPlay?.invoke(entry) }
-                b.btnShare.setOnClickListener { onShare?.invoke(entry) }
-                b.btnMove.setOnClickListener { onMove?.invoke(entry) }
-                b.btnDelete.setOnClickListener { onDelete?.invoke(entry) }
+                b.btnMore.setOnClickListener { v -> openFileMenu(v, entry) }
             }
         }
+    }
+
+    /** Menu de três pontinhos do card (v0.22.13): substitui a fileira de
+     *  botões por um PopupMenu montado POR FAIXA —
+     *  - Favoritar/Tirar dos favoritos: reflete o estado AGORA do store
+     *    (identidade = shareableUri, A MESMA que o player guarda — o
+     *    coração do player nasce dourado no que foi favoritado aqui);
+     *  - Compartilhar, Mover pra pasta (só faixa DO TuneGrab — o app é
+     *    dono; mídia de outro app não move) e Apagar.
+     *  Os destinos são os callbacks de sempre do adaptador — nenhuma ação
+     *  nova, só um endereço novo pra elas. */
+    private fun openFileMenu(anchor: View, entry: LibraryEntry) {
+        val ctx = anchor.context
+        val popup = PopupMenu(ctx, anchor)
+        val favUri = LibraryFiles.shareableUri(ctx, entry)
+        val favSaved = favUri != Uri.EMPTY && FavoritesStore.contains(ctx, favUri.toString())
+        popup.menu.add(0, MENU_FAV, 0, if (favSaved) R.string.lib_menu_fav_remove else R.string.lib_menu_fav_add)
+        popup.menu.add(0, MENU_SHARE, 1, R.string.cd_share)
+        if (entry.fromTuneGrab) popup.menu.add(0, MENU_MOVE, 2, R.string.cd_move)
+        popup.menu.add(0, MENU_DELETE, 3, R.string.cd_delete)
+        popup.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                MENU_FAV -> {
+                    if (favUri != Uri.EMPTY) {
+                        if (favSaved) {
+                            FavoritesStore.remove(ctx, favUri.toString())
+                            Toast.makeText(ctx, R.string.fav_removed, Toast.LENGTH_SHORT).show()
+                        } else {
+                            FavoritesStore.add(
+                                ctx,
+                                FavoritesStore.Fav(
+                                    url = favUri.toString(),
+                                    title = entry.name,
+                                    author = null,
+                                    durationSec = 0L,
+                                    isVideo = entry.isVideoKind,
+                                    addedAt = System.currentTimeMillis()
+                                )
+                            )
+                            Toast.makeText(ctx, R.string.fav_added, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    true
+                }
+                MENU_SHARE -> { onShare?.invoke(entry); true }
+                MENU_MOVE -> { onMove?.invoke(entry); true }
+                MENU_DELETE -> { onDelete?.invoke(entry); true }
+                else -> false
+            }
+        }
+        popup.show()
     }
 
     companion object {
@@ -1401,5 +1411,11 @@ class LibraryAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private const val TYPE_FILE = 1
         private const val TYPE_FOLDER = 2
         private const val TYPE_NOTE = 3
+
+        // ids das opções do menu ⋮ do card (v0.22.13)
+        private const val MENU_FAV = 1
+        private const val MENU_SHARE = 2
+        private const val MENU_MOVE = 3
+        private const val MENU_DELETE = 4
     }
 }

@@ -42,7 +42,8 @@ real e letra sincronizada), **guarde suas músicas preferidas** nos favoritos e
   sozinha, estilo Spotify/YouTube Music. Mais de 89% de cobertura em testes reais
 - **Player embutido** — ouça com barra de progresso, fila anterior/próxima da
   Biblioteca, **espectro de áudio real** (barrinhas de DJ que dançam com o som, sem
-  permissão nenhuma) e capa do arquivo; assista ao vídeo em tela cheia **sem deformar**
+  permissão nenhuma) e capa do arquivo (a thumbnail entra **inteira**, sem
+  recortar as laterais); assista ao vídeo em tela cheia **sem deformar**
 - **Música em segundo plano** — a música continua tocando com o app fechado ou a tela
   apagada, com **notificação de mídia** (play/pause/fechar) e janelinha de vídeo
   **picture-in-picture** igual YouTube Premium
@@ -57,8 +58,9 @@ real e letra sincronizada), **guarde suas músicas preferidas** nos favoritos e
     Tudo / Músicas / Vídeos
   - **Favoritos** — as músicas que você guardou com o coração (player ou Biblioteca)
   - **Biblioteca** — músicas e vídeos com **pastas de verdade** (criar, renomear,
-    mover estilo gerenciador de arquivos), **busca**, seleção múltipla pra apagar,
-    abrir / compartilhar / apagar. Sobrevive a atualizar e até a reinstalar: as
+    mover estilo gerenciador de arquivos), **busca**, seleção múltipla pra apagar
+    e **menu de três pontinhos** em cada música (Favoritar, Compartilhar, Mover
+    pra pasta, Apagar). Sobrevive a atualizar e até a reinstalar: as
     pastas TuneGrab são reencontradas pelo MediaStore
   - **Config.** — formatos, qualidades, pasta de download, visualizador e mais
 - **Trava de acesso por convite** — o app abre atrás de senha: cada senha nasce de
@@ -286,6 +288,7 @@ clients anônimos com iOS à frente.
 - [x] **GERADOR DE LETRA: linha acende no tempo do som e a tela anda sozinha (LRCLIB, escada de busca com 89% de cobertura real)** (v0.22.7–0.22.8)
 - [x] **PALETA DOURADA: o app sai do violeta e veste ouro (contrastes AA conferidos dígito a dígito)** (v0.22.9)
 - [x] **FAVORITOS: coração no player e na Biblioteca + aba própria na barra de navegação; favorito local toca direto do aparelho** (v0.22.11–0.22.12)
+- [x] **BIBLIOTECA LIMPA: menu de três pontinhos (⋮) no lugar da fileira de botões + thumbnail inteira no player** (v0.22.13)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

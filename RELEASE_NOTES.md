@@ -1,2 +1,2 @@
-O coração ficou bonito e espalhou! O ícone novo é um coração mais gordinho, e agora TODA música tem o botãozinho de coração pra salvar nos Favoritos: no player (funciona até pra arquivo da Biblioteca, que antes não tinha coração nenhum — culpa nossa!) e no card de cada música na Biblioteca. Toque no coração de uma música na Biblioteca e ela já cai na aba Favoritos; toque no favorito e ela toca na hora, direto do aparelho.
+A Biblioteca respirou: em vez daquele tanto de botão em cada música, agora é só o Play e um três pontinhos — toque nele e abrem as opções (Favoritar, Compartilhar, Mover pra pasta, Apagar). E a thumbnail da música no player agora aparece INTEIRA: nada de cortar as laterais da capa!
 

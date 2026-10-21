@@ -76,17 +76,6 @@
                 android:src="@drawable/bg_sel_off" />
         </FrameLayout>
 
-        <!-- v0.22.12: CORAÇÃO — favorita a música direto da lista (o mesmo
-             coração do player). Fora do modo seleção/mover. -->
-        <ImageButton
-            android:id="@+id/btnFav"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/player_fav_desc"
-            android:src="@drawable/ic_heart"
-            app:tint="@color/on_surface_variant" />
-
         <ImageButton
             android:id="@+id/btnPlay"
             android:layout_width="44dp"
@@ -96,33 +85,18 @@
             android:src="@drawable/ic_play"
             app:tint="@color/primary" />
 
+        <!-- v0.22.13: TRÊS PONTINHOS — o card tinha 5 botões (favoritar,
+             play, compartilhar, mover, apagar) e virava poluição; agora
+             só o Play fica de fora (ação principal, um toque) e TODO o
+             resto morre no menu de opções que o bind monta por faixa
+             (favoritar reflete o estado; mover só pra faixa do TuneGrab). -->
         <ImageButton
-            android:id="@+id/btnShare"
+            android:id="@+id/btnMore"
             android:layout_width="44dp"
             android:layout_height="44dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/cd_share"
-            android:src="@drawable/ic_share"
-            app:tint="@color/on_surface_variant" />
-
-        <!-- v0.22.0: mover pra pasta — só aparece em faixa DO TuneGrab
-             (o app é dono; mídia de outro app não move). -->
-        <ImageButton
-            android:id="@+id/btnMove"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/cd_move"
-            android:src="@drawable/ic_folder"
-            app:tint="@color/on_surface_variant" />
-
-        <ImageButton
-            android:id="@+id/btnDelete"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/cd_delete"
-            android:src="@drawable/ic_delete"
+            android:contentDescription="@string/lib_menu_desc"
+            android:src="@drawable/ic_more_vert"
             app:tint="@color/on_surface_variant" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

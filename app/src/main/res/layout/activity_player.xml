@@ -45,19 +45,22 @@
             android:layout_width="220dp"
             android:layout_height="220dp">
 
-            <!-- CAPA da música (v0.19.0; centerCrop v0.19.1): quando o
-                 arquivo tem capa embutida, o bitmap COBRE o cartão inteiro —
-                 centerCrop recorta a capa pra NADA do fundo dourado aparecer
-                 (autor: a capa SUBSTITUI o ícone, não fica em cima dele);
-                 clipToOutline usa o contorno arredondado do bg_album_art.
-                 Sem capa: o gradiente dourado de sempre -->
+            <!-- CAPA da música (v0.19.0; centerCrop v0.19.1; fitCenter
+                 v0.22.13, pedido do autor: "deixa ela aparecer inteira"):
+                 thumbnail 16:9 do YouTube (a que o yt-dlp embute) era
+                 RECORTADA pelo centerCrop no cartão quadrado — as laterais
+                 sumiam. Agora o bitmap entra INTEIRO no cartão (fitCenter),
+                 centrado, com o gradiente dourado aparecendo em cima/embaixo
+                 quando a imagem é mais larga que alta; capa quadrada de álbum
+                 continua cobrindo o cartão inteiro. clipToOutline mantém o
+                 contorno arredondado do bg_album_art. Sem capa: o ícone. -->
             <ImageView
                 android:id="@+id/imgArt"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_album_art"
                 android:contentDescription="@null"
-                android:scaleType="centerCrop" />
+                android:scaleType="fitCenter" />
 
             <ImageView
                 android:id="@+id/imgArtIcon"
