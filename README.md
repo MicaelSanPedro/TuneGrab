@@ -42,8 +42,9 @@ real e letra sincronizada), **guarde suas músicas preferidas** nos favoritos e
   sozinha, estilo Spotify/YouTube Music. Mais de 89% de cobertura em testes reais
 - **Player embutido** — ouça com barra de progresso, fila anterior/próxima da
   Biblioteca, **espectro de áudio real** (barrinhas de DJ que dançam com o som, sem
-  permissão nenhuma) e capa do arquivo (a thumbnail entra **inteira**, sem
-  recortar as laterais); assista ao vídeo em tela cheia **sem deformar**
+  permissão nenhuma) e capa do arquivo (a thumbnail entra **inteira** num
+  retângulo 16:9 de largura cheia, sem barra sobrando); assista ao vídeo em tela
+  cheia **sem deformar**
 - **Música em segundo plano** — a música continua tocando com o app fechado ou a tela
   apagada, com **notificação de mídia** (play/pause/fechar) e janelinha de vídeo
   **picture-in-picture** igual YouTube Premium
@@ -289,6 +290,7 @@ clients anônimos com iOS à frente.
 - [x] **PALETA DOURADA: o app sai do violeta e veste ouro (contrastes AA conferidos dígito a dígito)** (v0.22.9)
 - [x] **FAVORITOS: coração no player e na Biblioteca + aba própria na barra de navegação; favorito local toca direto do aparelho** (v0.22.11–0.22.12)
 - [x] **BIBLIOTECA LIMPA: menu de três pontinhos (⋮) no lugar da fileira de botões + thumbnail inteira no player** (v0.22.13)
+- [x] **MOLDURA PERFEITA: thumbnail em retângulo 16:9 de largura cheia (zero barra sobrando) + coração que segue a fila da Biblioteca** (v0.22.14)
 - [ ] Busca integrada (digitar nome da música)
 - [ ] **Fase 2** — Versão Windows (Tauri + yt-dlp)
 

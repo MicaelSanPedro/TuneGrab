@@ -22,6 +22,7 @@ import android.os.Looper
 import android.util.Log
 import android.util.Rational
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.CompoundButton
 import android.widget.MediaController
 import android.widget.SeekBar
@@ -422,19 +423,25 @@ class PlayerActivity : AppCompatActivity() {
     /** Identidade da faixa pro coração: o link do YouTube quando existe
      *  (guarda autor/duração junto), senão o uri do ARQUIVO LOCAL — todo
      *  caminho que abre o player seta intent.data (Biblioteca, Downloads,
-     *  cartão de mídia), então o coração nasce em TODOS os modos. */
+     *  cartão de mídia), então o coração nasce em TODOS os modos.
+     *  v0.22.14: com fila, a identidade é a faixa que o SERVIÇO está
+     *  tocando AGORA — o uri corrente É o mesmo que o card da Biblioteca
+     *  guarda, então pular de faixa troca a identidade junto (e o serviço
+     *  ainda não bound? cai pro uri do intent, a faixa que abriu). */
     private fun favoriteIdentity(): String? =
-        sourceUrl ?: intent.data?.toString()
+        sourceUrl ?: playback?.currentUri()?.toString() ?: intent.data?.toString()
+
+    /** Faixa cujo estado o coração está mostrando agora — guard do tick:
+     *  o tick roda a cada 500ms, mas só repintamos quando a identidade
+     *  MUDA (sem isso seria reler o store 2× por segundo à toa). */
+    private var renderedFavFor: String? = null
 
     private fun setupFavoriteButton() {
-        val url = favoriteIdentity()
-        if (url == null) {
-            binding.btnFavorite.visibility = View.GONE
-            return
-        }
-        binding.btnFavorite.visibility = View.VISIBLE
-        renderFavoriteState(FavoritesStore.contains(this, url))
+        // v0.22.14: a identidade é resolvida NA HORA do clique — na fila da
+        // Biblioteca ela muda a cada faixa; capturada no setup (como antes),
+        // o toque guardaria/tiraria a faixa ERRADA depois de pular
         binding.btnFavorite.setOnClickListener {
+            val url = favoriteIdentity() ?: return@setOnClickListener
             val saved = FavoritesStore.contains(this, url)
             if (saved) {
                 FavoritesStore.remove(this, url)
@@ -455,8 +462,35 @@ class PlayerActivity : AppCompatActivity() {
                 )
                 Toast.makeText(this, R.string.fav_added, Toast.LENGTH_SHORT).show()
             }
-            renderFavoriteState(!saved)
+            renderedFavFor = null
+            refreshFavoriteButton()
         }
+        refreshFavoriteButton()
+    }
+
+    /** CORAÇÃO QUE SEGUE A FILA (v0.22.14, bug do autor: "quando eu
+     *  favorito uma música pelo player e passo pra próxima música, o
+     *  ícone continua preenchido"): o coração era montado UMA vez no
+     *  onCreate com a identidade da faixa que ABRIU o player — pular pra
+     *  próxima (botão, notificação ou reprodução automática) mantinha o
+     *  desenho da anterior. Agora o tick repinta com o estado REAL da
+     *  faixa tocando. O PiP continua dono da visibilidade (esconde/mostra
+     *  por conta própria no enterPipUi/exitPipUi), então aqui só pintamos
+     *  FORA da janelinha. */
+    private fun refreshFavoriteButton() {
+        val url = favoriteIdentity()
+        if (url == renderedFavFor) return
+        // janelinha: NÃO consome a mudança (o exitPipUi restaura a
+        // visibilidade e o tick seguinte pinta o estado pendente — se
+        // consumíssemos aqui, o desenho da faixa anterior ficaria preso)
+        if (inPip) return
+        renderedFavFor = url
+        if (url == null) {
+            binding.btnFavorite.visibility = View.GONE
+            return
+        }
+        binding.btnFavorite.visibility = View.VISIBLE
+        renderFavoriteState(FavoritesStore.contains(this, url))
     }
 
     /** Coração apagado (branco) = não salvo; coração cheio dourado = salvo. */
@@ -472,13 +506,44 @@ class PlayerActivity : AppCompatActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         // rotação sem recriar (configChanges no manifest): reaplica imersão
-        if (isVideo) applySystemBars()
+        // no vídeo; no áudio a largura da tela mudou → retângulo 16:9 de novo
+        if (isVideo) applySystemBars() else applyArtRatio()
+    }
+
+    /** RETÂNGULO 16:9 DE LARGURA CHEIA (v0.22.14, pedido do autor: "em vez
+     *  de um viewer quadrado, um retângulo com tamanho perfeito pra caber
+     *  só as thumbs do YouTube" — antes sobrava barra dourada em cima/embaixo):
+     *  a altura do cartão de arte É largura × 9/16 — a proporção EXATA da
+     *  thumbnail que o yt-dlp embute — então a imagem encaixa sem sobrar
+     *  NADA. O listener de layout é one-shot: dispara DEPOIS do primeiro
+     *  layout (a largura real só existe lá — um post() do onCreate corria
+     *  antes da medida e via width 0), aplica e sai; na rotação o
+     *  onConfigurationChanged chama de novo com a largura nova. Altura já
+     *  certa? Não mexe em nada (sem loop de relayout). */
+    private fun applyArtRatio() {
+        val card = binding.artCard
+        card.viewTreeObserver.addOnGlobalLayoutListener(
+            object : ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    card.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    val w = card.width
+                    if (w <= 0) return
+                    val h = w * 9 / 16
+                    if (card.layoutParams.height != h) {
+                        card.layoutParams.height = h
+                        card.requestLayout()
+                    }
+                }
+            }
+        )
     }
 
     // ---------- áudio (via PlaybackService — segundo plano) ----------
 
     private fun setupAudio(uri: Uri, title: String) {
         binding.audioControls.visibility = View.VISIBLE
+        // RETÂNGULO 16:9 (v0.22.14): altura do cartão de arte = largura × 9/16
+        applyArtRatio()
         initialUri = uri
         initialTitle = title
 
@@ -713,6 +778,10 @@ class PlayerActivity : AppCompatActivity() {
         }
         val trackUri = svc.currentUri()
         if (trackUri != null) loadCover(trackUri)
+        // CORAÇÃO QUE SEGUE A FILA (v0.22.14): mesma ideia do título/capa —
+        // a faixa mudou, o estado do coração muda junto (o preenchido da
+        // anterior não pode vazar pra faixa seguinte)
+        refreshFavoriteButton()
     }
 
     private fun formatMs(ms: Int): String {

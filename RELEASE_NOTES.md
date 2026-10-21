@@ -1,2 +1,1 @@
-A Biblioteca respirou: em vez daquele tanto de botão em cada música, agora é só o Play e um três pontinhos — toque nele e abrem as opções (Favoritar, Compartilhar, Mover pra pasta, Apagar). E a thumbnail da música no player agora aparece INTEIRA: nada de cortar as laterais da capa!
-
+A moldura do player agora tem o tamanho EXATO da thumbnail: um retângulo 16:9 que estica de ponta a ponta da tela — acabou a barra laranja sobrando em cima e embaixo! E o coração não vaza mais: favoritou uma música e pulou pra próxima? O coração dela nasce apagado, do jeito certo.

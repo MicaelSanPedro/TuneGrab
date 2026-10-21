@@ -41,26 +41,29 @@
         android:padding="24dp"
         android:visibility="gone">
 
+        <!-- RETÂNGULO 16:9 DE LARGURA CHEIA (v0.22.14, pedido do autor:
+             "em vez de um viewer quadrado, um retângulo com tamanho perfeito
+             pra caber só as thumbs do YouTube"): a ALTURA do cartão é
+             calculada em código (applyArtRatio) = largura × 9/16 — a
+             proporção EXATA da thumbnail que o yt-dlp embute — então a
+             imagem encaixa SEM SOBRA nenhuma: nada de barra dourada em
+             cima/embaixo (o que sobrava do quadrado 220dp com fitCenter).
+             centerCrop: no retângulo 16:9 a thumb 16:9 não é recortada EM
+             NADA, e capa quadrada de álbum cobre o retângulo inteiro, no
+             espírito do modelo antigo. clipToOutline mantém o contorno
+             arredondado do bg_album_art. Sem capa: o ícone. -->
         <FrameLayout
-            android:layout_width="220dp"
-            android:layout_height="220dp">
+            android:id="@+id/artCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
-            <!-- CAPA da música (v0.19.0; centerCrop v0.19.1; fitCenter
-                 v0.22.13, pedido do autor: "deixa ela aparecer inteira"):
-                 thumbnail 16:9 do YouTube (a que o yt-dlp embute) era
-                 RECORTADA pelo centerCrop no cartão quadrado — as laterais
-                 sumiam. Agora o bitmap entra INTEIRO no cartão (fitCenter),
-                 centrado, com o gradiente dourado aparecendo em cima/embaixo
-                 quando a imagem é mais larga que alta; capa quadrada de álbum
-                 continua cobrindo o cartão inteiro. clipToOutline mantém o
-                 contorno arredondado do bg_album_art. Sem capa: o ícone. -->
             <ImageView
                 android:id="@+id/imgArt"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@drawable/bg_album_art"
                 android:contentDescription="@null"
-                android:scaleType="fitCenter" />
+                android:scaleType="centerCrop" />
 
             <ImageView
                 android:id="@+id/imgArtIcon"
