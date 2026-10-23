@@ -16,6 +16,7 @@ próprio aparelho, sem servidor e sem anúncios.**
 
 [**Baixar a última versão (APK)**](https://github.com/micsxnn/TuneGrab/releases/latest) ·
 [**Instalação**](#instalação) ·
+[**Telas do app**](#telas-do-app) ·
 [**Como funciona**](#como-funciona) ·
 [**Roadmap**](#roadmap)
 
@@ -35,6 +36,21 @@ servidor ou de qualquer ferramenta instalada além do app.
 Dá para ouvir sem sair do TuneGrab: o player tem espectro de áudio real, letra
 sincronizada e fila da Biblioteca. As músicas preferidas ficam nos favoritos,
 e o resto se organiza em pastas.
+
+## Telas do app
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/inicio.png" width="180" alt="Tela Início do TuneGrab"/><br><sub><b>Início</b> · cole o link e baixe</sub></td>
+    <td align="center"><img src="docs/screenshots/youtube.png" width="180" alt="Tela YouTube do TuneGrab, navegador embutido"/><br><sub><b>YouTube</b> · navegador embutido</sub></td>
+    <td align="center"><img src="docs/screenshots/downloads.png" width="180" alt="Tela Downloads do TuneGrab, central em tempo real"/><br><sub><b>Downloads</b> · central em tempo real</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/player.png" width="180" alt="Player do TuneGrab com espectro de áudio e letra sincronizada"/><br><sub><b>Player</b> · espectro e letra sincronizada</sub></td>
+    <td align="center"><img src="docs/screenshots/biblioteca.png" width="180" alt="Biblioteca do TuneGrab com pastas e busca"/><br><sub><b>Biblioteca</b> · pastas e favoritos</sub></td>
+    <td align="center"><img src="docs/screenshots/favoritos.png" width="180" alt="Aba Favoritos do TuneGrab"/><br><sub><b>Favoritos</b> · sua seleção</sub></td>
+  </tr>
+</table>
 
 ## Funcionalidades
 
